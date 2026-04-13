@@ -13,7 +13,6 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from app.core import localization
-from app.middleware.llm_resilience import llm_retry
 from app.models.db import ChatMessage, Screening
 from app.services.llm import LLMService
 from app.services.rag import RAGService
@@ -142,39 +141,37 @@ class ChatService:
 
             # Use personalized RAG (patient history + clinical knowledge)
             patient_id = screening.patient_id or ""
-            rag_context = self.rag.get_personalized_chat_context(
-                patient_id=patient_id,
-                user_message=message,
-                detected_symptoms=detected_symptoms,
-            )
+            try:
+                rag_context = self.rag.get_personalized_chat_context(
+                    patient_id=patient_id,
+                    user_message=message,
+                    detected_symptoms=detected_symptoms,
+                )
+            except Exception as e:
+                logger.warning(f"RAG context retrieval failed: {e}")
+                rag_context = ""
 
             # 3. Build prompt
             prompt = self._build_prompt(screening, message, history, rag_context)
 
             # 4. Call LLM
             try:
-
-                @llm_retry
-                async def _chat_call():
-                    return await self.llm.client.chat.completions.create(
-                        model=self.llm.model,
-                        messages=[
-                            {"role": "system", "content": CHAT_SYSTEM_PROMPT},
-                            {"role": "user", "content": prompt},
-                        ],
-                        temperature=0.4,
-                        max_tokens=600,
-                        timeout=60,
-                    )
-
-                response = await _chat_call()
+                response = await self.llm.client.chat.completions.create(
+                    model=self.llm.model,
+                    messages=[
+                        {"role": "system", "content": CHAT_SYSTEM_PROMPT},
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.4,
+                    max_tokens=600,
+                )
                 response_text = response.choices[0].message.content
 
                 # Strip any <think> tags from reasoning models (e.g. DeepSeek R1)
                 response_text = re.sub(r"<think>.*?</think>", "", response_text, flags=re.DOTALL).strip()
 
             except Exception as e:
-                logger.error(f"Chat LLM call failed: {e}")
+                logger.error(f"Chat LLM call failed: {type(e).__name__}: {e}", exc_info=True)
                 response_text = (
                     "I'm sorry, I'm having trouble responding right now. "
                     "If you need immediate support, please call 999 for "
