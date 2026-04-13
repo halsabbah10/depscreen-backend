@@ -145,7 +145,7 @@ class ChatService:
                 response = await _chat_call()
                 response_text = response.choices[0].message.content
 
-                # Strip any <think> tags from DeepSeek R1
+                # Strip any <think> tags from reasoning models (e.g. DeepSeek R1)
                 response_text = re.sub(
                     r"<think>.*?</think>", "", response_text, flags=re.DOTALL
                 ).strip()

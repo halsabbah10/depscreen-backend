@@ -61,14 +61,14 @@ class VerificationService:
     def __init__(self, settings: Settings):
         self.settings = settings
         self.client = AsyncOpenAI(
-            api_key=settings.deepseek_api_key,
-            base_url=settings.deepseek_base_url,
+            api_key=settings.llm_api_key,
+            base_url=settings.llm_base_url,
             default_headers={
                 "HTTP-Referer": "http://localhost:3000",
                 "X-Title": "DepScreen Verification",
             },
         )
-        self.model = settings.deepseek_model
+        self.model = settings.llm_model
 
     async def verify_prediction(
         self,

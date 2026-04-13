@@ -57,7 +57,7 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("Symptom classifier not loaded — running in demo mode")
 
-    logger.info(f"LLM model: {settings.deepseek_model}")
+    logger.info(f"LLM model: {settings.llm_model}")
     logger.info(f"Rate limits: auth={settings.rate_limit_auth}, screening={settings.rate_limit_screening}")
 
     yield
@@ -168,7 +168,7 @@ def create_app() -> FastAPI:
         checks["rag_knowledge_base"] = _rag_service is not None and _rag_service.is_initialized
 
         # LLM (check API key is set — don't make a test call)
-        checks["llm_configured"] = bool(settings.deepseek_api_key)
+        checks["llm_configured"] = bool(settings.llm_api_key)
 
         all_ready = all(checks.values())
 

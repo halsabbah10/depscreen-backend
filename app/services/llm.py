@@ -1,5 +1,5 @@
 """
-LLM service for generating screening explanations using DeepSeek API.
+LLM service for generating screening explanations using OpenAI-compatible API.
 
 Generates per-symptom clinical explanations enriched with RAG context.
 Uses OpenAI-compatible API format.
@@ -64,14 +64,14 @@ class LLMService:
     def __init__(self, settings: Settings):
         self.settings = settings
         self.client = AsyncOpenAI(
-            api_key=settings.deepseek_api_key,
-            base_url=settings.deepseek_base_url,
+            api_key=settings.llm_api_key,
+            base_url=settings.llm_base_url,
             default_headers={
                 "HTTP-Referer": "http://localhost:3000",
                 "X-Title": "DepScreen Explanation",
             },
         )
-        self.model = settings.deepseek_model
+        self.model = settings.llm_model
 
     async def generate_explanation(
         self,

@@ -31,9 +31,9 @@ class Settings(BaseSettings):
     port: int = 8000
 
     # ── LLM ────────────────────────────────────────────────────────────────
-    deepseek_api_key: str = ""
-    deepseek_base_url: str = "https://api.deepseek.com"
-    deepseek_model: str = "deepseek-chat"
+    llm_api_key: str = ""
+    llm_base_url: str = "https://api.deepseek.com"
+    llm_model: str = "deepseek-chat"
     llm_timeout_seconds: int = 60
     llm_max_retries: int = 3
 
