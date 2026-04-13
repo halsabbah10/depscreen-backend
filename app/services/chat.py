@@ -191,6 +191,104 @@ class ChatService:
 
         return assistant_msg
 
+    async def respond_stream(
+        self,
+        screening: Screening,
+        message: str,
+        history: list[ChatMessage],
+        db: Session,
+    ):
+        """Streaming version of respond() — yields text chunks as they arrive from the LLM.
+
+        Saves the user message first, then yields SSE-style chunks as the LLM
+        streams its response. Saves the final assistant message to DB when done.
+        """
+        # Save user message
+        user_msg = ChatMessage(
+            id=str(uuid4()),
+            screening_id=screening.id,
+            role="user",
+            content=message,
+        )
+        db.add(user_msg)
+        db.commit()
+
+        # Crisis check — don't stream, send the full crisis response
+        message_lower = message.lower()
+        if any(kw in message_lower for kw in CRISIS_KEYWORDS):
+            logger.warning(f"Crisis keywords detected in chat for screening {screening.id}")
+            yield CRISIS_RESPONSE
+            assistant_msg = ChatMessage(
+                id=str(uuid4()),
+                screening_id=screening.id,
+                role="assistant",
+                content=CRISIS_RESPONSE,
+            )
+            db.add(assistant_msg)
+            db.commit()
+            return
+
+        # Retrieve RAG context
+        detected_symptoms = []
+        if screening.symptom_data:
+            detected_symptoms = [d.get("symptom", "") for d in screening.symptom_data.get("symptoms_detected", [])]
+
+        patient_id = screening.patient_id or ""
+        try:
+            rag_context = self.rag.get_personalized_chat_context(
+                patient_id=patient_id,
+                user_message=message,
+                detected_symptoms=detected_symptoms,
+            )
+        except Exception as e:
+            logger.warning(f"RAG context retrieval failed: {e}")
+            rag_context = ""
+
+        prompt = self._build_prompt(screening, message, history, rag_context)
+
+        # Stream from LLM
+        full_response = ""
+        try:
+            stream = await self.llm.client.chat.completions.create(
+                model=self.llm.model,
+                messages=[
+                    {"role": "system", "content": CHAT_SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.4,
+                max_tokens=600,
+                stream=True,
+            )
+            async for chunk in stream:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    delta = chunk.choices[0].delta.content
+                    full_response += delta
+                    yield delta
+
+            # Clean up <think> tags for reasoning models
+            full_response = re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
+
+        except Exception as e:
+            logger.error(f"Chat streaming failed: {type(e).__name__}: {e}", exc_info=True)
+            fallback = (
+                "I'm sorry, I'm having trouble responding right now. "
+                "If you need immediate support, please call 999 for "
+                "emergency services in Bahrain, or contact the "
+                "Psychiatric Hospital at Salmaniya (+973 1728 8888)."
+            )
+            yield fallback
+            full_response = fallback
+
+        # Save the complete assistant message
+        assistant_msg = ChatMessage(
+            id=str(uuid4()),
+            screening_id=screening.id,
+            role="assistant",
+            content=full_response,
+        )
+        db.add(assistant_msg)
+        db.commit()
+
     def _build_prompt(
         self,
         screening: Screening,

@@ -13,6 +13,7 @@ import logging
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
@@ -309,6 +310,199 @@ async def send_conversation_message(
     )
 
 
+@router.post("/conversations/{conversation_id}/message/stream")
+@limiter.limit("30/minute")
+async def send_conversation_message_stream(
+    request: Request,
+    conversation_id: str,
+    body: ChatMessageRequest,
+    current_user: User = Depends(get_current_user),
+    chat_service: ChatService = Depends(get_chat_service),
+    db: Session = Depends(get_db),
+):
+    """Streaming version of standalone conversation message — returns SSE."""
+    if current_user.role != "patient":
+        raise HTTPException(status_code=403, detail="Only patients can send messages")
+
+    conv = (
+        db.query(Conversation)
+        .filter(
+            Conversation.id == conversation_id,
+            Conversation.user_id == current_user.id,
+        )
+        .first()
+    )
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # If linked to a screening, use the existing streaming respond method
+    if conv.linked_screening_id:
+        screening = db.query(Screening).filter(Screening.id == conv.linked_screening_id).first()
+        if screening:
+            history = (
+                db.query(ChatMessage)
+                .filter(ChatMessage.conversation_id == conversation_id)
+                .order_by(ChatMessage.created_at)
+                .all()
+            )
+
+            async def event_generator_linked():
+                async for chunk in chat_service.respond_stream(
+                    screening=screening,
+                    message=body.message,
+                    history=history,
+                    db=db,
+                ):
+                    # Fix the conversation_id for saved messages
+                    escaped = chunk.replace("\n", "\\n")
+                    yield f"data: {escaped}\n\n"
+                # After streaming, fix conversation_id links on saved messages
+                recent_msgs = (
+                    db.query(ChatMessage)
+                    .filter(
+                        ChatMessage.screening_id == screening.id,
+                        ChatMessage.conversation_id == None,
+                    )
+                    .order_by(desc(ChatMessage.created_at))
+                    .limit(2)
+                    .all()
+                )
+                for m in recent_msgs:
+                    m.conversation_id = conversation_id
+                db.commit()
+                yield "data: [DONE]\n\n"
+
+            return StreamingResponse(
+                event_generator_linked(),
+                media_type="text/event-stream",
+                headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+            )
+
+    # Standalone conversation (no screening linked)
+    import re as re_module
+
+    from app.services.chat import CHAT_SYSTEM_PROMPT, CRISIS_KEYWORDS, CRISIS_RESPONSE
+
+    # Save user message
+    user_msg = ChatMessage(
+        id=str(uuid4()),
+        conversation_id=conversation_id,
+        role="user",
+        content=body.message,
+    )
+    db.add(user_msg)
+    db.commit()
+
+    # Build history
+    history = (
+        db.query(ChatMessage)
+        .filter(ChatMessage.conversation_id == conversation_id)
+        .order_by(ChatMessage.created_at)
+        .all()
+    )
+
+    # Crisis check
+    message_lower = body.message.lower()
+    is_crisis = any(kw in message_lower for kw in CRISIS_KEYWORDS)
+
+    # Build prompt
+    detected_symptoms = []
+    recent_screening = (
+        db.query(Screening).filter(Screening.patient_id == current_user.id).order_by(desc(Screening.created_at)).first()
+    )
+    if recent_screening and recent_screening.symptom_data:
+        detected_symptoms = [d.get("symptom", "") for d in recent_screening.symptom_data.get("symptoms_detected", [])]
+
+    rag_context = ""
+    try:
+        if _rag_service and _rag_service.is_initialized:
+            rag_context = _rag_service.get_personalized_chat_context(
+                patient_id=current_user.id,
+                user_message=body.message,
+                detected_symptoms=detected_symptoms,
+            )
+    except Exception as e:
+        logger.warning(f"RAG retrieval failed in stream: {e}")
+
+    prompt_parts = [f"## Patient's Message\n{body.message}"]
+    if rag_context:
+        prompt_parts.insert(0, f"## Clinical Context\n{rag_context}")
+    if recent_screening:
+        severity = recent_screening.severity_level or "unknown"
+        prompt_parts.insert(
+            0, f"## Recent Screening\nSeverity: {severity}, Symptoms: {recent_screening.symptom_count or 0}"
+        )
+    if history:
+        hist_text = "\n".join(
+            f"{'Patient' if m.role == 'user' else 'Assistant'}: {m.content[:200]}" for m in history[-8:]
+        )
+        prompt_parts.insert(0, f"## Recent Conversation\n{hist_text}")
+
+    prompt = "\n\n".join(prompt_parts)
+    prompt += "\n\nRespond helpfully, empathetically, and concisely. Do not diagnose."
+
+    async def event_generator_standalone():
+        full_response = ""
+
+        if is_crisis:
+            logger.warning(f"Crisis keywords in standalone stream for user {current_user.id[:8]}")
+            yield f"data: {CRISIS_RESPONSE}\n\n".replace("\n\n", "\\n\\n", 1).replace("\\n\\n", "\n\n", 1)
+            # Send it word by word for visual streaming effect on crisis too
+            for word in CRISIS_RESPONSE.split(" "):
+                escaped = word.replace("\n", "\\n")
+                yield f"data: {escaped} \n\n"
+            full_response = CRISIS_RESPONSE
+        else:
+            try:
+                stream = await chat_service.llm.client.chat.completions.create(
+                    model=chat_service.llm.model,
+                    messages=[
+                        {"role": "system", "content": CHAT_SYSTEM_PROMPT},
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.4,
+                    max_tokens=600,
+                    stream=True,
+                )
+                async for chunk in stream:
+                    if chunk.choices and chunk.choices[0].delta.content:
+                        delta = chunk.choices[0].delta.content
+                        full_response += delta
+                        escaped = delta.replace("\n", "\\n")
+                        yield f"data: {escaped}\n\n"
+
+                full_response = re_module.sub(r"<think>.*?</think>", "", full_response, flags=re_module.DOTALL).strip()
+            except Exception as e:
+                logger.error(f"Standalone chat streaming failed: {type(e).__name__}: {e}", exc_info=True)
+                fallback = (
+                    "I'm sorry, I'm having trouble responding right now. "
+                    "If you need immediate support, please call 999 for "
+                    "emergency services in Bahrain, or contact the "
+                    "Psychiatric Hospital at Salmaniya (+973 1728 8888)."
+                )
+                yield f"data: {fallback}\n\n"
+                full_response = fallback
+
+        # Save assistant message
+        assistant_msg = ChatMessage(
+            id=str(uuid4()),
+            conversation_id=conversation_id,
+            role="assistant",
+            content=full_response,
+        )
+        db.add(assistant_msg)
+        conv.updated_at = assistant_msg.created_at
+        db.commit()
+
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        event_generator_standalone(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 @router.get("/conversations/{conversation_id}/messages", response_model=ChatHistoryResponse)
 async def get_conversation_messages(
     conversation_id: str,
@@ -412,6 +606,52 @@ async def send_screening_message(
         role=assistant_msg.role,
         content=assistant_msg.content,
         created_at=assistant_msg.created_at,
+    )
+
+
+@router.post("/screening/{screening_id}/stream")
+@limiter.limit("30/minute")
+async def send_screening_message_stream(
+    request: Request,
+    screening_id: str,
+    body: ChatMessageRequest,
+    current_user: User = Depends(get_current_user),
+    chat_service: ChatService = Depends(get_chat_service),
+    db: Session = Depends(get_db),
+):
+    """Streaming version — returns SSE stream of response chunks."""
+    screening = db.query(Screening).filter(Screening.id == screening_id).first()
+    if not screening:
+        raise HTTPException(status_code=404, detail="Screening not found")
+
+    _verify_screening_access(screening, current_user)
+
+    if current_user.role != "patient":
+        raise HTTPException(status_code=403, detail="Only patients can send chat messages")
+
+    history = (
+        db.query(ChatMessage).filter(ChatMessage.screening_id == screening_id).order_by(ChatMessage.created_at).all()
+    )
+
+    async def event_generator():
+        async for chunk in chat_service.respond_stream(
+            screening=screening,
+            message=body.message,
+            history=history,
+            db=db,
+        ):
+            # SSE format: "data: <text>\n\n" — escape newlines in the chunk
+            escaped = chunk.replace("\n", "\\n")
+            yield f"data: {escaped}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
     )
 
 
