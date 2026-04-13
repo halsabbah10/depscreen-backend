@@ -1,0 +1,158 @@
+"""
+Authentication API routes.
+
+Registration, login, token refresh, and profile management.
+"""
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from app.middleware.rate_limiter import limiter
+from sqlalchemy.orm import Session
+import logging
+
+from app.core.config import get_settings, Settings
+from app.models.db import User, get_db
+from app.schemas.analysis import (
+    RegisterRequest,
+    LoginRequest,
+    TokenResponse,
+    UserProfile,
+    RefreshRequest,
+)
+from app.services.auth import (
+    register_user,
+    authenticate_user,
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+    get_current_user,
+    log_audit,
+)
+
+router = APIRouter()
+logger = logging.getLogger(__name__)
+
+
+def _user_to_profile(user: User) -> UserProfile:
+    """Convert a User DB model to a public UserProfile schema."""
+    return UserProfile(
+        id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+        role=user.role,
+        clinician_code=user.clinician_code,
+        created_at=user.created_at,
+    )
+
+
+@router.post("/register", response_model=TokenResponse)
+@limiter.limit("5/minute")
+async def register(
+    body: RegisterRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+):
+    """Register a new patient or clinician account."""
+    user = register_user(
+        email=body.email,
+        password=body.password,
+        full_name=body.full_name,
+        role=body.role,
+        db=db,
+        clinician_code=body.clinician_code,
+    )
+
+    access_token = create_access_token(user.id, user.role, settings)
+    refresh_token = create_refresh_token(user.id, settings)
+
+    log_audit(db, user.id, "register", resource_type="user")
+
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        user=_user_to_profile(user),
+    )
+
+
+@router.post("/login", response_model=TokenResponse)
+@limiter.limit("10/minute")
+async def login(
+    body: LoginRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+):
+    """Authenticate and receive JWT tokens."""
+    user = authenticate_user(body.email, body.password, db)
+
+    access_token = create_access_token(user.id, user.role, settings)
+    refresh_token = create_refresh_token(user.id, settings)
+
+    log_audit(db, user.id, "login", resource_type="user")
+
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        user=_user_to_profile(user),
+    )
+
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh_token(
+    body: RefreshRequest,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+):
+    """Refresh an access token using a valid refresh token."""
+    payload = decode_token(body.refresh_token, settings)
+
+    if payload.get("type") != "refresh":
+        raise HTTPException(status_code=401, detail="Invalid token type — expected refresh token")
+
+    user_id = payload.get("sub")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="User not found or deactivated")
+
+    new_access = create_access_token(user.id, user.role, settings)
+    new_refresh = create_refresh_token(user.id, settings)
+
+    return TokenResponse(
+        access_token=new_access,
+        refresh_token=new_refresh,
+        user=_user_to_profile(user),
+    )
+
+
+@router.get("/me", response_model=UserProfile)
+async def get_profile(current_user: User = Depends(get_current_user)):
+    """Get the currently authenticated user's profile."""
+    return _user_to_profile(current_user)
+
+
+@router.post("/link")
+async def link_to_clinician(
+    clinician_code: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Link a patient to a clinician using their invite code."""
+    if current_user.role != "patient":
+        raise HTTPException(status_code=403, detail="Only patients can link to a clinician")
+
+    clinician = db.query(User).filter(
+        User.clinician_code == clinician_code,
+        User.role == "clinician",
+    ).first()
+    if not clinician:
+        raise HTTPException(status_code=404, detail="Invalid clinician code")
+
+    current_user.clinician_id = clinician.id
+    db.commit()
+
+    log_audit(db, current_user.id, "linked_to_clinician", resource_type="user", resource_id=clinician.id)
+
+    return {
+        "status": "linked",
+        "clinician_name": clinician.full_name,
+    }

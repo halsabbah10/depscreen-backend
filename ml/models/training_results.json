@@ -1,0 +1,45 @@
+{
+  "model_name": "distilbert-base-uncased",
+  "epochs": 3,
+  "batch_size": 32,
+  "learning_rate": 2e-05,
+  "best_val_f1": 0.9600632661130882,
+  "test_metrics": {
+    "loss": 0.1401667609991755,
+    "accuracy": 0.9642,
+    "precision": 0.955276579050608,
+    "recall": 0.974,
+    "f1": 0.9645474351356704,
+    "roc_auc": 0.9927532
+  },
+  "training_history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.22466406964212657,
+      "train_acc": 0.9013,
+      "val_loss": 0.12312052376675094,
+      "val_f1": 0.9564525750646252,
+      "val_roc_auc": 0.99168528
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.08707940664328635,
+      "train_acc": 0.9703,
+      "val_loss": 0.12596083060870908,
+      "val_f1": 0.9595443833464258,
+      "val_roc_auc": 0.99304112
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.04701154813794419,
+      "train_acc": 0.9857,
+      "val_loss": 0.14121469415080656,
+      "val_f1": 0.9600632661130882,
+      "val_roc_auc": 0.9931956799999999
+    }
+  ],
+  "label_map": {
+    "low_risk": 0,
+    "high_risk": 1
+  }
+}

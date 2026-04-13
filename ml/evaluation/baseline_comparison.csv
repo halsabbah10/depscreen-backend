@@ -1,0 +1,6 @@
+Model,Micro-F1,Delta vs Ours
+SVM (TF-IDF),0.39,+0.3001
+CNN (10 epochs),0.25,+0.4401
+BERT (fine-tuned),0.51,+0.1801
+LLaMA 3.2-1B (fine-tuned),0.54,+0.1501
+DepScreen DistilBERT (ours),0.6901,—

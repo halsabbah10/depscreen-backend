@@ -1,0 +1,8 @@
+{
+  "num_posts": 143,
+  "severity_accuracy": 0.7762,
+  "symptom_count_mae": 0.2657,
+  "avg_true_symptoms": 0.89,
+  "avg_pred_symptoms": 1.06,
+  "avg_symptom_overlap": 0.76
+}

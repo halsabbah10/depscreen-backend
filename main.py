@@ -1,0 +1,192 @@
+"""
+DepScreen API — Main Application Entry Point
+
+AI-powered depression screening platform with sentence-level DSM-5
+symptom detection, LLM verification, and clinical explanations.
+
+Hardened with: rate limiting, error handling, request logging,
+structured logging, LLM retry logic, deep health checks.
+"""
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
+from contextlib import asynccontextmanager
+import logging
+import os
+
+# Silence tokenizer parallelism warnings from HuggingFace
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+from app.core.config import get_settings
+from app.api.routes import (
+    analyze_router, history_router, auth_router,
+    chat_router, dashboard_router, ingest_router, patient_router,
+)
+from app.api.routes.analyze import get_services
+from app.models.db import init_db
+from app.middleware.error_handler import ErrorHandlerMiddleware
+from app.middleware.request_logging import RequestLoggingMiddleware
+from app.middleware.rate_limiter import limiter
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan handler for startup/shutdown."""
+    settings = get_settings()
+    logger.info(f"Starting {settings.app_name} v{settings.app_version}...")
+    logger.info(f"Environment: {settings.environment}")
+
+    # Initialize database tables
+    init_db()
+    logger.info("Database initialized")
+
+    # Pre-initialize ML services
+    services = await get_services(settings)
+    model_svc = services["model"]
+
+    if model_svc.is_loaded:
+        logger.info("Symptom classifier loaded successfully")
+    else:
+        logger.warning("Symptom classifier not loaded — running in demo mode")
+
+    logger.info(f"LLM model: {settings.deepseek_model}")
+    logger.info(f"Rate limits: auth={settings.rate_limit_auth}, screening={settings.rate_limit_screening}")
+
+    yield
+
+    logger.info("Shutting down...")
+    await model_svc.unload_models()
+
+
+def create_app() -> FastAPI:
+    """Create and configure the FastAPI application."""
+    settings = get_settings()
+
+    app = FastAPI(
+        title=settings.app_name,
+        description="""
+        ## DepScreen — AI-Powered Depression Screening API
+
+        Screens free-text input for DSM-5 major depressive episode symptoms
+        using a sentence-level transformer classifier, verified by an LLM
+        layer for accuracy and safety.
+
+        ### Disclaimer
+        This is a screening aid, NOT a diagnostic tool.
+        """,
+        version=settings.app_version,
+        lifespan=lifespan,
+    )
+
+    # ── Middleware (order matters — outermost first) ──
+
+    # 1. Error handler (outermost — catches everything)
+    app.add_middleware(ErrorHandlerMiddleware)
+
+    # 2. Request logging
+    app.add_middleware(RequestLoggingMiddleware)
+
+    # 3. CORS
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.get_cors_origins(),
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+    )
+
+    # 4. Rate limiting
+    app.state.limiter = limiter
+
+    @app.exception_handler(RateLimitExceeded)
+    async def rate_limit_handler(request, exc):
+        return JSONResponse(
+            status_code=429,
+            content={
+                "error": {
+                    "message": "You're making requests too quickly. Please wait a moment and try again.",
+                    "retry_after": str(exc.detail),
+                }
+            },
+        )
+
+    # ── Routes ──
+
+    app.include_router(auth_router, prefix=f"{settings.api_v1_prefix}/auth", tags=["Authentication"])
+    app.include_router(analyze_router, prefix=f"{settings.api_v1_prefix}/analyze", tags=["Screening"])
+    app.include_router(history_router, prefix=f"{settings.api_v1_prefix}/history", tags=["History"])
+    app.include_router(chat_router, prefix=f"{settings.api_v1_prefix}/chat", tags=["Chat"])
+    app.include_router(dashboard_router, prefix=f"{settings.api_v1_prefix}/dashboard", tags=["Dashboard"])
+    app.include_router(ingest_router, prefix=f"{settings.api_v1_prefix}/ingest", tags=["Data Ingestion"])
+    app.include_router(patient_router, prefix=f"{settings.api_v1_prefix}/patient", tags=["Patient Self-Service"])
+
+    # ── Health Checks ──
+
+    @app.get("/", tags=["Health"])
+    async def root():
+        return {
+            "status": "healthy",
+            "app": settings.app_name,
+            "version": settings.app_version,
+        }
+
+    @app.get("/health/live", tags=["Health"])
+    async def liveness():
+        """Liveness probe — is the process alive?"""
+        return {"status": "alive"}
+
+    @app.get("/health/ready", tags=["Health"])
+    async def readiness():
+        """Readiness probe — are all dependencies operational?"""
+        from app.api.routes.analyze import _model_service, _rag_service
+
+        checks = {}
+
+        # ML model
+        checks["symptom_model"] = _model_service is not None and _model_service.is_loaded
+
+        # Database
+        try:
+            from app.models.db import SessionLocal
+            from sqlalchemy import text
+            db = SessionLocal()
+            db.execute(text("SELECT 1"))
+            db.close()
+            checks["database"] = True
+        except Exception:
+            checks["database"] = False
+
+        # RAG
+        checks["rag_knowledge_base"] = _rag_service is not None and _rag_service.is_initialized
+
+        # LLM (check API key is set — don't make a test call)
+        checks["llm_configured"] = bool(settings.deepseek_api_key)
+
+        all_ready = all(checks.values())
+
+        return {
+            "status": "ready" if all_ready else "degraded",
+            "checks": checks,
+        }
+
+    # Keep backward-compatible /health endpoint
+    @app.get("/health", tags=["Health"])
+    async def health_check():
+        from app.api.routes.analyze import _model_service
+        return {
+            "status": "healthy",
+            "symptom_model_loaded": _model_service is not None and _model_service.is_loaded,
+        }
+
+    return app
+
+
+app = create_app()

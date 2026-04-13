@@ -1,0 +1,31 @@
+{
+  "model_name": "distilbert-base-uncased",
+  "num_classes": 11,
+  "label_map": {
+    "DEPRESSED_MOOD": 0,
+    "ANHEDONIA": 1,
+    "APPETITE_CHANGE": 2,
+    "SLEEP_ISSUES": 3,
+    "PSYCHOMOTOR": 4,
+    "FATIGUE": 5,
+    "WORTHLESSNESS": 6,
+    "COGNITIVE_ISSUES": 7,
+    "SUICIDAL_THOUGHTS": 8,
+    "SPECIAL_CASE": 9,
+    "NO_SYMPTOM": 10
+  },
+  "label_readable": {
+    "DEPRESSED_MOOD": "Depressed Mood",
+    "ANHEDONIA": "Loss of Interest / Pleasure",
+    "APPETITE_CHANGE": "Appetite / Weight Change",
+    "SLEEP_ISSUES": "Sleep Disturbance",
+    "PSYCHOMOTOR": "Psychomotor Changes",
+    "FATIGUE": "Fatigue / Loss of Energy",
+    "WORTHLESSNESS": "Worthlessness / Guilt",
+    "COGNITIVE_ISSUES": "Difficulty Concentrating",
+    "SUICIDAL_THOUGHTS": "Suicidal Ideation",
+    "SPECIAL_CASE": "Other Clinical Indicator",
+    "NO_SYMPTOM": "No Symptom Detected"
+  },
+  "max_length": 128
+}

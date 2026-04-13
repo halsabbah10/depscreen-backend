@@ -1,0 +1,54 @@
+sentence_text,true_label,predicted_label,post_id
+"I try my best to keep myself optimistic but most days it doesn't work as I would hope to like it too, then again it's probably best to not stay to optimistic just to eventually let myself down because I'd over hyped myself.",DEPRESSED_MOOD,SPECIAL_CASE,s_586_428
+"I'm also quite pessimistic by nature, but hope still gets me every time.",DEPRESSED_MOOD,NO_SYMPTOM,s_3003_261
+I still experience sexual satisfaction with my partner but I have just accepted that it will be more difficult for me now.,NO_SYMPTOM,ANHEDONIA,s_2625_5
+Recently I've been going to bed quite late and almost at the point of dropping into sleep as soon as my head hits the pillow.,NO_SYMPTOM,SLEEP_ISSUES,s_1330_18
+And now I'm sad.,NO_SYMPTOM,DEPRESSED_MOOD,s_18_228
+Also I have lived recklessly because I thought I didn't had much future.,DEPRESSED_MOOD,WORTHLESSNESS,s_993_83
+Increased my personal interest in the game.,SPECIAL_CASE,ANHEDONIA,s_1728_52
+i want sex.,NO_SYMPTOM,ANHEDONIA,s_2107_102
+"I still feel a lot of guilt, but working with my dog and truly spending time with him doing things he wants to do and being there as his cheerleader as he learns new things has helped ease some of that guilt.",WORTHLESSNESS,NO_SYMPTOM,s_1834_697
+"When our brains can no longer process the sadness, anhedonia sets in.",ANHEDONIA,DEPRESSED_MOOD,s_1625_393
+I just can't focus,NO_SYMPTOM,COGNITIVE_ISSUES,s_1210_72
+Life is hell.,DEPRESSED_MOOD,SUICIDAL_THOUGHTS,s_2415_614
+"Since I believe that I am a sex addict and a sexual anorexic, that means I have a disease of the mind, body, and spirit that reacts very negatively to all sexual stimuli.",NO_SYMPTOM,SPECIAL_CASE,s_2833_1068
+"But now I feel like Im hitting a wall, it becomes so frustrating I feel like I get burnt out, and then end up feeling like I need to force myself into doing something however I just end up thinking about it all day and maybe do it last minute if that, and if I dont do it i really beat myself up over it the next day and it becomes harder.",ANHEDONIA,WORTHLESSNESS,s_1551_7
+I get depressed about the lost youth I once had.,WORTHLESSNESS,DEPRESSED_MOOD,s_485_974
+"I have a long list of books I'd like to read, but my concentration is terrible.",NO_SYMPTOM,COGNITIVE_ISSUES,s_2679_133
+"After the third day, I just couldn't concentrate on anything.",NO_SYMPTOM,COGNITIVE_ISSUES,s_1683_76
+"I can eat whatever I see as optimal for my health, because my sense of reward is not dependent on my dietary choices.",NO_SYMPTOM,APPETITE_CHANGE,s_1234_37
+I'm already happy with who I am and what I do,NO_SYMPTOM,SPECIAL_CASE,s_1404_495
+Im so angry now.,NO_SYMPTOM,DEPRESSED_MOOD,s_2953_1058
+"I haven't been actually hungry in a week, it's just I know I need to eat and just can't.",NO_SYMPTOM,APPETITE_CHANGE,s_1580_138
+"It has definitely worked on my anxiety, and I dont feel anxious at all anymore.",NO_SYMPTOM,PSYCHOMOTOR,s_2334_225
+"When I'm truly happy, I feel like I can accomplish anything, and I feel like a totally different person from the depressed self-loathing human being that I usually am.",WORTHLESSNESS,SPECIAL_CASE,s_2492_10
+I'm always angry,NO_SYMPTOM,DEPRESSED_MOOD,s_1633_278
+I lose focus way too fast and struggle to stay in my seat without occupying myself with something else.,NO_SYMPTOM,COGNITIVE_ISSUES,s_1748_1164
+"I could punish myself but there is only a short time to do so, and I don't see the point.",NO_SYMPTOM,WORTHLESSNESS,s_835_46
+"I constantly wake up at around 3 or 4 AM everyday and even if I do sleep, I don't really feel refreshing ever since I've been diagnosed with gerd and elevated my sleep.",NO_SYMPTOM,SLEEP_ISSUES,s_2013_32
+I felt guilt and sadness wash over me.,WORTHLESSNESS,DEPRESSED_MOOD,s_2815_1002
+"Then the fatigue , always always tired, body feels heavy - I have a few energy peaks but generally by 5pm, I just want to sleep or feel like Im waiting to sleep.",FATIGUE,SLEEP_ISSUES,s_258_598
+I was crying.,NO_SYMPTOM,DEPRESSED_MOOD,s_1514_473
+"I smoked all day, every day.",SPECIAL_CASE,APPETITE_CHANGE,s_151_786
+My eyes began to fill up with tears making it hard to see clearly.,NO_SYMPTOM,DEPRESSED_MOOD,s_493_0
+"I literally breakdown to everything like I cried because my cat left the room that's all it took, I have been extremely irritable towards people and I break down after crying because I feel bad for yelling.",NO_SYMPTOM,DEPRESSED_MOOD,s_3075_67
+"I remember after running off, I was lying in the middle of the room for weeks, in complete horror and not being able to move.",SLEEP_ISSUES,NO_SYMPTOM,s_1270_9
+Im very tired.,NO_SYMPTOM,FATIGUE,s_804_829
+I havent had any trouble falling asleep.,NO_SYMPTOM,SLEEP_ISSUES,s_1488_3
+"I wake up i try to improve my life, i still scratch my hair and skin, i still pop my joints, i still can't read a book and focus, i still get scared and anxious and confused, i still, fap and watch porn, i still eat junk, i still distract myself rather than think difficult thoughts, i am trying to re-wire these things but it looks like the downward spiral isn't changing course thus making it even harder to quit in the future neuroscience :(",DEPRESSED_MOOD,COGNITIVE_ISSUES,s_212_757
+"There are plenty of times I don't eat when I'm hungry, but the constant fixation on food is what is really getting to me.",NO_SYMPTOM,APPETITE_CHANGE,s_2338_314
+I'm getting sick and tired by my lack of omnipotence,NO_SYMPTOM,FATIGUE,s_758_848
+"It's getting really bad again and I don't know what to do anymore I just feel like I hit a bad episode, like I can't get out of bed, do any basic hygiene, clean my bathroom that should of been clean a bit ago, go anywhere outside the house, intrusive thoughts Is at worst and I become very compulsive easily.",NO_SYMPTOM,DEPRESSED_MOOD,s_3075_67
+I still have a strong sex drive but can''t cum,NO_SYMPTOM,ANHEDONIA,s_1660_891
+I cried more than I ever will I think.,NO_SYMPTOM,DEPRESSED_MOOD,s_1175_1062
+"I still get angry, I just now know how to deal with it when it happens.",NO_SYMPTOM,DEPRESSED_MOOD,s_1452_297
+"I don't find joy in my old hobbies, and I just spend my days sleeping, crying, or staring into space.",ANHEDONIA,NO_SYMPTOM,s_1537_1
+"It's just been really rough and the world at the moment doesn't make anything better, my boyfriend works all day and i can't even keep a job because of my stupid episodes.",NO_SYMPTOM,DEPRESSED_MOOD,s_3075_67
+My heart's racing with excited nervousness.,NO_SYMPTOM,PSYCHOMOTOR,s_1779_165
+I am scared I will not be a successful man in the future,DEPRESSED_MOOD,WORTHLESSNESS,s_65_110
+"I was able to experience novelty and joy even if I did still feel lonely/ depressed and would self harm , I had the ability to enjoy and feel like the real me - now all thats gone and Ive just gotten buried into a depressive hole where everyday is lived robotically or ghostly.",ANHEDONIA,SPECIAL_CASE,s_258_546
+Im still questioning my decision,NO_SYMPTOM,COGNITIVE_ISSUES,s_2661_87
+I havn't been able to sleep for a while.,NO_SYMPTOM,SLEEP_ISSUES,s_2486_51
+I recognize that I've lost what was good in my life.,ANHEDONIA,WORTHLESSNESS,s_2833_963
+I'm a pretty pessimistic asshole.,DEPRESSED_MOOD,WORTHLESSNESS,s_1958_404
+"I have struggled with binge eating for a decade, but I think I'm finally recovering from that because I've gone from binging 2500+ calories every other day, to just finding a snack when I feel like I want to binge.",NO_SYMPTOM,APPETITE_CHANGE,s_1499_1118

@@ -1,0 +1,90 @@
+{
+  "label_map": {
+    "DEPRESSED_MOOD": 0,
+    "ANHEDONIA": 1,
+    "APPETITE_CHANGE": 2,
+    "SLEEP_ISSUES": 3,
+    "PSYCHOMOTOR": 4,
+    "FATIGUE": 5,
+    "WORTHLESSNESS": 6,
+    "COGNITIVE_ISSUES": 7,
+    "SUICIDAL_THOUGHTS": 8,
+    "SPECIAL_CASE": 9,
+    "NO_SYMPTOM": 10
+  },
+  "label_readable": {
+    "DEPRESSED_MOOD": "Depressed Mood",
+    "ANHEDONIA": "Loss of Interest / Pleasure",
+    "APPETITE_CHANGE": "Appetite / Weight Change",
+    "SLEEP_ISSUES": "Sleep Disturbance",
+    "PSYCHOMOTOR": "Psychomotor Changes",
+    "FATIGUE": "Fatigue / Loss of Energy",
+    "WORTHLESSNESS": "Worthlessness / Guilt",
+    "COGNITIVE_ISSUES": "Difficulty Concentrating",
+    "SUICIDAL_THOUGHTS": "Suicidal Ideation",
+    "SPECIAL_CASE": "Other Clinical Indicator",
+    "NO_SYMPTOM": "No Symptom Detected"
+  },
+  "class_weights": {
+    "0": 0.4902927580893683,
+    "1": 1.257707509881423,
+    "2": 3.5277161862527717,
+    "3": 1.6624869383490073,
+    "4": 4.821212121212121,
+    "5": 1.1570909090909092,
+    "6": 0.5004718464926078,
+    "7": 2.836007130124777,
+    "8": 0.9331378299120234,
+    "9": 1.9031100478468899,
+    "10": 0.4423130386433139
+  },
+  "num_classes": 11,
+  "total_samples": 1947,
+  "train_samples": 1591,
+  "val_samples": 185,
+  "test_samples": 171,
+  "train_posts": 1137,
+  "val_posts": 143,
+  "test_posts": 143,
+  "label_distribution": {
+    "train": {
+      "NO_SYMPTOM": 327,
+      "DEPRESSED_MOOD": 295,
+      "WORTHLESSNESS": 289,
+      "SUICIDAL_THOUGHTS": 155,
+      "FATIGUE": 125,
+      "ANHEDONIA": 115,
+      "SLEEP_ISSUES": 87,
+      "SPECIAL_CASE": 76,
+      "COGNITIVE_ISSUES": 51,
+      "APPETITE_CHANGE": 41,
+      "PSYCHOMOTOR": 30
+    },
+    "val": {
+      "DEPRESSED_MOOD": 38,
+      "NO_SYMPTOM": 38,
+      "WORTHLESSNESS": 31,
+      "SUICIDAL_THOUGHTS": 20,
+      "SLEEP_ISSUES": 13,
+      "FATIGUE": 13,
+      "SPECIAL_CASE": 9,
+      "COGNITIVE_ISSUES": 8,
+      "ANHEDONIA": 8,
+      "PSYCHOMOTOR": 4,
+      "APPETITE_CHANGE": 3
+    },
+    "test": {
+      "DEPRESSED_MOOD": 36,
+      "NO_SYMPTOM": 35,
+      "WORTHLESSNESS": 28,
+      "SUICIDAL_THOUGHTS": 19,
+      "ANHEDONIA": 17,
+      "SLEEP_ISSUES": 12,
+      "FATIGUE": 8,
+      "SPECIAL_CASE": 7,
+      "APPETITE_CHANGE": 4,
+      "COGNITIVE_ISSUES": 4,
+      "PSYCHOMOTOR": 1
+    }
+  }
+}

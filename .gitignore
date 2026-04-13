@@ -1,0 +1,94 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Database
+*.db
+*.sqlite3
+
+# Uploads
+uploads/*
+!uploads/.gitkeep
+
+# ML Models (too large for git)
+ml/models/*.pt
+ml/models/*.pth
+ml/models/*.bin
+ml/models/*.onnx
+
+# ML Data (too large for git)
+ml/data/suicide_watch/*.csv
+ml/data/lmvd/
+ml/data/redsm5/processed/*.csv
+
+# ChromaDB persistence (legacy, migrated to pgvector)
+data/chromadb/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Logs
+*.log
+logs/
+
+# Coverage
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+
+# pytest
+.pytest_cache/
+
+# mypy
+.mypy_cache/
+
+# macOS
+.DS_Store
+
+# Node (not a Node project)
+node_modules/
+package-lock.json
+
+# Suicide Watch data (large, not used in production)
+ml/data/suicide_watch/
