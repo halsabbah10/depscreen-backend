@@ -13,11 +13,7 @@ Usage:
     python download_kaggle.py
 """
 
-import os
-import sys
 from pathlib import Path
-import zipfile
-import shutil
 
 
 def download_suicide_watch_dataset():
@@ -44,17 +40,13 @@ def download_suicide_watch_dataset():
         print(f"Downloading {dataset}...")
 
         # Download dataset
-        api.dataset_download_files(
-            dataset,
-            path=str(data_dir),
-            unzip=True
-        )
+        api.dataset_download_files(dataset, path=str(data_dir), unzip=True)
 
         print("Download complete!")
 
         # List downloaded files
         files = list(data_dir.glob("*.csv"))
-        print(f"\nDownloaded files:")
+        print("\nDownloaded files:")
         for f in files:
             size_mb = f.stat().st_size / (1024 * 1024)
             print(f"  - {f.name} ({size_mb:.2f} MB)")
@@ -97,6 +89,7 @@ def verify_dataset():
         # Quick peek at structure
         try:
             import pandas as pd
+
             df = pd.read_csv(f, nrows=5)
             print(f"    Columns: {list(df.columns)}")
             print(f"    Sample rows: {len(df)}")

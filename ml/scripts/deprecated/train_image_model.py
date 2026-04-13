@@ -15,20 +15,23 @@ Options:
 
 import argparse
 import json
+import logging
 from pathlib import Path
+
+import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader
-from torch.optim import AdamW
-from torchvision import transforms, models
 from PIL import Image
-import numpy as np
 from sklearn.metrics import (
-    accuracy_score, precision_recall_fscore_support,
-    roc_auc_score, confusion_matrix, classification_report
+    accuracy_score,
+    classification_report,
+    precision_recall_fscore_support,
+    roc_auc_score,
 )
+from torch.optim import AdamW
+from torch.utils.data import DataLoader, Dataset
+from torchvision import models, transforms
 from tqdm import tqdm
-import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -52,10 +55,7 @@ class ImageClassifier(nn.Module):
             raise ValueError(f"Unknown backbone: {backbone}")
 
         self.classifier = nn.Sequential(
-            nn.Linear(feature_dim, 256),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(256, num_classes)
+            nn.Linear(feature_dim, 256), nn.ReLU(), nn.Dropout(0.5), nn.Linear(256, num_classes)
         )
 
     def forward(self, x):
@@ -90,36 +90,30 @@ class FrameDataset(Dataset):
 
         label = self.label_map[sample["label"]]
 
-        return {
-            "image": image,
-            "label": torch.tensor(label, dtype=torch.long),
-            "video": sample["video"]
-        }
+        return {"image": image, "label": torch.tensor(label, dtype=torch.long), "video": sample["video"]}
 
 
 def get_transforms(train: bool = True):
     """Get image transforms for training or validation."""
     if train:
-        return transforms.Compose([
-            transforms.RandomResizedCrop(224),
-            transforms.RandomHorizontalFlip(),
-            transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
-            transforms.ToTensor(),
-            transforms.Normalize(
-                mean=[0.485, 0.456, 0.406],
-                std=[0.229, 0.224, 0.225]
-            )
-        ])
+        return transforms.Compose(
+            [
+                transforms.RandomResizedCrop(224),
+                transforms.RandomHorizontalFlip(),
+                transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ]
+        )
     else:
-        return transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            transforms.Normalize(
-                mean=[0.485, 0.456, 0.406],
-                std=[0.229, 0.224, 0.225]
-            )
-        ])
+        return transforms.Compose(
+            [
+                transforms.Resize(256),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ]
+        )
 
 
 def train_epoch(model, dataloader, optimizer, criterion, device):
@@ -203,7 +197,7 @@ def evaluate(model, dataloader, criterion, device, aggregate_clips: bool = True)
         "frame_precision": frame_precision,
         "frame_recall": frame_recall,
         "frame_f1": frame_f1,
-        "frame_roc_auc": frame_roc_auc
+        "frame_roc_auc": frame_roc_auc,
     }
 
     # Clip-level metrics (aggregate by video)
@@ -238,14 +232,16 @@ def evaluate(model, dataloader, criterion, device, aggregate_clips: bool = True)
             except ValueError:
                 clip_roc_auc = 0.0
 
-            metrics.update({
-                "clip_accuracy": clip_accuracy,
-                "clip_precision": clip_precision,
-                "clip_recall": clip_recall,
-                "clip_f1": clip_f1,
-                "clip_roc_auc": clip_roc_auc,
-                "num_clips": len(clip_labels)
-            })
+            metrics.update(
+                {
+                    "clip_accuracy": clip_accuracy,
+                    "clip_precision": clip_precision,
+                    "clip_recall": clip_recall,
+                    "clip_f1": clip_f1,
+                    "clip_roc_auc": clip_roc_auc,
+                    "num_clips": len(clip_labels),
+                }
+            )
 
     return metrics, all_preds, all_labels, all_probs
 
@@ -255,12 +251,9 @@ def main():
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--lr", type=float, default=1e-4)
-    parser.add_argument("--backbone", type=str, default="resnet50",
-                        choices=["resnet50", "efficientnet_b0"])
-    parser.add_argument("--freeze-backbone", action="store_true",
-                        help="Freeze backbone weights initially")
-    parser.add_argument("--unfreeze-epoch", type=int, default=3,
-                        help="Epoch to unfreeze backbone")
+    parser.add_argument("--backbone", type=str, default="resnet50", choices=["resnet50", "efficientnet_b0"])
+    parser.add_argument("--freeze-backbone", action="store_true", help="Freeze backbone weights initially")
+    parser.add_argument("--unfreeze-epoch", type=int, default=3, help="Epoch to unfreeze backbone")
     parser.add_argument("--data-dir", type=str, default=None)
     parser.add_argument("--output-dir", type=str, default=None)
     args = parser.parse_args()
@@ -332,18 +325,22 @@ def main():
 
         # Validate
         val_metrics, _, _, _ = evaluate(model, val_loader, criterion, device)
-        logger.info(f"Val Loss: {val_metrics['loss']:.4f}, "
-                   f"Frame F1: {val_metrics['frame_f1']:.4f}, "
-                   f"Clip F1: {val_metrics.get('clip_f1', 0):.4f}")
+        logger.info(
+            f"Val Loss: {val_metrics['loss']:.4f}, "
+            f"Frame F1: {val_metrics['frame_f1']:.4f}, "
+            f"Clip F1: {val_metrics.get('clip_f1', 0):.4f}"
+        )
 
-        training_history.append({
-            "epoch": epoch + 1,
-            "train_loss": train_loss,
-            "train_acc": train_acc,
-            "val_loss": val_metrics["loss"],
-            "val_frame_f1": val_metrics["frame_f1"],
-            "val_clip_f1": val_metrics.get("clip_f1", 0)
-        })
+        training_history.append(
+            {
+                "epoch": epoch + 1,
+                "train_loss": train_loss,
+                "train_acc": train_acc,
+                "val_loss": val_metrics["loss"],
+                "val_frame_f1": val_metrics["frame_f1"],
+                "val_clip_f1": val_metrics.get("clip_f1", 0),
+            }
+        )
 
         # Save best model (using clip-level F1 if available, else frame-level)
         current_f1 = val_metrics.get("clip_f1", val_metrics["frame_f1"])
@@ -386,7 +383,7 @@ def main():
         "best_val_f1": best_val_f1,
         "test_metrics": test_metrics,
         "training_history": training_history,
-        "label_map": {"control": 0, "depressed": 1}
+        "label_map": {"control": 0, "depressed": 1},
     }
 
     with open(output_dir / "image_training_results.json", "w") as f:

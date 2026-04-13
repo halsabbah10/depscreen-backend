@@ -1,12 +1,11 @@
 """Application configuration using pydantic-settings."""
 
-import os
 import secrets
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field, field_validator
 from functools import lru_cache
 from pathlib import Path
-from typing import List
+
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -67,9 +66,9 @@ class Settings(BaseSettings):
     cors_origins: str = '["http://localhost:3000","http://localhost:5173"]'
 
     # ── Rate Limiting ──────────────────────────────────────────────────────
-    rate_limit_auth: str = "10/minute"     # Login/register attempts
-    rate_limit_screening: str = "20/minute" # Screening submissions
-    rate_limit_chat: str = "30/minute"      # Chat messages
+    rate_limit_auth: str = "10/minute"  # Login/register attempts
+    rate_limit_screening: str = "20/minute"  # Screening submissions
+    rate_limit_chat: str = "30/minute"  # Chat messages
     rate_limit_default: str = "100/minute"  # General endpoints
 
     # ── Safety ─────────────────────────────────────────────────────────────
@@ -80,9 +79,10 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_format: str = "json"  # json or text
 
-    def get_cors_origins(self) -> List[str]:
+    def get_cors_origins(self) -> list[str]:
         """Parse CORS origins from string."""
         import json
+
         try:
             return json.loads(self.cors_origins)
         except json.JSONDecodeError:
@@ -93,7 +93,7 @@ class Settings(BaseSettings):
         return self.environment == "production"
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     """Get cached settings instance."""
     return Settings()

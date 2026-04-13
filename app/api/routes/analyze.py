@@ -8,26 +8,27 @@ persists results to DB, and ingests into patient RAG.
 Requires authentication — screenings are always attributed to a patient.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy.orm import Session
+import logging
 from datetime import datetime
 from uuid import uuid4
-import logging
 
-from app.core.config import get_settings, Settings
-from app.models.db import User, Screening, get_db
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy.orm import Session
+
+from app.core.config import Settings, get_settings
+from app.middleware.rate_limiter import limiter
+from app.models.db import Screening, User, get_db
 from app.schemas.analysis import (
+    Evidence,
     ScreeningRequest,
     ScreeningResponse,
-    Evidence,
 )
+from app.services.auth import get_current_user, log_audit
+from app.services.decision import DecisionService
 from app.services.inference import ModelService
 from app.services.llm import LLMService
 from app.services.llm_verification import VerificationService
-from app.services.decision import DecisionService
 from app.services.rag import RAGService
-from app.services.auth import get_current_user, log_audit
-from app.middleware.rate_limiter import limiter
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -122,8 +123,8 @@ async def screen_text(
     )
 
     # Step 3: Decision (severity mapping + confidence adjustment)
-    final_prediction, final_confidence, confidence_adjusted, flagged = (
-        decision_service.compute_final_prediction(symptom_analysis, verification)
+    final_prediction, final_confidence, confidence_adjusted, flagged = decision_service.compute_final_prediction(
+        symptom_analysis, verification
     )
     logger.info(f"  Step 3 — Decision: {final_prediction} ({final_confidence:.2%}), flagged={flagged}")
 
@@ -148,7 +149,7 @@ async def screen_text(
         verification_summary=verification_summary,
         rag_context=rag_context_str,
     )
-    logger.info(f"  Step 5 — Explanation generated")
+    logger.info("  Step 5 — Explanation generated")
 
     # Step 6a: Persist to DB
     adversarial_warning = None

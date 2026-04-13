@@ -6,22 +6,21 @@ prediction with post-level aggregation.
 """
 
 import json
-import re
 import logging
-from pathlib import Path
-from typing import Optional
+import re
 
 import torch
 import torch.nn as nn
-from transformers import AutoTokenizer, AutoModel
+from transformers import AutoModel, AutoTokenizer
 
 from app.core.config import Settings
-from app.schemas.analysis import SymptomDetection, PostSymptomSummary
+from app.schemas.analysis import PostSymptomSummary, SymptomDetection
 
 logger = logging.getLogger(__name__)
 
 
 # ── Model Architecture ────────────────────────────────────────────────────────
+
 
 class SymptomClassifier(nn.Module):
     """Sentence-level DSM-5 symptom classifier (matches training architecture)."""
@@ -42,6 +41,7 @@ class SymptomClassifier(nn.Module):
 
 
 # ── Sentence Splitting ────────────────────────────────────────────────────────
+
 
 def split_into_sentences(text: str) -> list[str]:
     """Rule-based sentence splitter for informal text (Reddit-style)."""
@@ -82,8 +82,14 @@ SYMPTOM_READABLE = {
 }
 
 DSM5_CRITERIA = [
-    "DEPRESSED_MOOD", "ANHEDONIA", "APPETITE_CHANGE", "SLEEP_ISSUES",
-    "PSYCHOMOTOR", "FATIGUE", "WORTHLESSNESS", "COGNITIVE_ISSUES",
+    "DEPRESSED_MOOD",
+    "ANHEDONIA",
+    "APPETITE_CHANGE",
+    "SLEEP_ISSUES",
+    "PSYCHOMOTOR",
+    "FATIGUE",
+    "WORTHLESSNESS",
+    "COGNITIVE_ISSUES",
     "SUICIDAL_THOUGHTS",
 ]
 
@@ -101,6 +107,7 @@ SYMPTOM_KEYWORDS = {
 
 
 # ── Severity Computation ──────────────────────────────────────────────────────
+
 
 def compute_severity(unique_dsm5_count: int) -> dict:
     """Map symptom count to DSM-5 severity level."""
@@ -140,13 +147,14 @@ def compute_severity(unique_dsm5_count: int) -> dict:
 
 # ── Model Service ─────────────────────────────────────────────────────────────
 
+
 class ModelService:
     """Service for loading the trained model and running symptom inference."""
 
     def __init__(self, settings: Settings):
         self.settings = settings
         self.device = self._get_device()
-        self.symptom_model: Optional[SymptomClassifier] = None
+        self.symptom_model: SymptomClassifier | None = None
         self.tokenizer = None
         self.label_map: dict[int, str] = {}
         self.num_classes: int = 11
@@ -177,12 +185,22 @@ class ModelService:
             logger.info(f"Loaded metadata: {self.num_classes} classes, model={self.model_name}")
         else:
             logger.warning(f"Metadata not found at {metadata_path}, using defaults")
-            self.label_map = {i: name for name, i in {
-                "DEPRESSED_MOOD": 0, "ANHEDONIA": 1, "APPETITE_CHANGE": 2,
-                "SLEEP_ISSUES": 3, "PSYCHOMOTOR": 4, "FATIGUE": 5,
-                "WORTHLESSNESS": 6, "COGNITIVE_ISSUES": 7, "SUICIDAL_THOUGHTS": 8,
-                "SPECIAL_CASE": 9, "NO_SYMPTOM": 10,
-            }.items()}
+            self.label_map = {
+                i: name
+                for name, i in {
+                    "DEPRESSED_MOOD": 0,
+                    "ANHEDONIA": 1,
+                    "APPETITE_CHANGE": 2,
+                    "SLEEP_ISSUES": 3,
+                    "PSYCHOMOTOR": 4,
+                    "FATIGUE": 5,
+                    "WORTHLESSNESS": 6,
+                    "COGNITIVE_ISSUES": 7,
+                    "SUICIDAL_THOUGHTS": 8,
+                    "SPECIAL_CASE": 9,
+                    "NO_SYMPTOM": 10,
+                }.items()
+            }
 
         # Load tokenizer
         try:
@@ -261,14 +279,16 @@ class ModelService:
             symptom_name = self.label_map.get(pred_class, "NO_SYMPTOM")
 
             if symptom_name != "NO_SYMPTOM":
-                detections.append(SymptomDetection(
-                    symptom=symptom_name,
-                    symptom_label=SYMPTOM_READABLE.get(symptom_name, symptom_name),
-                    status=1,
-                    confidence=round(confidence, 4),
-                    sentence_text=sentence,
-                    sentence_id=f"s_{i}",
-                ))
+                detections.append(
+                    SymptomDetection(
+                        symptom=symptom_name,
+                        symptom_label=SYMPTOM_READABLE.get(symptom_name, symptom_name),
+                        status=1,
+                        confidence=round(confidence, 4),
+                        sentence_text=sentence,
+                        sentence_id=f"s_{i}",
+                    )
+                )
 
         unique_symptoms = set(d.symptom for d in detections)
         dsm5_met = sorted(s for s in unique_symptoms if s in DSM5_CRITERIA)
@@ -297,14 +317,16 @@ class ModelService:
                         if keyword in sent.lower():
                             matching_sent = sent
                             break
-                    detections.append(SymptomDetection(
-                        symptom=symptom,
-                        symptom_label=SYMPTOM_READABLE[symptom],
-                        status=1,
-                        confidence=0.60,
-                        sentence_text=matching_sent,
-                        sentence_id="demo",
-                    ))
+                    detections.append(
+                        SymptomDetection(
+                            symptom=symptom,
+                            symptom_label=SYMPTOM_READABLE[symptom],
+                            status=1,
+                            confidence=0.60,
+                            sentence_text=matching_sent,
+                            sentence_id="demo",
+                        )
+                    )
                     break
 
         unique_symptoms = set(d.symptom for d in detections)

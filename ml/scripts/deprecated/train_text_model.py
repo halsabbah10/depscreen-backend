@@ -17,20 +17,23 @@ Options:
 
 import argparse
 import json
+import logging
 from pathlib import Path
+
+import pandas as pd
 import torch
 import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader
-from torch.optim import AdamW
-from transformers import AutoTokenizer, AutoModel, get_linear_schedule_with_warmup
-import pandas as pd
-import numpy as np
 from sklearn.metrics import (
-    accuracy_score, precision_recall_fscore_support,
-    roc_auc_score, confusion_matrix, classification_report
+    accuracy_score,
+    classification_report,
+    confusion_matrix,
+    precision_recall_fscore_support,
+    roc_auc_score,
 )
+from torch.optim import AdamW
+from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
-import logging
+from transformers import AutoModel, AutoTokenizer, get_linear_schedule_with_warmup
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -69,30 +72,25 @@ class TextDataset(Dataset):
         text = self.texts[idx]
         label = self.labels[idx]
 
-        encoding = self.tokenizer(
-            text,
-            truncation=True,
-            max_length=self.max_length,
-            return_tensors='pt'
-        )
+        encoding = self.tokenizer(text, truncation=True, max_length=self.max_length, return_tensors="pt")
 
         return {
-            'input_ids': encoding['input_ids'].squeeze(),
-            'attention_mask': encoding['attention_mask'].squeeze(),
-            'label': torch.tensor(label, dtype=torch.long)
+            "input_ids": encoding["input_ids"].squeeze(),
+            "attention_mask": encoding["attention_mask"].squeeze(),
+            "label": torch.tensor(label, dtype=torch.long),
         }
 
 
 def collate_fn(batch):
     """Dynamic padding — pad to longest sequence in batch, not max_length."""
-    input_ids = [item['input_ids'] for item in batch]
-    attention_masks = [item['attention_mask'] for item in batch]
-    labels = torch.stack([item['label'] for item in batch])
+    input_ids = [item["input_ids"] for item in batch]
+    attention_masks = [item["attention_mask"] for item in batch]
+    labels = torch.stack([item["label"] for item in batch])
 
     input_ids = torch.nn.utils.rnn.pad_sequence(input_ids, batch_first=True, padding_value=0)
     attention_masks = torch.nn.utils.rnn.pad_sequence(attention_masks, batch_first=True, padding_value=0)
 
-    return {'input_ids': input_ids, 'attention_mask': attention_masks, 'label': labels}
+    return {"input_ids": input_ids, "attention_mask": attention_masks, "label": labels}
 
 
 def train_epoch(model, dataloader, optimizer, scheduler, criterion, device):
@@ -105,9 +103,9 @@ def train_epoch(model, dataloader, optimizer, scheduler, criterion, device):
     progress_bar = tqdm(dataloader, desc="Training")
 
     for batch in progress_bar:
-        input_ids = batch['input_ids'].to(device)
-        attention_mask = batch['attention_mask'].to(device)
-        labels = batch['label'].to(device)
+        input_ids = batch["input_ids"].to(device)
+        attention_mask = batch["attention_mask"].to(device)
+        labels = batch["label"].to(device)
 
         optimizer.zero_grad()
 
@@ -124,7 +122,7 @@ def train_epoch(model, dataloader, optimizer, scheduler, criterion, device):
         all_preds.extend(preds.cpu().numpy())
         all_labels.extend(labels.cpu().numpy())
 
-        progress_bar.set_postfix({'loss': loss.item()})
+        progress_bar.set_postfix({"loss": loss.item()})
 
     avg_loss = total_loss / len(dataloader)
     accuracy = accuracy_score(all_labels, all_preds)
@@ -142,9 +140,9 @@ def evaluate(model, dataloader, criterion, device):
 
     with torch.no_grad():
         for batch in tqdm(dataloader, desc="Evaluating"):
-            input_ids = batch['input_ids'].to(device)
-            attention_mask = batch['attention_mask'].to(device)
-            labels = batch['label'].to(device)
+            input_ids = batch["input_ids"].to(device)
+            attention_mask = batch["attention_mask"].to(device)
+            labels = batch["label"].to(device)
 
             logits = model(input_ids, attention_mask)
             loss = criterion(logits, labels)
@@ -161,9 +159,7 @@ def evaluate(model, dataloader, criterion, device):
 
     # Calculate metrics
     accuracy = accuracy_score(all_labels, all_preds)
-    precision, recall, f1, _ = precision_recall_fscore_support(
-        all_labels, all_preds, average='binary'
-    )
+    precision, recall, f1, _ = precision_recall_fscore_support(all_labels, all_preds, average="binary")
 
     try:
         roc_auc = roc_auc_score(all_labels, all_probs)
@@ -171,28 +167,29 @@ def evaluate(model, dataloader, criterion, device):
         roc_auc = 0.0
 
     metrics = {
-        'loss': avg_loss,
-        'accuracy': accuracy,
-        'precision': precision,
-        'recall': recall,
-        'f1': f1,
-        'roc_auc': roc_auc
+        "loss": avg_loss,
+        "accuracy": accuracy,
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+        "roc_auc": roc_auc,
     }
 
     return metrics, all_preds, all_labels, all_probs
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Train text classifier')
-    parser.add_argument('--epochs', type=int, default=3)
-    parser.add_argument('--batch-size', type=int, default=32)
-    parser.add_argument('--lr', type=float, default=2e-5)
-    parser.add_argument('--model-name', type=str, default='distilbert-base-uncased')
-    parser.add_argument('--max-length', type=int, default=256)
-    parser.add_argument('--data-dir', type=str, default=None)
-    parser.add_argument('--output-dir', type=str, default=None)
-    parser.add_argument('--subset', type=int, default=0,
-                        help='Use N samples per class for fast iteration (0 = all data)')
+    parser = argparse.ArgumentParser(description="Train text classifier")
+    parser.add_argument("--epochs", type=int, default=3)
+    parser.add_argument("--batch-size", type=int, default=32)
+    parser.add_argument("--lr", type=float, default=2e-5)
+    parser.add_argument("--model-name", type=str, default="distilbert-base-uncased")
+    parser.add_argument("--max-length", type=int, default=256)
+    parser.add_argument("--data-dir", type=str, default=None)
+    parser.add_argument("--output-dir", type=str, default=None)
+    parser.add_argument(
+        "--subset", type=int, default=0, help="Use N samples per class for fast iteration (0 = all data)"
+    )
     args = parser.parse_args()
 
     # Setup paths
@@ -203,27 +200,27 @@ def main():
 
     # Setup device — prefer MPS (Apple Silicon GPU), then CUDA, then CPU
     if torch.backends.mps.is_available():
-        device = torch.device('mps')
+        device = torch.device("mps")
     elif torch.cuda.is_available():
-        device = torch.device('cuda')
+        device = torch.device("cuda")
     else:
-        device = torch.device('cpu')
+        device = torch.device("cpu")
     logger.info(f"Using device: {device}")
 
     # Load data
     logger.info("Loading data...")
-    train_df = pd.read_csv(data_dir / 'train.csv')
-    val_df = pd.read_csv(data_dir / 'val.csv')
-    test_df = pd.read_csv(data_dir / 'test.csv')
+    train_df = pd.read_csv(data_dir / "train.csv")
+    val_df = pd.read_csv(data_dir / "val.csv")
+    test_df = pd.read_csv(data_dir / "test.csv")
 
     # Subset sampling for fast iteration
     if args.subset > 0:
         logger.info(f"Subsetting to {args.subset} samples per class...")
-        train_dfs = [g.sample(n=min(args.subset, len(g)), random_state=42) for _, g in train_df.groupby('label_id')]
+        train_dfs = [g.sample(n=min(args.subset, len(g)), random_state=42) for _, g in train_df.groupby("label_id")]
         train_df = pd.concat(train_dfs).reset_index(drop=True)
-        val_dfs = [g.sample(n=min(args.subset // 4, len(g)), random_state=42) for _, g in val_df.groupby('label_id')]
+        val_dfs = [g.sample(n=min(args.subset // 4, len(g)), random_state=42) for _, g in val_df.groupby("label_id")]
         val_df = pd.concat(val_dfs).reset_index(drop=True)
-        test_dfs = [g.sample(n=min(args.subset // 4, len(g)), random_state=42) for _, g in test_df.groupby('label_id')]
+        test_dfs = [g.sample(n=min(args.subset // 4, len(g)), random_state=42) for _, g in test_df.groupby("label_id")]
         test_df = pd.concat(test_dfs).reset_index(drop=True)
 
     logger.info(f"Train: {len(train_df)}, Val: {len(val_df)}, Test: {len(test_df)}")
@@ -234,42 +231,31 @@ def main():
 
     # Create datasets
     train_dataset = TextDataset(
-        train_df['clean_text'].tolist(),
-        train_df['label_id'].tolist(),
-        tokenizer,
-        args.max_length
+        train_df["clean_text"].tolist(), train_df["label_id"].tolist(), tokenizer, args.max_length
     )
-    val_dataset = TextDataset(
-        val_df['clean_text'].tolist(),
-        val_df['label_id'].tolist(),
-        tokenizer,
-        args.max_length
-    )
-    test_dataset = TextDataset(
-        test_df['clean_text'].tolist(),
-        test_df['label_id'].tolist(),
-        tokenizer,
-        args.max_length
-    )
+    val_dataset = TextDataset(val_df["clean_text"].tolist(), val_df["label_id"].tolist(), tokenizer, args.max_length)
+    test_dataset = TextDataset(test_df["clean_text"].tolist(), test_df["label_id"].tolist(), tokenizer, args.max_length)
 
     # Create dataloaders with dynamic padding and parallel workers
-    num_workers = 0 if device.type == 'mps' else 2
+    num_workers = 0 if device.type == "mps" else 2
     train_loader = DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=True,
-        collate_fn=collate_fn, num_workers=num_workers, pin_memory=False
+        train_dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+        collate_fn=collate_fn,
+        num_workers=num_workers,
+        pin_memory=False,
     )
     val_loader = DataLoader(
-        val_dataset, batch_size=args.batch_size,
-        collate_fn=collate_fn, num_workers=num_workers, pin_memory=False
+        val_dataset, batch_size=args.batch_size, collate_fn=collate_fn, num_workers=num_workers, pin_memory=False
     )
     test_loader = DataLoader(
-        test_dataset, batch_size=args.batch_size,
-        collate_fn=collate_fn, num_workers=num_workers, pin_memory=False
+        test_dataset, batch_size=args.batch_size, collate_fn=collate_fn, num_workers=num_workers, pin_memory=False
     )
 
     # Create model
     logger.info("Creating model...")
-    num_classes = len(train_df['label_id'].unique())
+    num_classes = len(train_df["label_id"].unique())
     model = TextClassifier(num_classes=num_classes, model_name=args.model_name)
     model.to(device)
 
@@ -279,9 +265,7 @@ def main():
 
     total_steps = len(train_loader) * args.epochs
     scheduler = get_linear_schedule_with_warmup(
-        optimizer,
-        num_warmup_steps=total_steps // 10,
-        num_training_steps=total_steps
+        optimizer, num_warmup_steps=total_steps // 10, num_training_steps=total_steps
     )
 
     # Training loop
@@ -293,36 +277,34 @@ def main():
         logger.info(f"\nEpoch {epoch + 1}/{args.epochs}")
 
         # Train
-        train_loss, train_acc = train_epoch(
-            model, train_loader, optimizer, scheduler, criterion, device
-        )
+        train_loss, train_acc = train_epoch(model, train_loader, optimizer, scheduler, criterion, device)
         logger.info(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f}")
 
         # Validate
         val_metrics, _, _, _ = evaluate(model, val_loader, criterion, device)
         logger.info(f"Val Loss: {val_metrics['loss']:.4f}, Val F1: {val_metrics['f1']:.4f}")
 
-        training_history.append({
-            'epoch': epoch + 1,
-            'train_loss': train_loss,
-            'train_acc': train_acc,
-            'val_loss': val_metrics['loss'],
-            'val_f1': val_metrics['f1'],
-            'val_roc_auc': val_metrics['roc_auc']
-        })
+        training_history.append(
+            {
+                "epoch": epoch + 1,
+                "train_loss": train_loss,
+                "train_acc": train_acc,
+                "val_loss": val_metrics["loss"],
+                "val_f1": val_metrics["f1"],
+                "val_roc_auc": val_metrics["roc_auc"],
+            }
+        )
 
         # Save best model
-        if val_metrics['f1'] > best_val_f1:
-            best_val_f1 = val_metrics['f1']
-            torch.save(model.state_dict(), output_dir / 'text_classifier.pt')
+        if val_metrics["f1"] > best_val_f1:
+            best_val_f1 = val_metrics["f1"]
+            torch.save(model.state_dict(), output_dir / "text_classifier.pt")
             logger.info(f"Saved best model with F1: {best_val_f1:.4f}")
 
     # Final evaluation on test set
     logger.info("\nEvaluating on test set...")
-    model.load_state_dict(torch.load(output_dir / 'text_classifier.pt', map_location=device))
-    test_metrics, test_preds, test_labels, test_probs = evaluate(
-        model, test_loader, criterion, device
-    )
+    model.load_state_dict(torch.load(output_dir / "text_classifier.pt", map_location=device))
+    test_metrics, test_preds, test_labels, test_probs = evaluate(model, test_loader, criterion, device)
 
     logger.info("\nTest Results:")
     logger.info(f"  Accuracy: {test_metrics['accuracy']:.4f}")
@@ -333,7 +315,7 @@ def main():
 
     # Print classification report
     print("\nClassification Report:")
-    print(classification_report(test_labels, test_preds, target_names=['low_risk', 'high_risk']))
+    print(classification_report(test_labels, test_preds, target_names=["low_risk", "high_risk"]))
 
     # Print confusion matrix
     print("\nConfusion Matrix:")
@@ -341,17 +323,17 @@ def main():
 
     # Save training results
     results = {
-        'model_name': args.model_name,
-        'epochs': args.epochs,
-        'batch_size': args.batch_size,
-        'learning_rate': args.lr,
-        'best_val_f1': best_val_f1,
-        'test_metrics': test_metrics,
-        'training_history': training_history,
-        'label_map': {'low_risk': 0, 'high_risk': 1}
+        "model_name": args.model_name,
+        "epochs": args.epochs,
+        "batch_size": args.batch_size,
+        "learning_rate": args.lr,
+        "best_val_f1": best_val_f1,
+        "test_metrics": test_metrics,
+        "training_history": training_history,
+        "label_map": {"low_risk": 0, "high_risk": 1},
     }
 
-    with open(output_dir / 'training_results.json', 'w') as f:
+    with open(output_dir / "training_results.json", "w") as f:
         json.dump(results, f, indent=2)
 
     logger.info(f"\nModel saved to: {output_dir / 'text_classifier.pt'}")

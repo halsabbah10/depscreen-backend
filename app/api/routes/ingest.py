@@ -10,40 +10,40 @@ Four ingestion methods, all running the full screening pipeline:
 Every method runs: DL classification → LLM verification → Decision → RAG enrichment → DB persistence.
 """
 
+import logging
+from datetime import datetime
+from uuid import uuid4
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-from datetime import datetime
-from uuid import uuid4
-import logging
 
-from app.core.config import get_settings, Settings
-from app.models.db import User, Screening, get_db
+from app.api.routes.analyze import get_services
+from app.middleware.rate_limiter import limiter
+from app.models.db import Screening, User, get_db
 from app.schemas.analysis import (
-    ScreeningResponse, ScreeningListItem,
-    PostSymptomSummary, Evidence,
+    ScreeningListItem,
 )
 from app.services.auth import get_current_user, log_audit
-from app.services.inference import ModelService, compute_severity, DSM5_CRITERIA
-from app.services.llm import LLMService
-from app.services.llm_verification import VerificationService
 from app.services.decision import DecisionService
-from app.services.rag import RAGService
+from app.services.inference import ModelService
 from app.services.ingestion import (
+    combine_checkin_responses,
     fetch_reddit_posts,
     fetch_x_posts,
     get_checkin_prompts,
-    combine_checkin_responses,
     parse_reddit_export,
 )
-from app.api.routes.analyze import get_services
-from app.middleware.rate_limiter import limiter
+from app.services.llm import LLMService
+from app.services.llm_verification import VerificationService
+from app.services.rag import RAGService
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
 # ── Request Schemas ───────────────────────────────────────────────────────────
+
 
 class RedditIngestionRequest(BaseModel):
     username: str = Field(min_length=1, max_length=100)
@@ -67,6 +67,7 @@ class BulkUploadRequest(BaseModel):
 
 
 # ── Shared Pipeline Helper ────────────────────────────────────────────────────
+
 
 async def _run_full_pipeline(
     text: str,
@@ -99,8 +100,8 @@ async def _run_full_pipeline(
     )
 
     # Step 3: Decision
-    final_prediction, final_confidence, confidence_adjusted, flagged = (
-        decision_service.compute_final_prediction(symptom_analysis, verification)
+    final_prediction, final_confidence, confidence_adjusted, flagged = decision_service.compute_final_prediction(
+        symptom_analysis, verification
     )
 
     # Step 4: RAG retrieval
@@ -182,6 +183,7 @@ def _screening_to_list_item(s: Screening) -> ScreeningListItem:
 
 # ── Guided Check-in Prompts ───────────────────────────────────────────────────
 
+
 @router.get("/checkin/prompts")
 async def get_prompts(current_user: User = Depends(get_current_user)):
     """Get the 9 structured clinical check-in prompts (DSM-5 aligned)."""
@@ -217,11 +219,13 @@ async def submit_checkin(
 
     # Fetch and return full result
     from app.api.routes.history import _screening_to_response
+
     screening = db.query(Screening).filter(Screening.id == screening_id).first()
     return _screening_to_response(screening)
 
 
 # ── Reddit Profile Analysis ──────────────────────────────────────────────────
+
 
 @router.post("/reddit")
 @limiter.limit("10/minute")
@@ -261,14 +265,16 @@ async def analyze_reddit_profile(
 
     for post in posts:
         result = await model_service.predict_symptoms(post.text)
-        per_post_results.append({
-            "subreddit": post.subreddit,
-            "title": post.title[:100],
-            "date": datetime.utcfromtimestamp(post.created_utc).isoformat() if post.created_utc else None,
-            "symptoms": [d.model_dump() for d in result.symptoms_detected],
-            "symptom_count": result.unique_symptom_count,
-            "severity": result.severity_level,
-        })
+        per_post_results.append(
+            {
+                "subreddit": post.subreddit,
+                "title": post.title[:100],
+                "date": datetime.utcfromtimestamp(post.created_utc).isoformat() if post.created_utc else None,
+                "symptoms": [d.model_dump() for d in result.symptoms_detected],
+                "symptom_count": result.unique_symptom_count,
+                "severity": result.severity_level,
+            }
+        )
         all_detections.extend(result.symptoms_detected)
 
     # Combined text for the aggregate screening record
@@ -301,6 +307,7 @@ async def analyze_reddit_profile(
 
 # ── X/Twitter Profile Analysis ───────────────────────────────────────────────
 
+
 @router.post("/x")
 @limiter.limit("10/minute")
 async def analyze_x_profile(
@@ -332,13 +339,15 @@ async def analyze_x_profile(
 
     for tweet in tweets:
         result = await model_service.predict_symptoms(tweet.text)
-        per_post_results.append({
-            "platform": "x",
-            "text_preview": tweet.text[:100],
-            "symptoms": [d.model_dump() for d in result.symptoms_detected],
-            "symptom_count": result.unique_symptom_count,
-            "severity": result.severity_level,
-        })
+        per_post_results.append(
+            {
+                "platform": "x",
+                "text_preview": tweet.text[:100],
+                "symptoms": [d.model_dump() for d in result.symptoms_detected],
+                "symptom_count": result.unique_symptom_count,
+                "severity": result.severity_level,
+            }
+        )
 
     # Combined text
     combined_text = "\n\n".join(f"[@{request.username}] {t.text}" for t in tweets)
@@ -369,6 +378,7 @@ async def analyze_x_profile(
 
 # ── Bulk Text Upload ──────────────────────────────────────────────────────────
 
+
 @router.post("/bulk")
 @limiter.limit("10/minute")
 async def upload_bulk_text(
@@ -396,12 +406,14 @@ async def upload_bulk_text(
 
     for entry in entries:
         result = await model_service.predict_symptoms(entry["text"])
-        per_entry_results.append({
-            "source": entry.get("source", "upload"),
-            "text_preview": entry["text"][:100],
-            "symptoms": [d.model_dump() for d in result.symptoms_detected],
-            "severity": result.severity_level,
-        })
+        per_entry_results.append(
+            {
+                "source": entry.get("source", "upload"),
+                "text_preview": entry["text"][:100],
+                "symptoms": [d.model_dump() for d in result.symptoms_detected],
+                "severity": result.severity_level,
+            }
+        )
 
     # Combined text
     combined_text = "\n\n".join(e["text"] for e in entries)

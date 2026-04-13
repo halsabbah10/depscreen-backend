@@ -6,34 +6,47 @@ symptom trends, data export, emergency contacts, medications,
 allergies, diagnoses, screening schedules, and onboarding.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File
-from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
-from sqlalchemy import desc
-from datetime import datetime, date, timedelta
-from uuid import uuid4
-from typing import Optional, List
-import logging
 import base64
+import logging
+from datetime import date, datetime, timedelta
+from typing import Optional
+from uuid import uuid4
 
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
+from pydantic import BaseModel, Field
+from sqlalchemy import desc
+from sqlalchemy.orm import Session
+
+from app.core.config import Settings, get_settings
+from app.core.localization import normalize_phone, validate_cpr, validate_dob
+from app.middleware.rate_limiter import limiter
 from app.models.db import (
-    User, Screening, PatientDocument, EmergencyContact, ChatMessage,
-    Medication, Allergy, Diagnosis, ScreeningSchedule, Notification, get_db,
+    Allergy,
+    ChatMessage,
+    Diagnosis,
+    EmergencyContact,
+    Medication,
+    Notification,
+    PatientDocument,
+    Screening,
+    ScreeningSchedule,
+    User,
+    get_db,
 )
 from app.schemas.analysis import (
-    ScreeningListItem,
-    MedicationCreate, MedicationResponse,
-    AllergyCreate, AllergyResponse,
-    DiagnosisCreate, DiagnosisResponse,
-    ScreeningScheduleCreate, ScreeningScheduleResponse,
-    ProfileUpdate, OnboardingProgress,
+    AllergyCreate,
+    AllergyResponse,
+    DiagnosisResponse,
+    MedicationCreate,
+    MedicationResponse,
     NotificationResponse,
+    OnboardingProgress,
+    ProfileUpdate,
+    ScreeningScheduleCreate,
+    ScreeningScheduleResponse,
 )
 from app.services.auth import get_current_user, hash_password, log_audit
 from app.services.rag import RAGService
-from app.core.config import get_settings, Settings
-from app.core.localization import validate_cpr, normalize_phone, validate_dob
-from app.middleware.rate_limiter import limiter
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -43,11 +56,12 @@ VALID_BLOOD_TYPES = {"A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"}
 
 # ── Request Schemas ───────────────────────────────────────────────────────────
 
+
 class UpdateProfileRequest(BaseModel):
-    full_name: Optional[str] = Field(None, min_length=1, max_length=255)
-    phone: Optional[str] = Field(None, max_length=20)
-    new_password: Optional[str] = Field(None, min_length=8, max_length=128)
-    email_notifications: Optional[bool] = None
+    full_name: str | None = Field(None, min_length=1, max_length=255)
+    phone: str | None = Field(None, max_length=20)
+    new_password: str | None = Field(None, min_length=8, max_length=128)
+    email_notifications: bool | None = None
 
 
 class DocumentUploadRequest(BaseModel):
@@ -77,6 +91,7 @@ async def _get_rag(settings: Settings = Depends(get_settings)):
 
 
 # ── Profile Management ────────────────────────────────────────────────────────
+
 
 @router.put("/profile")
 @limiter.limit("30/minute")
@@ -142,7 +157,9 @@ async def update_profile(
         except (ValueError, TypeError):
             raise HTTPException(status_code=400, detail="Invalid date_of_birth format. Use ISO format (YYYY-MM-DD).")
         if not validate_dob(dob, min_age=13, max_age=120):
-            raise HTTPException(status_code=400, detail="Date of birth must correspond to an age between 13 and 120 years.")
+            raise HTTPException(
+                status_code=400, detail="Date of birth must correspond to an age between 13 and 120 years."
+            )
         current_user.date_of_birth = dob
         changes.append("date_of_birth")
 
@@ -151,10 +168,14 @@ async def update_profile(
         if not validate_cpr(body.cpr_number):
             raise HTTPException(status_code=400, detail="Invalid CPR number.")
         # Check uniqueness
-        existing = db.query(User).filter(
-            User.cpr_number == body.cpr_number,
-            User.id != current_user.id,
-        ).first()
+        existing = (
+            db.query(User)
+            .filter(
+                User.cpr_number == body.cpr_number,
+                User.id != current_user.id,
+            )
+            .first()
+        )
         if existing:
             raise HTTPException(status_code=409, detail="CPR number is already registered to another account.")
         current_user.cpr_number = body.cpr_number
@@ -176,16 +197,16 @@ async def update_profile(
         changes.append("password")
 
     # ── Auto-complete onboarding ──────────────────────────────────────────
-    has_emergency_contact = db.query(EmergencyContact).filter(
-        EmergencyContact.patient_id == current_user.id,
-    ).first() is not None
+    has_emergency_contact = (
+        db.query(EmergencyContact)
+        .filter(
+            EmergencyContact.patient_id == current_user.id,
+        )
+        .first()
+        is not None
+    )
 
-    if (
-        current_user.date_of_birth
-        and current_user.gender
-        and current_user.phone
-        and has_emergency_contact
-    ):
+    if current_user.date_of_birth and current_user.gender and current_user.phone and has_emergency_contact:
         if not current_user.onboarding_completed:
             current_user.onboarding_completed = True
             changes.append("onboarding_completed")
@@ -231,6 +252,7 @@ async def unlink_from_clinician(
 
 
 # ── Patient Document Uploads ──────────────────────────────────────────────────
+
 
 @router.post("/documents")
 @limiter.limit("30/minute")
@@ -306,6 +328,7 @@ async def list_my_documents(
 
 # ── Symptom Trends ────────────────────────────────────────────────────────────
 
+
 @router.get("/trends")
 async def get_my_symptom_trends(
     days: int = 90,
@@ -338,15 +361,17 @@ async def get_my_symptom_trends(
                 symptoms.append(d.get("symptom", ""))
                 all_symptoms_seen.add(d.get("symptom", ""))
 
-        timeline.append({
-            "screening_id": s.id,
-            "date": s.created_at.isoformat(),
-            "source": s.source,
-            "severity_level": s.severity_level,
-            "symptom_count": s.symptom_count or 0,
-            "symptoms_detected": sorted(set(symptoms)),
-            "flagged_for_review": s.flagged_for_review,
-        })
+        timeline.append(
+            {
+                "screening_id": s.id,
+                "date": s.created_at.isoformat(),
+                "source": s.source,
+                "severity_level": s.severity_level,
+                "symptom_count": s.symptom_count or 0,
+                "symptoms_detected": sorted(set(symptoms)),
+                "flagged_for_review": s.flagged_for_review,
+            }
+        )
 
     # Compute trend summary
     if len(timeline) >= 2:
@@ -376,6 +401,7 @@ async def get_my_symptom_trends(
 
 # ── Emergency Contacts ────────────────────────────────────────────────────────
 
+
 @router.post("/emergency-contacts")
 @limiter.limit("30/minute")
 async def add_emergency_contact(
@@ -404,11 +430,7 @@ async def list_emergency_contacts(
     db: Session = Depends(get_db),
 ):
     """List the patient's emergency contacts."""
-    contacts = (
-        db.query(EmergencyContact)
-        .filter(EmergencyContact.patient_id == current_user.id)
-        .all()
-    )
+    contacts = db.query(EmergencyContact).filter(EmergencyContact.patient_id == current_user.id).all()
     return [
         {
             "id": c.id,
@@ -430,10 +452,14 @@ async def remove_emergency_contact(
     db: Session = Depends(get_db),
 ):
     """Remove an emergency contact."""
-    contact = db.query(EmergencyContact).filter(
-        EmergencyContact.id == contact_id,
-        EmergencyContact.patient_id == current_user.id,
-    ).first()
+    contact = (
+        db.query(EmergencyContact)
+        .filter(
+            EmergencyContact.id == contact_id,
+            EmergencyContact.patient_id == current_user.id,
+        )
+        .first()
+    )
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
     db.delete(contact)
@@ -443,7 +469,8 @@ async def remove_emergency_contact(
 
 # ── Medications CRUD ──────────────────────────────────────────────────────────
 
-@router.get("/medications", response_model=List[MedicationResponse])
+
+@router.get("/medications", response_model=list[MedicationResponse])
 async def list_medications(
     all: bool = Query(False, description="Include inactive medications"),
     current_user: User = Depends(get_current_user),
@@ -541,10 +568,14 @@ async def update_medication(
     db: Session = Depends(get_db),
 ):
     """Update an existing medication."""
-    med = db.query(Medication).filter(
-        Medication.id == medication_id,
-        Medication.patient_id == current_user.id,
-    ).first()
+    med = (
+        db.query(Medication)
+        .filter(
+            Medication.id == medication_id,
+            Medication.patient_id == current_user.id,
+        )
+        .first()
+    )
     if not med:
         raise HTTPException(status_code=404, detail="Medication not found")
 
@@ -599,10 +630,14 @@ async def delete_medication(
     db: Session = Depends(get_db),
 ):
     """Soft-delete a medication (set is_active=False)."""
-    med = db.query(Medication).filter(
-        Medication.id == medication_id,
-        Medication.patient_id == current_user.id,
-    ).first()
+    med = (
+        db.query(Medication)
+        .filter(
+            Medication.id == medication_id,
+            Medication.patient_id == current_user.id,
+        )
+        .first()
+    )
     if not med:
         raise HTTPException(status_code=404, detail="Medication not found")
 
@@ -615,18 +650,14 @@ async def delete_medication(
 
 # ── Allergies CRUD ────────────────────────────────────────────────────────────
 
-@router.get("/allergies", response_model=List[AllergyResponse])
+
+@router.get("/allergies", response_model=list[AllergyResponse])
 async def list_allergies(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """List the patient's allergies."""
-    allergies = (
-        db.query(Allergy)
-        .filter(Allergy.patient_id == current_user.id)
-        .order_by(desc(Allergy.created_at))
-        .all()
-    )
+    allergies = db.query(Allergy).filter(Allergy.patient_id == current_user.id).order_by(desc(Allergy.created_at)).all()
 
     return [
         AllergyResponse(
@@ -697,10 +728,14 @@ async def delete_allergy(
     db: Session = Depends(get_db),
 ):
     """Delete an allergy from the patient's record."""
-    allergy = db.query(Allergy).filter(
-        Allergy.id == allergy_id,
-        Allergy.patient_id == current_user.id,
-    ).first()
+    allergy = (
+        db.query(Allergy)
+        .filter(
+            Allergy.id == allergy_id,
+            Allergy.patient_id == current_user.id,
+        )
+        .first()
+    )
     if not allergy:
         raise HTTPException(status_code=404, detail="Allergy not found")
 
@@ -713,17 +748,15 @@ async def delete_allergy(
 
 # ── Diagnoses (read-only for patients) ────────────────────────────────────────
 
-@router.get("/diagnoses", response_model=List[DiagnosisResponse])
+
+@router.get("/diagnoses", response_model=list[DiagnosisResponse])
 async def list_diagnoses(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """List the patient's diagnoses. Patients can view; clinicians add via dashboard."""
     diagnoses = (
-        db.query(Diagnosis)
-        .filter(Diagnosis.patient_id == current_user.id)
-        .order_by(desc(Diagnosis.created_at))
-        .all()
+        db.query(Diagnosis).filter(Diagnosis.patient_id == current_user.id).order_by(desc(Diagnosis.created_at)).all()
     )
 
     log_audit(db, current_user.id, "diagnoses_viewed", resource_type="diagnosis")
@@ -744,6 +777,7 @@ async def list_diagnoses(
 
 
 # ── Screening Schedule ───────────────────────────────────────────────────────
+
 
 @router.get("/screening-schedule", response_model=Optional[ScreeningScheduleResponse])
 async def get_screening_schedule(
@@ -854,7 +888,9 @@ async def create_or_update_screening_schedule(
     db.add(schedule)
     db.commit()
 
-    log_audit(db, current_user.id, "screening_schedule_created", resource_type="screening_schedule", resource_id=schedule_id)
+    log_audit(
+        db, current_user.id, "screening_schedule_created", resource_type="screening_schedule", resource_id=schedule_id
+    )
 
     return ScreeningScheduleResponse(
         id=schedule.id,
@@ -878,21 +914,32 @@ async def deactivate_screening_schedule(
     db: Session = Depends(get_db),
 ):
     """Deactivate a screening schedule."""
-    schedule = db.query(ScreeningSchedule).filter(
-        ScreeningSchedule.id == schedule_id,
-        ScreeningSchedule.patient_id == current_user.id,
-    ).first()
+    schedule = (
+        db.query(ScreeningSchedule)
+        .filter(
+            ScreeningSchedule.id == schedule_id,
+            ScreeningSchedule.patient_id == current_user.id,
+        )
+        .first()
+    )
     if not schedule:
         raise HTTPException(status_code=404, detail="Screening schedule not found")
 
     schedule.is_active = False
     db.commit()
-    log_audit(db, current_user.id, "screening_schedule_deactivated", resource_type="screening_schedule", resource_id=schedule_id)
+    log_audit(
+        db,
+        current_user.id,
+        "screening_schedule_deactivated",
+        resource_type="screening_schedule",
+        resource_id=schedule_id,
+    )
 
     return {"status": "deactivated", "schedule_id": schedule_id}
 
 
 # ── Onboarding Status ────────────────────────────────────────────────────────
+
 
 @router.get("/onboarding-status", response_model=OnboardingProgress)
 async def get_onboarding_status(
@@ -901,34 +948,56 @@ async def get_onboarding_status(
 ):
     """Return which onboarding steps are complete by checking filled fields in DB."""
     # Demographics: DOB, gender, nationality
-    demographics_complete = all([
-        current_user.date_of_birth,
-        current_user.gender,
-        current_user.nationality,
-    ])
+    demographics_complete = all(
+        [
+            current_user.date_of_birth,
+            current_user.gender,
+            current_user.nationality,
+        ]
+    )
 
     # Contact: phone number
     contact_complete = current_user.phone is not None and len(current_user.phone) > 0
 
     # Medical history: at least one diagnosis exists
-    medical_history_complete = db.query(Diagnosis).filter(
-        Diagnosis.patient_id == current_user.id,
-    ).first() is not None
+    medical_history_complete = (
+        db.query(Diagnosis)
+        .filter(
+            Diagnosis.patient_id == current_user.id,
+        )
+        .first()
+        is not None
+    )
 
     # Medications: at least one medication recorded (active or not)
-    medications_complete = db.query(Medication).filter(
-        Medication.patient_id == current_user.id,
-    ).first() is not None
+    medications_complete = (
+        db.query(Medication)
+        .filter(
+            Medication.patient_id == current_user.id,
+        )
+        .first()
+        is not None
+    )
 
     # Allergies: at least one allergy recorded
-    allergies_complete = db.query(Allergy).filter(
-        Allergy.patient_id == current_user.id,
-    ).first() is not None
+    allergies_complete = (
+        db.query(Allergy)
+        .filter(
+            Allergy.patient_id == current_user.id,
+        )
+        .first()
+        is not None
+    )
 
     # Emergency contacts: at least one
-    emergency_contacts_complete = db.query(EmergencyContact).filter(
-        EmergencyContact.patient_id == current_user.id,
-    ).first() is not None
+    emergency_contacts_complete = (
+        db.query(EmergencyContact)
+        .filter(
+            EmergencyContact.patient_id == current_user.id,
+        )
+        .first()
+        is not None
+    )
 
     # Consent: use onboarding_completed as a proxy (set after all required steps)
     consent_accepted = current_user.onboarding_completed or False
@@ -964,9 +1033,14 @@ async def mark_onboarding_complete(
     if not current_user.phone:
         missing.append("phone")
 
-    has_emergency_contact = db.query(EmergencyContact).filter(
-        EmergencyContact.patient_id == current_user.id,
-    ).first() is not None
+    has_emergency_contact = (
+        db.query(EmergencyContact)
+        .filter(
+            EmergencyContact.patient_id == current_user.id,
+        )
+        .first()
+        is not None
+    )
     if not has_emergency_contact:
         missing.append("emergency_contact")
 
@@ -988,6 +1062,7 @@ async def mark_onboarding_complete(
 
 # ── Data Export ───────────────────────────────────────────────────────────────
 
+
 @router.get("/export")
 async def export_my_data(
     current_user: User = Depends(get_current_user),
@@ -1000,18 +1075,11 @@ async def export_my_data(
     """
     # Screenings
     screenings = (
-        db.query(Screening)
-        .filter(Screening.patient_id == current_user.id)
-        .order_by(Screening.created_at)
-        .all()
+        db.query(Screening).filter(Screening.patient_id == current_user.id).order_by(Screening.created_at).all()
     )
 
     # Documents
-    documents = (
-        db.query(PatientDocument)
-        .filter(PatientDocument.patient_id == current_user.id)
-        .all()
-    )
+    documents = db.query(PatientDocument).filter(PatientDocument.patient_id == current_user.id).all()
 
     # Chat messages (across all screenings)
     screening_ids = [s.id for s in screenings]
@@ -1025,11 +1093,7 @@ async def export_my_data(
         )
 
     # Emergency contacts
-    contacts = (
-        db.query(EmergencyContact)
-        .filter(EmergencyContact.patient_id == current_user.id)
-        .all()
-    )
+    contacts = db.query(EmergencyContact).filter(EmergencyContact.patient_id == current_user.id).all()
 
     log_audit(db, current_user.id, "data_exported", resource_type="user")
 
@@ -1088,7 +1152,8 @@ async def export_my_data(
 
 # ── Patient Notifications ────────────────────────────────────────────────────
 
-@router.get("/notifications", response_model=List[NotificationResponse])
+
+@router.get("/notifications", response_model=list[NotificationResponse])
 async def list_notifications(
     all: bool = Query(False, description="Include read notifications"),
     current_user: User = Depends(get_current_user),
@@ -1162,10 +1227,14 @@ async def mark_notification_read(
     db: Session = Depends(get_db),
 ):
     """Mark a single notification as read."""
-    notification = db.query(Notification).filter(
-        Notification.id == notification_id,
-        Notification.user_id == current_user.id,
-    ).first()
+    notification = (
+        db.query(Notification)
+        .filter(
+            Notification.id == notification_id,
+            Notification.user_id == current_user.id,
+        )
+        .first()
+    )
     if not notification:
         raise HTTPException(status_code=404, detail="Notification not found")
 

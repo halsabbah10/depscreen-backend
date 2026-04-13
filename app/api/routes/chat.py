@@ -9,17 +9,20 @@ The chatbot is RAG-grounded and crisis-aware. It NEVER diagnoses.
 Tone: warm, empathetic, patient, non-judgmental — the user may be in crisis.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy.orm import Session
-from sqlalchemy import desc
-from uuid import uuid4
 import logging
+from uuid import uuid4
 
-from app.models.db import Screening, ChatMessage, Conversation, User, get_db
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy import desc
+from sqlalchemy.orm import Session
+
+from app.core.config import Settings, get_settings
+from app.middleware.rate_limiter import limiter
+from app.models.db import ChatMessage, Conversation, Screening, User, get_db
 from app.schemas.analysis import (
+    ChatHistoryResponse,
     ChatMessageRequest,
     ChatMessageResponse,
-    ChatHistoryResponse,
     ConversationCreate,
     ConversationResponse,
 )
@@ -27,8 +30,6 @@ from app.services.auth import get_current_user, log_audit
 from app.services.chat import ChatService
 from app.services.llm import LLMService
 from app.services.rag import RAGService
-from app.core.config import get_settings, Settings
-from app.middleware.rate_limiter import limiter
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -58,6 +59,7 @@ def _verify_screening_access(screening: Screening, user: User):
 
 # ── Conversations (Standalone Chat) ──────────────────────────────────────────
 
+
 @router.get("/conversations", response_model=list[ConversationResponse])
 async def list_conversations(
     current_user: User = Depends(get_current_user),
@@ -74,16 +76,18 @@ async def list_conversations(
     results = []
     for c in convos:
         msg_count = db.query(ChatMessage).filter(ChatMessage.conversation_id == c.id).count()
-        results.append(ConversationResponse(
-            id=c.id,
-            title=c.title,
-            context_type=c.context_type,
-            linked_screening_id=c.linked_screening_id,
-            is_active=c.is_active,
-            created_at=c.created_at,
-            updated_at=c.updated_at,
-            message_count=msg_count,
-        ))
+        results.append(
+            ConversationResponse(
+                id=c.id,
+                title=c.title,
+                context_type=c.context_type,
+                linked_screening_id=c.linked_screening_id,
+                is_active=c.is_active,
+                created_at=c.created_at,
+                updated_at=c.updated_at,
+                message_count=msg_count,
+            )
+        )
 
     return results
 
@@ -149,10 +153,14 @@ async def send_conversation_message(
     if current_user.role != "patient":
         raise HTTPException(status_code=403, detail="Only patients can send messages")
 
-    conv = db.query(Conversation).filter(
-        Conversation.id == conversation_id,
-        Conversation.user_id == current_user.id,
-    ).first()
+    conv = (
+        db.query(Conversation)
+        .filter(
+            Conversation.id == conversation_id,
+            Conversation.user_id == current_user.id,
+        )
+        .first()
+    )
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
@@ -192,8 +200,9 @@ async def send_conversation_message(
         db.commit()
     else:
         # Standalone chat without screening context
-        from app.services.chat import CRISIS_KEYWORDS, CRISIS_RESPONSE
         import re
+
+        from app.services.chat import CRISIS_KEYWORDS, CRISIS_RESPONSE
 
         # Save user message
         user_msg = ChatMessage(
@@ -220,8 +229,7 @@ async def send_conversation_message(
             )
             if recent_screening and recent_screening.symptom_data:
                 detected_symptoms = [
-                    d.get("symptom", "")
-                    for d in recent_screening.symptom_data.get("symptoms_detected", [])
+                    d.get("symptom", "") for d in recent_screening.symptom_data.get("symptoms_detected", [])
                 ]
 
             rag_context = ""
@@ -234,16 +242,18 @@ async def send_conversation_message(
 
             # Build prompt
             from app.services.chat import CHAT_SYSTEM_PROMPT
+
             prompt_parts = [f"## Patient's Message\n{body.message}"]
             if rag_context:
                 prompt_parts.insert(0, f"## Clinical Context\n{rag_context}")
             if recent_screening:
                 severity = recent_screening.severity_level or "unknown"
-                prompt_parts.insert(0, f"## Recent Screening\nSeverity: {severity}, Symptoms: {recent_screening.symptom_count or 0}")
+                prompt_parts.insert(
+                    0, f"## Recent Screening\nSeverity: {severity}, Symptoms: {recent_screening.symptom_count or 0}"
+                )
             if history:
                 hist_text = "\n".join(
-                    f"{'Patient' if m.role == 'user' else 'Assistant'}: {m.content[:200]}"
-                    for m in history[-8:]
+                    f"{'Patient' if m.role == 'user' else 'Assistant'}: {m.content[:200]}" for m in history[-8:]
                 )
                 prompt_parts.insert(0, f"## Recent Conversation\n{hist_text}")
 
@@ -282,9 +292,13 @@ async def send_conversation_message(
         db.commit()
 
     # Update conversation timestamp
-    conv.updated_at = db.query(ChatMessage).filter(
-        ChatMessage.conversation_id == conversation_id
-    ).order_by(desc(ChatMessage.created_at)).first().created_at
+    conv.updated_at = (
+        db.query(ChatMessage)
+        .filter(ChatMessage.conversation_id == conversation_id)
+        .order_by(desc(ChatMessage.created_at))
+        .first()
+        .created_at
+    )
     db.commit()
 
     return ChatMessageResponse(
@@ -302,10 +316,14 @@ async def get_conversation_messages(
     db: Session = Depends(get_db),
 ):
     """Get all messages in a conversation."""
-    conv = db.query(Conversation).filter(
-        Conversation.id == conversation_id,
-        Conversation.user_id == current_user.id,
-    ).first()
+    conv = (
+        db.query(Conversation)
+        .filter(
+            Conversation.id == conversation_id,
+            Conversation.user_id == current_user.id,
+        )
+        .first()
+    )
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
@@ -320,7 +338,10 @@ async def get_conversation_messages(
         screening_id=conv.linked_screening_id or conversation_id,
         messages=[
             ChatMessageResponse(
-                id=m.id, role=m.role, content=m.content, created_at=m.created_at,
+                id=m.id,
+                role=m.role,
+                content=m.content,
+                created_at=m.created_at,
             )
             for m in messages
         ],
@@ -336,10 +357,14 @@ async def archive_conversation(
     db: Session = Depends(get_db),
 ):
     """Archive a conversation (soft delete)."""
-    conv = db.query(Conversation).filter(
-        Conversation.id == conversation_id,
-        Conversation.user_id == current_user.id,
-    ).first()
+    conv = (
+        db.query(Conversation)
+        .filter(
+            Conversation.id == conversation_id,
+            Conversation.user_id == current_user.id,
+        )
+        .first()
+    )
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
@@ -349,6 +374,7 @@ async def archive_conversation(
 
 
 # ── Screening-Linked Chat (existing functionality, preserved) ────────────────
+
 
 @router.post("/screening/{screening_id}", response_model=ChatMessageResponse)
 @limiter.limit("30/minute")
@@ -371,10 +397,7 @@ async def send_screening_message(
         raise HTTPException(status_code=403, detail="Only patients can send chat messages")
 
     history = (
-        db.query(ChatMessage)
-        .filter(ChatMessage.screening_id == screening_id)
-        .order_by(ChatMessage.created_at)
-        .all()
+        db.query(ChatMessage).filter(ChatMessage.screening_id == screening_id).order_by(ChatMessage.created_at).all()
     )
 
     assistant_msg = await chat_service.respond(
@@ -406,17 +429,17 @@ async def get_screening_chat_history(
     _verify_screening_access(screening, current_user)
 
     messages = (
-        db.query(ChatMessage)
-        .filter(ChatMessage.screening_id == screening_id)
-        .order_by(ChatMessage.created_at)
-        .all()
+        db.query(ChatMessage).filter(ChatMessage.screening_id == screening_id).order_by(ChatMessage.created_at).all()
     )
 
     return ChatHistoryResponse(
         screening_id=screening_id,
         messages=[
             ChatMessageResponse(
-                id=m.id, role=m.role, content=m.content, created_at=m.created_at,
+                id=m.id,
+                role=m.role,
+                content=m.content,
+                created_at=m.created_at,
             )
             for m in messages
         ],

@@ -16,9 +16,9 @@ class DecisionService:
     """Service for computing final screening assessment from DL + LLM verification."""
 
     def __init__(self):
-        self.evidence_mismatch_factor = 0.7   # 30% reduction
-        self.adversarial_factor = 0.3          # 70% reduction
-        self.low_trust_factor = 0.8            # 20% reduction
+        self.evidence_mismatch_factor = 0.7  # 30% reduction
+        self.adversarial_factor = 0.3  # 70% reduction
+        self.low_trust_factor = 0.8  # 20% reduction
 
     def compute_final_prediction(
         self,
@@ -86,10 +86,7 @@ class DecisionService:
         )
 
         if adjusted:
-            logger.info(
-                f"Confidence adjusted from {base_conf:.2%} to {final_conf:.2%}. "
-                f"Reasons: {', '.join(reasons)}"
-            )
+            logger.info(f"Confidence adjusted from {base_conf:.2%} to {final_conf:.2%}. Reasons: {', '.join(reasons)}")
 
         final_conf = max(0.0, min(1.0, final_conf))
         return final_prediction, final_conf, adjusted, flagged

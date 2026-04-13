@@ -7,19 +7,20 @@ Provides three verification layers (run in parallel):
 3. Confidence calibration — should we trust the overall severity assessment?
 """
 
-from openai import AsyncOpenAI
 import asyncio
 import json
-import re
 import logging
+import re
+
+from openai import AsyncOpenAI
 
 from app.core.config import Settings
 from app.middleware.llm_resilience import llm_retry
 from app.schemas.analysis import (
-    PostSymptomSummary,
-    EvidenceValidation,
-    ConfidenceAnalysis,
     AdversarialCheck,
+    ConfidenceAnalysis,
+    EvidenceValidation,
+    PostSymptomSummary,
     VerificationReport,
 )
 
@@ -78,7 +79,7 @@ class VerificationService:
         """Run 3 parallel LLM verification tasks on the symptom detections."""
         # Build evidence summary for verification prompts
         evidence_summary = "\n".join(
-            f"- {d.symptom_label}: \"{d.sentence_text}\" (confidence: {d.confidence:.0%})"
+            f'- {d.symptom_label}: "{d.sentence_text}" (confidence: {d.confidence:.0%})'
             for d in symptom_analysis.symptoms_detected
         )
 
@@ -91,16 +92,11 @@ class VerificationService:
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         evidence_validation = (
-            results[0] if not isinstance(results[0], Exception)
-            else self._fallback_evidence_validation()
+            results[0] if not isinstance(results[0], Exception) else self._fallback_evidence_validation()
         )
-        adversarial_check = (
-            results[1] if not isinstance(results[1], Exception)
-            else self._fallback_adversarial_check()
-        )
+        adversarial_check = results[1] if not isinstance(results[1], Exception) else self._fallback_adversarial_check()
         confidence_analysis = (
-            results[2] if not isinstance(results[2], Exception)
-            else self._fallback_confidence_analysis()
+            results[2] if not isinstance(results[2], Exception) else self._fallback_confidence_analysis()
         )
 
         return VerificationReport(
@@ -136,12 +132,16 @@ Respond in JSON:
 }}"""
 
         try:
+
             @llm_retry
             async def _call_evidence():
                 return await self.client.chat.completions.create(
                     model=self.model,
                     messages=[
-                        {"role": "system", "content": "You are a clinical psychologist reviewing AI-generated depression symptom detections. Always respond with valid JSON only."},
+                        {
+                            "role": "system",
+                            "content": "You are a clinical psychologist reviewing AI-generated depression symptom detections. Always respond with valid JSON only.",
+                        },
                         {"role": "user", "content": prompt},
                     ],
                     temperature=0.2,
@@ -174,12 +174,16 @@ Respond in JSON:
 }}"""
 
         try:
+
             @llm_retry
             async def _call_adversarial():
                 return await self.client.chat.completions.create(
                     model=self.model,
                     messages=[
-                        {"role": "system", "content": "You are a security expert analyzing text inputs. Always respond with valid JSON only."},
+                        {
+                            "role": "system",
+                            "content": "You are a security expert analyzing text inputs. Always respond with valid JSON only.",
+                        },
                         {"role": "user", "content": prompt},
                     ],
                     temperature=0.2,
@@ -222,12 +226,16 @@ Respond in JSON:
 }}"""
 
         try:
+
             @llm_retry
             async def _call_confidence():
                 return await self.client.chat.completions.create(
                     model=self.model,
                     messages=[
-                        {"role": "system", "content": "You are an ML expert evaluating screening reliability. Always respond with valid JSON only."},
+                        {
+                            "role": "system",
+                            "content": "You are an ML expert evaluating screening reliability. Always respond with valid JSON only.",
+                        },
                         {"role": "user", "content": prompt},
                     ],
                     temperature=0.2,

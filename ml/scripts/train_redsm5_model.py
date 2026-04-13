@@ -17,27 +17,24 @@ Options:
 
 import argparse
 import json
+import logging
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, precision_recall_fscore_support
 from torch.optim import AdamW
-from transformers import AutoTokenizer, AutoModel, get_linear_schedule_with_warmup
-from sklearn.metrics import (
-    accuracy_score, precision_recall_fscore_support,
-    classification_report, confusion_matrix
-)
+from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
-import logging
+from transformers import AutoModel, AutoTokenizer, get_linear_schedule_with_warmup
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 # ── Model ─────────────────────────────────────────────────────────────────────
+
 
 class SymptomClassifier(nn.Module):
     """Transformer-based sentence-level DSM-5 symptom classifier."""
@@ -58,6 +55,7 @@ class SymptomClassifier(nn.Module):
 
 
 # ── Dataset ───────────────────────────────────────────────────────────────────
+
 
 class SymptomDataset(Dataset):
     """Dataset for sentence-level symptom classification."""
@@ -98,6 +96,7 @@ def collate_fn(batch):
 
 
 # ── Training ──────────────────────────────────────────────────────────────────
+
 
 def train_epoch(model, dataloader, optimizer, scheduler, criterion, device):
     """Train for one epoch."""
@@ -156,12 +155,8 @@ def evaluate(model, dataloader, criterion, device, label_names: list[str]):
     # Compute metrics
     accuracy = accuracy_score(all_labels, all_preds)
 
-    micro_p, micro_r, micro_f1, _ = precision_recall_fscore_support(
-        all_labels, all_preds, average="micro"
-    )
-    macro_p, macro_r, macro_f1, _ = precision_recall_fscore_support(
-        all_labels, all_preds, average="macro"
-    )
+    micro_p, micro_r, micro_f1, _ = precision_recall_fscore_support(all_labels, all_preds, average="micro")
+    macro_p, macro_r, macro_f1, _ = precision_recall_fscore_support(all_labels, all_preds, average="macro")
 
     # Per-class metrics
     per_class_p, per_class_r, per_class_f1, per_class_support = precision_recall_fscore_support(
@@ -194,10 +189,15 @@ def evaluate(model, dataloader, criterion, device, label_names: list[str]):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+
 def main():
     parser = argparse.ArgumentParser(description="Train DSM-5 symptom classifier")
-    parser.add_argument("--model-name", type=str, default="distilbert-base-uncased",
-                        help="HuggingFace model name (default: distilbert-base-uncased)")
+    parser.add_argument(
+        "--model-name",
+        type=str,
+        default="distilbert-base-uncased",
+        help="HuggingFace model name (default: distilbert-base-uncased)",
+    )
     parser.add_argument("--epochs", type=int, default=5)
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--lr", type=float, default=2e-5)
@@ -245,32 +245,42 @@ def main():
     train_dataset = SymptomDataset(
         train_df["clean_text"].tolist(),
         train_df["label_id"].tolist(),
-        tokenizer, args.max_length,
+        tokenizer,
+        args.max_length,
     )
     val_dataset = SymptomDataset(
         val_df["clean_text"].tolist(),
         val_df["label_id"].tolist(),
-        tokenizer, args.max_length,
+        tokenizer,
+        args.max_length,
     )
     test_dataset = SymptomDataset(
         test_df["clean_text"].tolist(),
         test_df["label_id"].tolist(),
-        tokenizer, args.max_length,
+        tokenizer,
+        args.max_length,
     )
 
     # Workers: 0 for MPS (shared memory issues), 2 otherwise
     num_workers = 0 if device.type == "mps" else 2
     train_loader = DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=True,
-        collate_fn=collate_fn, num_workers=num_workers,
+        train_dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+        collate_fn=collate_fn,
+        num_workers=num_workers,
     )
     val_loader = DataLoader(
-        val_dataset, batch_size=args.batch_size,
-        collate_fn=collate_fn, num_workers=num_workers,
+        val_dataset,
+        batch_size=args.batch_size,
+        collate_fn=collate_fn,
+        num_workers=num_workers,
     )
     test_loader = DataLoader(
-        test_dataset, batch_size=args.batch_size,
-        collate_fn=collate_fn, num_workers=num_workers,
+        test_dataset,
+        batch_size=args.batch_size,
+        collate_fn=collate_fn,
+        num_workers=num_workers,
     )
 
     # ── Model ──
@@ -305,9 +315,7 @@ def main():
     for epoch in range(args.epochs):
         logger.info(f"\nEpoch {epoch + 1}/{args.epochs}")
 
-        train_loss, train_acc = train_epoch(
-            model, train_loader, optimizer, scheduler, criterion, device
-        )
+        train_loss, train_acc = train_epoch(model, train_loader, optimizer, scheduler, criterion, device)
         logger.info(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f}")
 
         val_metrics, _, _ = evaluate(model, val_loader, criterion, device, label_names)
@@ -317,14 +325,16 @@ def main():
             f"Val Macro-F1: {val_metrics['macro_f1']:.4f}"
         )
 
-        training_history.append({
-            "epoch": epoch + 1,
-            "train_loss": train_loss,
-            "train_acc": train_acc,
-            "val_loss": val_metrics["loss"],
-            "val_micro_f1": val_metrics["micro_f1"],
-            "val_macro_f1": val_metrics["macro_f1"],
-        })
+        training_history.append(
+            {
+                "epoch": epoch + 1,
+                "train_loss": train_loss,
+                "train_acc": train_acc,
+                "val_loss": val_metrics["loss"],
+                "val_micro_f1": val_metrics["micro_f1"],
+                "val_macro_f1": val_metrics["macro_f1"],
+            }
+        )
 
         if val_metrics["micro_f1"] > best_val_f1:
             best_val_f1 = val_metrics["micro_f1"]
@@ -335,11 +345,9 @@ def main():
     logger.info("\n" + "=" * 60)
     logger.info("Evaluating on test set...")
     model.load_state_dict(torch.load(output_dir / "symptom_classifier.pt", map_location=device))
-    test_metrics, test_preds, test_labels = evaluate(
-        model, test_loader, criterion, device, label_names
-    )
+    test_metrics, test_preds, test_labels = evaluate(model, test_loader, criterion, device, label_names)
 
-    logger.info(f"\nTest Results:")
+    logger.info("\nTest Results:")
     logger.info(f"  Accuracy:       {test_metrics['accuracy']:.4f}")
     logger.info(f"  Micro-F1:       {test_metrics['micro_f1']:.4f}")
     logger.info(f"  Macro-F1:       {test_metrics['macro_f1']:.4f}")
@@ -364,7 +372,9 @@ def main():
     for name, score in baselines.items():
         delta = test_metrics["micro_f1"] - score
         marker = "✓" if delta > 0 else "✗"
-        print(f"  {name}: {score:.2f}  →  Ours: {test_metrics['micro_f1']:.2f}  ({'+' if delta > 0 else ''}{delta:.2f}) {marker}")
+        print(
+            f"  {name}: {score:.2f}  →  Ours: {test_metrics['micro_f1']:.2f}  ({'+' if delta > 0 else ''}{delta:.2f}) {marker}"
+        )
 
     # ── Save results ──
     results = {

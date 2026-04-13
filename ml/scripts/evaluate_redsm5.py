@@ -9,18 +9,14 @@ Usage:
 
 import argparse
 import json
+import logging
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import torch
+from sklearn.metrics import accuracy_score, confusion_matrix, precision_recall_fscore_support
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer
-from sklearn.metrics import (
-    accuracy_score, precision_recall_fscore_support,
-    classification_report, confusion_matrix
-)
-import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -36,13 +32,15 @@ def per_symptom_breakdown(labels, preds, label_names) -> pd.DataFrame:
     )
     rows = []
     for i, name in enumerate(label_names):
-        rows.append({
-            "Symptom": name,
-            "Precision": round(p[i], 4),
-            "Recall": round(r[i], 4),
-            "F1-Score": round(f1[i], 4),
-            "Support": int(support[i]),
-        })
+        rows.append(
+            {
+                "Symptom": name,
+                "Precision": round(p[i], 4),
+                "Recall": round(r[i], 4),
+                "F1-Score": round(f1[i], 4),
+                "Support": int(support[i]),
+            }
+        )
     return pd.DataFrame(rows)
 
 
@@ -51,12 +49,14 @@ def error_analysis(test_df, preds, label_names) -> pd.DataFrame:
     errors = []
     for i, (true_label, pred_label) in enumerate(zip(test_df["label_id"], preds)):
         if true_label != pred_label:
-            errors.append({
-                "sentence_text": test_df.iloc[i]["clean_text"],
-                "true_label": label_names[true_label],
-                "predicted_label": label_names[pred_label],
-                "post_id": test_df.iloc[i]["post_id"],
-            })
+            errors.append(
+                {
+                    "sentence_text": test_df.iloc[i]["clean_text"],
+                    "true_label": label_names[true_label],
+                    "predicted_label": label_names[pred_label],
+                    "post_id": test_df.iloc[i]["post_id"],
+                }
+            )
     return pd.DataFrame(errors)
 
 
@@ -67,12 +67,8 @@ def post_level_evaluation(test_df, preds, label_names) -> dict:
 
     results_per_post = {}
     for post_id, group in test_df.groupby("post_id"):
-        true_symptoms = set(
-            group[group["label"] != "NO_SYMPTOM"]["label"].unique()
-        )
-        pred_symptoms = set(
-            group[group["predicted_label"] != "NO_SYMPTOM"]["predicted_label"].unique()
-        )
+        true_symptoms = set(group[group["label"] != "NO_SYMPTOM"]["label"].unique())
+        pred_symptoms = set(group[group["predicted_label"] != "NO_SYMPTOM"]["predicted_label"].unique())
         results_per_post[post_id] = {
             "true_symptom_count": len(true_symptoms),
             "pred_symptom_count": len(pred_symptoms),
@@ -85,9 +81,12 @@ def post_level_evaluation(test_df, preds, label_names) -> dict:
 
     # Severity accuracy (based on count thresholds)
     def severity(count):
-        if count == 0: return "none"
-        if count <= 2: return "mild"
-        if count <= 4: return "moderate"
+        if count == 0:
+            return "none"
+        if count <= 2:
+            return "mild"
+        if count <= 4:
+            return "moderate"
         return "severe"
 
     df["true_severity"] = df["true_symptom_count"].apply(severity)
@@ -118,12 +117,14 @@ def baseline_comparison(our_micro_f1: float) -> pd.DataFrame:
     }
     rows = []
     for name, score in baselines.items():
-        delta = our_micro_f1 - score if name != f"DepScreen DistilBERT (ours)" else 0
-        rows.append({
-            "Model": name,
-            "Micro-F1": round(score, 4),
-            "Delta vs Ours": f"+{delta:.4f}" if delta > 0 else ("—" if delta == 0 else f"{delta:.4f}"),
-        })
+        delta = our_micro_f1 - score if name != "DepScreen DistilBERT (ours)" else 0
+        rows.append(
+            {
+                "Model": name,
+                "Micro-F1": round(score, 4),
+                "Delta vs Ours": f"+{delta:.4f}" if delta > 0 else ("—" if delta == 0 else f"{delta:.4f}"),
+            }
+        )
     return pd.DataFrame(rows)
 
 
@@ -145,8 +146,8 @@ def generate_markdown_report(
         "",
         "## Overall Metrics",
         "",
-        f"| Metric | Value |",
-        f"|--------|-------|",
+        "| Metric | Value |",
+        "|--------|-------|",
         f"| Accuracy | {test_metrics['accuracy']:.4f} |",
         f"| Micro-F1 | {test_metrics['micro_f1']:.4f} |",
         f"| Macro-F1 | {test_metrics['macro_f1']:.4f} |",
@@ -163,8 +164,8 @@ def generate_markdown_report(
         "",
         "## Post-Level Aggregation",
         "",
-        f"| Metric | Value |",
-        f"|--------|-------|",
+        "| Metric | Value |",
+        "|--------|-------|",
         f"| Posts evaluated | {post_metrics['num_posts']} |",
         f"| Severity classification accuracy | {post_metrics['severity_accuracy']:.2%} |",
         f"| Symptom count MAE | {post_metrics['symptom_count_mae']:.2f} |",
@@ -186,15 +187,17 @@ def generate_markdown_report(
     else:
         lines.append("No errors found.")
 
-    lines.extend([
-        "",
-        "## Notes",
-        "",
-        "- PSYCHOMOTOR has only 1 test sample — F1 unreliable for this class",
-        "- APPETITE_CHANGE has only 4 test samples — F1 should be interpreted with caution",
-        "- NO_SYMPTOM has low recall (model prefers detecting symptoms) — safe bias for screening",
-        "- All baselines are from the ReDSM5 paper (CIKM 2025, arXiv:2508.03399)",
-    ])
+    lines.extend(
+        [
+            "",
+            "## Notes",
+            "",
+            "- PSYCHOMOTOR has only 1 test sample — F1 unreliable for this class",
+            "- APPETITE_CHANGE has only 4 test samples — F1 should be interpreted with caution",
+            "- NO_SYMPTOM has low recall (model prefers detecting symptoms) — safe bias for screening",
+            "- All baselines are from the ReDSM5 paper (CIKM 2025, arXiv:2508.03399)",
+        ]
+    )
 
     with open(output_path, "w") as f:
         f.write("\n".join(lines))
@@ -244,13 +247,17 @@ def main():
     test_df = pd.read_csv(data_dir / "test.csv")
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     test_dataset = SymptomDataset(
-        test_df["clean_text"].tolist(), test_df["label_id"].tolist(),
-        tokenizer, args.max_length,
+        test_df["clean_text"].tolist(),
+        test_df["label_id"].tolist(),
+        tokenizer,
+        args.max_length,
     )
     num_workers = 0 if device.type == "mps" else 2
     test_loader = DataLoader(
-        test_dataset, batch_size=args.batch_size,
-        collate_fn=collate_fn, num_workers=num_workers,
+        test_dataset,
+        batch_size=args.batch_size,
+        collate_fn=collate_fn,
+        num_workers=num_workers,
     )
 
     # Evaluate
@@ -299,7 +306,7 @@ def main():
 
     # Error analysis
     error_df = error_analysis(test_df, all_preds, label_names)
-    print(f"\nMisclassified: {len(error_df)} / {len(all_labels)} ({len(error_df)/len(all_labels):.1%})")
+    print(f"\nMisclassified: {len(error_df)} / {len(all_labels)} ({len(error_df) / len(all_labels):.1%})")
 
     # Post-level
     post_metrics = post_level_evaluation(test_df, all_preds, label_names)
@@ -331,8 +338,13 @@ def main():
 
     # Markdown report
     generate_markdown_report(
-        test_metrics, per_class_df, error_df, post_metrics,
-        baseline_df, args.model_name, output_dir / "evaluation_report.md",
+        test_metrics,
+        per_class_df,
+        error_df,
+        post_metrics,
+        baseline_df,
+        args.model_name,
+        output_dir / "evaluation_report.md",
     )
 
     print(f"\nAll evaluation artifacts saved to: {output_dir}")

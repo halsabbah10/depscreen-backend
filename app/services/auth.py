@@ -9,7 +9,6 @@ import logging
 import secrets
 import string
 from datetime import datetime, timedelta
-from typing import Optional
 from uuid import uuid4
 
 from fastapi import Depends, HTTPException, status
@@ -19,7 +18,7 @@ from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
-from app.models.db import User, AuditLog, get_db
+from app.models.db import AuditLog, User, get_db
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +27,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=Fals
 
 
 # ── Password Handling ─────────────────────────────────────────────────────────
+
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
@@ -39,6 +39,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 # ── Clinician Code Generation ─────────────────────────────────────────────────
 
+
 def generate_clinician_code(length: int = 6) -> str:
     """Generate a unique alphanumeric invite code for clinicians."""
     chars = string.ascii_uppercase + string.digits
@@ -46,6 +47,7 @@ def generate_clinician_code(length: int = 6) -> str:
 
 
 # ── JWT Token Creation ────────────────────────────────────────────────────────
+
 
 def create_access_token(
     user_id: str,
@@ -80,7 +82,7 @@ def decode_token(token: str, settings: Settings) -> dict:
     try:
         payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
         return payload
-    except JWTError as e:
+    except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
@@ -90,13 +92,14 @@ def decode_token(token: str, settings: Settings) -> dict:
 
 # ── Registration ──────────────────────────────────────────────────────────────
 
+
 def register_user(
     email: str,
     password: str,
     full_name: str,
     role: str,
     db: Session,
-    clinician_code: Optional[str] = None,
+    clinician_code: str | None = None,
 ) -> User:
     """Register a new user.
 
@@ -119,10 +122,14 @@ def register_user(
     # Resolve clinician link
     clinician_id = None
     if clinician_code and role == "patient":
-        clinician = db.query(User).filter(
-            User.clinician_code == clinician_code,
-            User.role == "clinician",
-        ).first()
+        clinician = (
+            db.query(User)
+            .filter(
+                User.clinician_code == clinician_code,
+                User.role == "clinician",
+            )
+            .first()
+        )
         if not clinician:
             raise HTTPException(status_code=404, detail="Invalid clinician code")
         clinician_id = clinician.id
@@ -155,6 +162,7 @@ def register_user(
 
 # ── Login ─────────────────────────────────────────────────────────────────────
 
+
 def authenticate_user(email: str, password: str, db: Session) -> User:
     """Authenticate user by email and password."""
     user = db.query(User).filter(User.email == email).first()
@@ -173,8 +181,9 @@ def authenticate_user(email: str, password: str, db: Session) -> User:
 
 # ── Dependencies (FastAPI Depends) ────────────────────────────────────────────
 
+
 async def get_current_user(
-    token: Optional[str] = Depends(oauth2_scheme),
+    token: str | None = Depends(oauth2_scheme),
     settings: Settings = Depends(get_settings),
     db: Session = Depends(get_db),
 ) -> User:
@@ -221,6 +230,7 @@ def require_role(*allowed_roles: str):
 
     Usage: Depends(require_role("clinician", "admin"))
     """
+
     async def role_checker(current_user: User = Depends(get_current_user)):
         if current_user.role not in allowed_roles:
             raise HTTPException(
@@ -228,6 +238,7 @@ def require_role(*allowed_roles: str):
                 detail=f"Requires role: {', '.join(allowed_roles)}",
             )
         return current_user
+
     return role_checker
 
 
@@ -243,13 +254,14 @@ def require_clinician():
 
 # ── Audit Logging ─────────────────────────────────────────────────────────────
 
+
 def log_audit(
     db: Session,
     user_id: str,
     action: str,
     resource_type: str = "",
-    resource_id: Optional[str] = None,
-    ip_address: Optional[str] = None,
+    resource_id: str | None = None,
+    ip_address: str | None = None,
 ):
     """Write an entry to the audit log."""
     entry = AuditLog(

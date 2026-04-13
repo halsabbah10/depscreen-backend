@@ -1,63 +1,38 @@
 """Pydantic schemas for the DepScreen DSM-5 screening platform."""
 
-from pydantic import BaseModel, Field
-from typing import Optional
 from datetime import datetime
 
+from pydantic import BaseModel, Field
 
 # ── Symptom Detection Schemas ─────────────────────────────────────────────────
+
 
 class SymptomDetection(BaseModel):
     """A single DSM-5 symptom detected in a sentence."""
 
-    symptom: str = Field(
-        description="Symptom code, e.g. 'DEPRESSED_MOOD'"
-    )
-    symptom_label: str = Field(
-        description="Human-readable label, e.g. 'Depressed Mood'"
-    )
-    status: int = Field(
-        description="1 = symptom present, 0 = explicitly absent"
-    )
-    confidence: float = Field(
-        ge=0.0, le=1.0,
-        description="Model confidence for this prediction"
-    )
-    sentence_text: str = Field(
-        description="The sentence that triggered this detection"
-    )
-    sentence_id: Optional[str] = Field(
-        default=None,
-        description="Sentence identifier for reference"
-    )
+    symptom: str = Field(description="Symptom code, e.g. 'DEPRESSED_MOOD'")
+    symptom_label: str = Field(description="Human-readable label, e.g. 'Depressed Mood'")
+    status: int = Field(description="1 = symptom present, 0 = explicitly absent")
+    confidence: float = Field(ge=0.0, le=1.0, description="Model confidence for this prediction")
+    sentence_text: str = Field(description="The sentence that triggered this detection")
+    sentence_id: str | None = Field(default=None, description="Sentence identifier for reference")
 
 
 class PostSymptomSummary(BaseModel):
     """Aggregated symptom analysis for a complete text submission."""
 
     symptoms_detected: list[SymptomDetection] = Field(
-        default_factory=list,
-        description="All detected symptoms with sentence-level evidence"
+        default_factory=list, description="All detected symptoms with sentence-level evidence"
     )
-    unique_symptom_count: int = Field(
-        description="Count of distinct DSM-5 symptoms detected"
-    )
-    total_sentences_analyzed: int = Field(
-        description="Total sentences the text was split into"
-    )
-    severity_level: str = Field(
-        description="Severity: 'none', 'mild', 'moderate', or 'severe'"
-    )
-    severity_explanation: str = Field(
-        description="Clinical context for the severity level"
-    )
-    dsm5_criteria_met: list[str] = Field(
-        default_factory=list,
-        description="Which of the 9 DSM-5 criteria are met"
-    )
+    unique_symptom_count: int = Field(description="Count of distinct DSM-5 symptoms detected")
+    total_sentences_analyzed: int = Field(description="Total sentences the text was split into")
+    severity_level: str = Field(description="Severity: 'none', 'mild', 'moderate', or 'severe'")
+    severity_explanation: str = Field(description="Clinical context for the severity level")
+    dsm5_criteria_met: list[str] = Field(default_factory=list, description="Which of the 9 DSM-5 criteria are met")
 
 
 # ── LLM Verification Schemas ─────────────────────────────────────────────────
+
 
 class EvidenceValidation(BaseModel):
     """LLM validation of whether detected symptoms are genuinely supported."""
@@ -65,58 +40,35 @@ class EvidenceValidation(BaseModel):
     evidence_supports_prediction: bool = Field(
         description="Whether the sentence evidence supports the symptom detections"
     )
-    coherence_score: float = Field(
-        ge=0.0, le=1.0,
-        description="How well the evidence fits the predictions (0-1)"
+    coherence_score: float = Field(ge=0.0, le=1.0, description="How well the evidence fits the predictions (0-1)")
+    alternative_interpretation: str | None = Field(
+        default=None, description="Alternative interpretation if evidence seems contradictory"
     )
-    alternative_interpretation: Optional[str] = Field(
-        default=None,
-        description="Alternative interpretation if evidence seems contradictory"
-    )
-    flagged_for_review: bool = Field(
-        default=False,
-        description="Whether this case should be flagged for human review"
-    )
+    flagged_for_review: bool = Field(default=False, description="Whether this case should be flagged for human review")
 
 
 class ConfidenceAnalysis(BaseModel):
     """LLM meta-analysis of overall screening reliability."""
 
-    should_trust_prediction: str = Field(
-        description="Trust level: 'high', 'medium', or 'low'"
-    )
-    reasoning: str = Field(
-        description="Explanation for the trust assessment"
-    )
+    should_trust_prediction: str = Field(description="Trust level: 'high', 'medium', or 'low'")
+    reasoning: str = Field(description="Explanation for the trust assessment")
     potential_confounders: list[str] = Field(
-        default_factory=list,
-        description="Factors that might affect screening accuracy (sarcasm, metaphor, etc.)"
+        default_factory=list, description="Factors that might affect screening accuracy (sarcasm, metaphor, etc.)"
     )
-    recommended_threshold_adjustment: Optional[float] = Field(
-        default=None,
-        description="Suggested confidence adjustment multiplier"
+    recommended_threshold_adjustment: float | None = Field(
+        default=None, description="Suggested confidence adjustment multiplier"
     )
 
 
 class AdversarialCheck(BaseModel):
     """LLM detection of potentially adversarial or unusual inputs."""
 
-    likely_adversarial: bool = Field(
-        default=False,
-        description="Whether the input appears to be gaming the system"
+    likely_adversarial: bool = Field(default=False, description="Whether the input appears to be gaming the system")
+    adversarial_type: str | None = Field(
+        default=None, description="Type: 'prompt_injection', 'copypasta', 'gibberish', 'keyword_stuffing'"
     )
-    adversarial_type: Optional[str] = Field(
-        default=None,
-        description="Type: 'prompt_injection', 'copypasta', 'gibberish', 'keyword_stuffing'"
-    )
-    authenticity_score: float = Field(
-        ge=0.0, le=1.0,
-        description="How genuine the input seems (0-1)"
-    )
-    warning: Optional[str] = Field(
-        default=None,
-        description="Warning message if adversarial patterns detected"
-    )
+    authenticity_score: float = Field(ge=0.0, le=1.0, description="How genuine the input seems (0-1)")
+    warning: str | None = Field(default=None, description="Warning message if adversarial patterns detected")
 
 
 class VerificationReport(BaseModel):
@@ -129,63 +81,46 @@ class VerificationReport(BaseModel):
 
 # ── Explanation Schemas ───────────────────────────────────────────────────────
 
+
 class ExplanationReport(BaseModel):
     """Human-readable explanation generated by LLM, enriched with RAG context."""
 
-    summary: str = Field(
-        description="Brief summary of the screening result"
-    )
-    risk_level: str = Field(
-        description="Severity level: 'none', 'mild', 'moderate', or 'severe'"
-    )
+    summary: str = Field(description="Brief summary of the screening result")
+    risk_level: str = Field(description="Severity level: 'none', 'mild', 'moderate', or 'severe'")
     symptom_explanations: dict[str, str] = Field(
         default_factory=dict,
-        description="Per-symptom clinical context, e.g. {'SLEEP_ISSUES': 'Sleep disturbance is...'}"
+        description="Per-symptom clinical context, e.g. {'SLEEP_ISSUES': 'Sleep disturbance is...'}",
     )
-    why_model_thinks_this: str = Field(
-        description="Explanation of what patterns led to these detections"
-    )
+    why_model_thinks_this: str = Field(description="Explanation of what patterns led to these detections")
     key_evidence_quotes: list[str] = Field(
-        default_factory=list,
-        description="Key sentences from the input that triggered symptom detections"
+        default_factory=list, description="Key sentences from the input that triggered symptom detections"
     )
-    uncertainty_notes: str = Field(
-        description="Notes about screening uncertainty and limitations"
-    )
-    safety_disclaimer: str = Field(
-        description="Important safety and ethical disclaimer"
-    )
-    resources: list[str] = Field(
-        default_factory=list,
-        description="Mental health resources and crisis hotlines"
-    )
+    uncertainty_notes: str = Field(description="Notes about screening uncertainty and limitations")
+    safety_disclaimer: str = Field(description="Important safety and ethical disclaimer")
+    resources: list[str] = Field(default_factory=list, description="Mental health resources and crisis hotlines")
 
 
 # ── Evidence Schema ───────────────────────────────────────────────────────────
+
 
 class Evidence(BaseModel):
     """Sentence-level evidence from the symptom classifier."""
 
     sentence_evidence: list[SymptomDetection] = Field(
-        default_factory=list,
-        description="All sentence-level symptom detections"
+        default_factory=list, description="All sentence-level symptom detections"
     )
     top_evidence_sentences: list[str] = Field(
-        default_factory=list,
-        description="Most important sentences (highest confidence detections)"
+        default_factory=list, description="Most important sentences (highest confidence detections)"
     )
 
 
 # ── Request / Response Schemas ────────────────────────────────────────────────
 
+
 class ScreeningRequest(BaseModel):
     """Request schema for screening endpoint."""
 
-    text: str = Field(
-        min_length=1,
-        max_length=10000,
-        description="Free-text input to screen for DSM-5 symptoms"
-    )
+    text: str = Field(min_length=1, max_length=10000, description="Free-text input to screen for DSM-5 symptoms")
 
 
 class ScreeningResponse(BaseModel):
@@ -212,14 +147,8 @@ class ScreeningResponse(BaseModel):
     final_prediction: str = Field(
         description="Final assessment: 'no_indicators', 'some_indicators', 'significant_indicators'"
     )
-    final_confidence: float = Field(
-        ge=0.0, le=1.0,
-        description="Final confidence after verification adjustments"
-    )
-    confidence_adjusted: bool = Field(
-        default=False,
-        description="Whether LLM verification adjusted the confidence"
-    )
+    final_confidence: float = Field(ge=0.0, le=1.0, description="Final confidence after verification adjustments")
+    confidence_adjusted: bool = Field(default=False, description="Whether LLM verification adjusted the confidence")
 
     # Human-readable output
     explanation_report: ExplanationReport = Field(
@@ -227,14 +156,8 @@ class ScreeningResponse(BaseModel):
     )
 
     # Flags
-    flagged_for_review: bool = Field(
-        default=False,
-        description="Whether flagged for clinician review"
-    )
-    adversarial_warning: Optional[str] = Field(
-        default=None,
-        description="Warning if adversarial input detected"
-    )
+    flagged_for_review: bool = Field(default=False, description="Whether flagged for clinician review")
+    adversarial_warning: str | None = Field(default=None, description="Warning if adversarial input detected")
 
 
 class ScreeningListItem(BaseModel):
@@ -261,14 +184,11 @@ class ScreeningHistoryResponse(BaseModel):
 
 # ── Chat Schemas ──────────────────────────────────────────────────────────────
 
+
 class ChatMessageRequest(BaseModel):
     """Request to send a chat message."""
 
-    message: str = Field(
-        min_length=1,
-        max_length=2000,
-        description="User message"
-    )
+    message: str = Field(min_length=1, max_length=2000, description="User message")
 
 
 class ChatMessageResponse(BaseModel):
@@ -289,6 +209,7 @@ class ChatHistoryResponse(BaseModel):
 
 # ── Auth Schemas ──────────────────────────────────────────────────────────────
 
+
 class RegisterRequest(BaseModel):
     """User registration request."""
 
@@ -296,9 +217,8 @@ class RegisterRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
     full_name: str = Field(min_length=1, max_length=255)
     role: str = Field(description="'patient' or 'clinician'")
-    clinician_code: Optional[str] = Field(
-        default=None,
-        description="Clinician invite code (for patients linking to a clinician)"
+    clinician_code: str | None = Field(
+        default=None, description="Clinician invite code (for patients linking to a clinician)"
     )
 
 
@@ -316,7 +236,7 @@ class UserProfile(BaseModel):
     email: str
     full_name: str
     role: str
-    clinician_code: Optional[str] = None
+    clinician_code: str | None = None
     created_at: datetime
 
 
@@ -337,15 +257,14 @@ class RefreshRequest(BaseModel):
 
 # ── Dashboard Schemas ─────────────────────────────────────────────────────────
 
+
 class DashboardStats(BaseModel):
     """Aggregate statistics for clinician dashboard."""
 
     total_patients: int
     total_screenings: int
     flagged_count: int
-    severity_distribution: dict[str, int] = Field(
-        description="Count per severity level: {'none': X, 'mild': Y, ...}"
-    )
+    severity_distribution: dict[str, int] = Field(description="Count per severity level: {'none': X, 'mild': Y, ...}")
     screenings_this_week: int
 
 
@@ -355,115 +274,120 @@ class PatientSummary(BaseModel):
     id: str
     full_name: str
     email: str
-    date_of_birth: Optional[str] = None
-    gender: Optional[str] = None
-    cpr_number: Optional[str] = None
-    profile_picture_url: Optional[str] = None
-    last_screening_date: Optional[datetime] = None
-    last_severity: Optional[str] = None
-    last_symptom_count: Optional[int] = None
+    date_of_birth: str | None = None
+    gender: str | None = None
+    cpr_number: str | None = None
+    profile_picture_url: str | None = None
+    last_screening_date: datetime | None = None
+    last_severity: str | None = None
+    last_symptom_count: int | None = None
     total_screenings: int
 
 
 # ── Medication Schemas ────────────────────────────────────────────────────────
 
+
 class MedicationCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
-    dosage: Optional[str] = Field(None, max_length=100)
-    frequency: Optional[str] = Field(None, description="daily, twice_daily, weekly, as_needed")
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
-    prescribed_by: Optional[str] = None
-    notes: Optional[str] = None
+    dosage: str | None = Field(None, max_length=100)
+    frequency: str | None = Field(None, description="daily, twice_daily, weekly, as_needed")
+    start_date: str | None = None
+    end_date: str | None = None
+    prescribed_by: str | None = None
+    notes: str | None = None
 
 
 class MedicationResponse(BaseModel):
     id: str
     name: str
-    dosage: Optional[str] = None
-    frequency: Optional[str] = None
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
-    prescribed_by: Optional[str] = None
-    notes: Optional[str] = None
+    dosage: str | None = None
+    frequency: str | None = None
+    start_date: str | None = None
+    end_date: str | None = None
+    prescribed_by: str | None = None
+    notes: str | None = None
     is_active: bool
     created_at: datetime
 
 
 # ── Allergy Schemas ───────────────────────────────────────────────────────────
 
+
 class AllergyCreate(BaseModel):
     allergen: str = Field(min_length=1, max_length=255)
-    allergy_type: Optional[str] = Field(None, description="medication, food, environmental, other")
-    severity: Optional[str] = Field(None, description="mild, moderate, severe, life_threatening")
-    reaction: Optional[str] = None
-    diagnosed_date: Optional[str] = None
-    notes: Optional[str] = None
+    allergy_type: str | None = Field(None, description="medication, food, environmental, other")
+    severity: str | None = Field(None, description="mild, moderate, severe, life_threatening")
+    reaction: str | None = None
+    diagnosed_date: str | None = None
+    notes: str | None = None
 
 
 class AllergyResponse(BaseModel):
     id: str
     allergen: str
-    allergy_type: Optional[str] = None
-    severity: Optional[str] = None
-    reaction: Optional[str] = None
-    diagnosed_date: Optional[str] = None
-    notes: Optional[str] = None
+    allergy_type: str | None = None
+    severity: str | None = None
+    reaction: str | None = None
+    diagnosed_date: str | None = None
+    notes: str | None = None
     created_at: datetime
 
 
 # ── Diagnosis Schemas ─────────────────────────────────────────────────────────
 
+
 class DiagnosisCreate(BaseModel):
     condition: str = Field(min_length=1, max_length=255)
-    icd10_code: Optional[str] = Field(None, max_length=20)
-    diagnosed_date: Optional[str] = None
+    icd10_code: str | None = Field(None, max_length=20)
+    diagnosed_date: str | None = None
     status: str = Field(default="active", description="active, remission, resolved")
-    diagnosed_by: Optional[str] = None
-    notes: Optional[str] = None
+    diagnosed_by: str | None = None
+    notes: str | None = None
 
 
 class DiagnosisResponse(BaseModel):
     id: str
     condition: str
-    icd10_code: Optional[str] = None
-    diagnosed_date: Optional[str] = None
+    icd10_code: str | None = None
+    diagnosed_date: str | None = None
     status: str
-    diagnosed_by: Optional[str] = None
-    notes: Optional[str] = None
+    diagnosed_by: str | None = None
+    notes: str | None = None
     created_at: datetime
 
 
 # ── Screening Schedule Schemas ────────────────────────────────────────────────
 
+
 class ScreeningScheduleCreate(BaseModel):
     frequency: str = Field(description="weekly, biweekly, monthly, custom")
-    custom_days: Optional[int] = None
-    day_of_week: Optional[int] = Field(None, ge=0, le=6, description="0=Monday, 6=Sunday")
-    preferred_time: Optional[str] = Field(None, description="HH:MM format")
+    custom_days: int | None = None
+    day_of_week: int | None = Field(None, ge=0, le=6, description="0=Monday, 6=Sunday")
+    preferred_time: str | None = Field(None, description="HH:MM format")
 
 
 class ScreeningScheduleResponse(BaseModel):
     id: str
     frequency: str
-    custom_days: Optional[int] = None
-    day_of_week: Optional[int] = None
-    preferred_time: Optional[str] = None
-    next_due_at: Optional[datetime] = None
-    last_completed_at: Optional[datetime] = None
+    custom_days: int | None = None
+    day_of_week: int | None = None
+    preferred_time: str | None = None
+    next_due_at: datetime | None = None
+    last_completed_at: datetime | None = None
     is_active: bool
     created_at: datetime
 
 
 # ── Appointment Schemas ───────────────────────────────────────────────────────
 
+
 class AppointmentCreate(BaseModel):
     patient_id: str
     scheduled_at: str  # ISO datetime
     duration_minutes: int = Field(default=60, ge=15, le=480)
     appointment_type: str = Field(default="followup", description="intake, followup, crisis, review")
-    notes: Optional[str] = None
-    location: Optional[str] = None
+    notes: str | None = None
+    location: str | None = None
 
 
 class AppointmentResponse(BaseModel):
@@ -474,8 +398,8 @@ class AppointmentResponse(BaseModel):
     duration_minutes: int
     appointment_type: str
     status: str
-    notes: Optional[str] = None
-    location: Optional[str] = None
+    notes: str | None = None
+    location: str | None = None
     created_at: datetime
 
 
@@ -485,39 +409,41 @@ class AppointmentStatusUpdate(BaseModel):
 
 # ── Notification Schemas ──────────────────────────────────────────────────────
 
+
 class NotificationResponse(BaseModel):
     id: str
     notification_type: str
     title: str
     message: str
-    link: Optional[str] = None
+    link: str | None = None
     is_read: bool
     created_at: datetime
 
 
 # ── Care Plan Schemas ─────────────────────────────────────────────────────────
 
+
 class CarePlanGoal(BaseModel):
     text: str
-    target_date: Optional[str] = None
+    target_date: str | None = None
     status: str = "in_progress"  # in_progress, achieved, revised
 
 
 class CarePlanIntervention(BaseModel):
     name: str
-    frequency: Optional[str] = None
-    instructions: Optional[str] = None
-    assigned_date: Optional[str] = None
+    frequency: str | None = None
+    instructions: str | None = None
+    assigned_date: str | None = None
 
 
 class CarePlanCreate(BaseModel):
     patient_id: str
     title: str = Field(min_length=1, max_length=255)
-    description: Optional[str] = None
-    template_name: Optional[str] = None
+    description: str | None = None
+    template_name: str | None = None
     goals: list[CarePlanGoal] = Field(default_factory=list)
     interventions: list[CarePlanIntervention] = Field(default_factory=list)
-    review_date: Optional[str] = None
+    review_date: str | None = None
 
 
 class CarePlanResponse(BaseModel):
@@ -525,11 +451,11 @@ class CarePlanResponse(BaseModel):
     patient_id: str
     clinician_id: str
     title: str
-    description: Optional[str] = None
-    template_name: Optional[str] = None
+    description: str | None = None
+    template_name: str | None = None
     goals: list[dict] = Field(default_factory=list)
     interventions: list[dict] = Field(default_factory=list)
-    review_date: Optional[str] = None
+    review_date: str | None = None
     status: str
     created_at: datetime
     updated_at: datetime
@@ -537,18 +463,19 @@ class CarePlanResponse(BaseModel):
 
 # ── Conversation Schemas ──────────────────────────────────────────────────────
 
+
 class ConversationCreate(BaseModel):
-    title: Optional[str] = "New Conversation"
+    title: str | None = "New Conversation"
     context_type: str = Field(default="general", description="general, screening_followup, clinician_direct")
-    linked_screening_id: Optional[str] = None
-    linked_clinician_id: Optional[str] = None
+    linked_screening_id: str | None = None
+    linked_clinician_id: str | None = None
 
 
 class ConversationResponse(BaseModel):
     id: str
     title: str
     context_type: str
-    linked_screening_id: Optional[str] = None
+    linked_screening_id: str | None = None
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -557,23 +484,26 @@ class ConversationResponse(BaseModel):
 
 # ── Extended Profile Schemas ──────────────────────────────────────────────────
 
+
 class ProfileUpdate(BaseModel):
     """Extended profile update including all demographics."""
-    full_name: Optional[str] = Field(None, min_length=1, max_length=255)
-    phone: Optional[str] = Field(None, max_length=20)
-    date_of_birth: Optional[str] = None  # ISO date string
-    gender: Optional[str] = Field(None, description="male, female, prefer_not_to_say")
-    nationality: Optional[str] = Field(None, max_length=50)
-    cpr_number: Optional[str] = Field(None, max_length=9)
-    blood_type: Optional[str] = Field(None, description="A+, A-, B+, B-, AB+, AB-, O+, O-")
-    language_preference: Optional[str] = Field(None, description="en, ar")
-    timezone: Optional[str] = Field(None, max_length=50)
-    email_notifications: Optional[bool] = None
-    new_password: Optional[str] = Field(None, min_length=8, max_length=128)
+
+    full_name: str | None = Field(None, min_length=1, max_length=255)
+    phone: str | None = Field(None, max_length=20)
+    date_of_birth: str | None = None  # ISO date string
+    gender: str | None = Field(None, description="male, female, prefer_not_to_say")
+    nationality: str | None = Field(None, max_length=50)
+    cpr_number: str | None = Field(None, max_length=9)
+    blood_type: str | None = Field(None, description="A+, A-, B+, B-, AB+, AB-, O+, O-")
+    language_preference: str | None = Field(None, description="en, ar")
+    timezone: str | None = Field(None, max_length=50)
+    email_notifications: bool | None = None
+    new_password: str | None = Field(None, min_length=8, max_length=128)
 
 
 class OnboardingProgress(BaseModel):
     """Track which onboarding steps are complete."""
+
     demographics_complete: bool = False
     contact_complete: bool = False
     medical_history_complete: bool = False

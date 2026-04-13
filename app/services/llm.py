@@ -5,16 +5,16 @@ Generates per-symptom clinical explanations enriched with RAG context.
 Uses OpenAI-compatible API format.
 """
 
-from openai import AsyncOpenAI
 import json
-import re
 import logging
-from typing import Optional
+import re
 
-from app.core.config import Settings
+from openai import AsyncOpenAI
+
 from app.core import localization
-from app.schemas.analysis import ExplanationReport, PostSymptomSummary
+from app.core.config import Settings
 from app.middleware.llm_resilience import llm_retry
+from app.schemas.analysis import ExplanationReport, PostSymptomSummary
 
 logger = logging.getLogger(__name__)
 
@@ -77,8 +77,8 @@ class LLMService:
         self,
         text: str,
         symptom_analysis: PostSymptomSummary,
-        verification_summary: Optional[str] = None,
-        rag_context: Optional[str] = None,
+        verification_summary: str | None = None,
+        rag_context: str | None = None,
     ) -> ExplanationReport:
         """Generate a human-readable explanation of the screening results.
 
@@ -88,11 +88,10 @@ class LLMService:
             verification_summary: Summary from LLM verification layer
             rag_context: Clinical context retrieved via RAG (optional)
         """
-        prompt = self._build_explanation_prompt(
-            text, symptom_analysis, verification_summary, rag_context
-        )
+        prompt = self._build_explanation_prompt(text, symptom_analysis, verification_summary, rag_context)
 
         try:
+
             @llm_retry
             async def _call():
                 return await self.client.chat.completions.create(
@@ -154,17 +153,15 @@ CRITICAL: This is a screening aid, not a diagnostic tool. Never claim to diagnos
         self,
         text: str,
         symptom_analysis: PostSymptomSummary,
-        verification_summary: Optional[str],
-        rag_context: Optional[str],
+        verification_summary: str | None,
+        rag_context: str | None,
     ) -> str:
         display_text = text[:500] + "..." if len(text) > 500 else text
 
         # Build symptom evidence list
         symptom_lines = []
         for d in symptom_analysis.symptoms_detected:
-            symptom_lines.append(
-                f"- **{d.symptom_label}** ({d.confidence:.0%}): \"{d.sentence_text}\""
-            )
+            symptom_lines.append(f'- **{d.symptom_label}** ({d.confidence:.0%}): "{d.sentence_text}"')
         symptoms_block = "\n".join(symptom_lines) if symptom_lines else "No symptoms detected."
 
         prompt = f"""Explain these depression screening results to the patient:
@@ -197,9 +194,7 @@ For each detected symptom, explain what it means in plain language."""
 
         return prompt
 
-    def _fallback_explanation(
-        self, symptom_analysis: PostSymptomSummary
-    ) -> ExplanationReport:
+    def _fallback_explanation(self, symptom_analysis: PostSymptomSummary) -> ExplanationReport:
         """Generate a fallback explanation when LLM fails."""
         severity = symptom_analysis.severity_level
         count = symptom_analysis.unique_symptom_count
@@ -210,12 +205,10 @@ For each detected symptom, explain what it means in plain language."""
             if d.symptom not in symptom_explanations:
                 symptom_explanations[d.symptom] = (
                     f"The screening detected language consistent with {d.symptom_label.lower()} "
-                    f"in the sentence: \"{d.sentence_text[:100]}\""
+                    f'in the sentence: "{d.sentence_text[:100]}"'
                 )
 
-        evidence_quotes = [
-            d.sentence_text for d in symptom_analysis.symptoms_detected[:5]
-        ]
+        evidence_quotes = [d.sentence_text for d in symptom_analysis.symptoms_detected[:5]]
 
         return ExplanationReport(
             summary=(
@@ -226,8 +219,7 @@ For each detected symptom, explain what it means in plain language."""
             risk_level=severity,
             symptom_explanations=symptom_explanations,
             why_model_thinks_this=(
-                f"The model identified language patterns in {count} sentence(s) "
-                f"matching DSM-5 depression criteria."
+                f"The model identified language patterns in {count} sentence(s) matching DSM-5 depression criteria."
             ),
             key_evidence_quotes=evidence_quotes,
             uncertainty_notes=(

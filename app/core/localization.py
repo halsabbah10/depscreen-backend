@@ -10,8 +10,7 @@ Single source of truth for all region-specific content:
 """
 
 import re
-from datetime import datetime, date
-from typing import Optional
+from datetime import date, datetime
 
 # ── Country / Region ─────────────────────────────────────────────────────────
 
@@ -168,15 +167,11 @@ def normalize_phone(phone: str) -> str:
             normalized = "+973" + digits
         else:
             raise ValueError(
-                f"Invalid Bahrain phone number: {phone}. "
-                "Expected 8 digits (local) or +973XXXXXXXX (international)."
+                f"Invalid Bahrain phone number: {phone}. Expected 8 digits (local) or +973XXXXXXXX (international)."
             )
 
     if not BAHRAIN_PHONE_RE.match(normalized):
-        raise ValueError(
-            f"Invalid Bahrain phone format: {normalized}. "
-            "Must be +973 followed by 8 digits."
-        )
+        raise ValueError(f"Invalid Bahrain phone format: {normalized}. Must be +973 followed by 8 digits.")
 
     return normalized
 
@@ -287,7 +282,7 @@ def validate_cpr(cpr: str, strict_check_digit: bool = False) -> bool:
     return True
 
 
-def extract_dob_from_cpr(cpr: str) -> Optional[tuple[int, int]]:
+def extract_dob_from_cpr(cpr: str) -> tuple[int, int] | None:
     """Extract (year_4digit, month) from a CPR number.
 
     Since the year is 2-digit, we infer century: if YY > current year's 2-digit,
@@ -323,6 +318,7 @@ def format_cpr_display(cpr: str) -> str:
 
 # ── Date Formatting (DD/MM/YYYY) ─────────────────────────────────────────────
 
+
 def format_date(d: date | datetime) -> str:
     """Format a date as DD/MM/YYYY."""
     if isinstance(d, datetime):
@@ -343,6 +339,7 @@ def format_date_long(d: date | datetime) -> str:
 
 
 # ── Age Calculation ──────────────────────────────────────────────────────────
+
 
 def calculate_age(dob: date | datetime) -> int:
     """Calculate age in years from date of birth."""

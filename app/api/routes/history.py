@@ -5,21 +5,22 @@ Provides authenticated access to a patient's own screening history.
 Clinicians access patient history via /api/dashboard endpoints instead.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy.orm import Session
-from sqlalchemy import desc
 import logging
-from app.middleware.rate_limiter import limiter
 
-from app.models.db import User, Screening, get_db
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from sqlalchemy import desc
+from sqlalchemy.orm import Session
+
+from app.middleware.rate_limiter import limiter
+from app.models.db import Screening, User, get_db
 from app.schemas.analysis import (
-    ScreeningResponse,
+    Evidence,
+    ExplanationReport,
+    PostSymptomSummary,
     ScreeningHistoryResponse,
     ScreeningListItem,
-    PostSymptomSummary,
-    Evidence,
+    ScreeningResponse,
     VerificationReport,
-    ExplanationReport,
 )
 from app.services.auth import get_current_user
 
@@ -29,34 +30,65 @@ logger = logging.getLogger(__name__)
 
 def _screening_to_response(s: Screening) -> ScreeningResponse:
     """Convert a Screening DB model to a ScreeningResponse schema."""
-    symptom_analysis = PostSymptomSummary(**(s.symptom_data or {
-        "symptoms_detected": [], "unique_symptom_count": 0,
-        "total_sentences_analyzed": 0, "severity_level": "none",
-        "severity_explanation": "", "dsm5_criteria_met": [],
-    }))
+    symptom_analysis = PostSymptomSummary(
+        **(
+            s.symptom_data
+            or {
+                "symptoms_detected": [],
+                "unique_symptom_count": 0,
+                "total_sentences_analyzed": 0,
+                "severity_level": "none",
+                "severity_explanation": "",
+                "dsm5_criteria_met": [],
+            }
+        )
+    )
 
     evidence = Evidence(
         sentence_evidence=symptom_analysis.symptoms_detected,
         top_evidence_sentences=[
-            d.sentence_text for d in sorted(
+            d.sentence_text
+            for d in sorted(
                 symptom_analysis.symptoms_detected,
-                key=lambda d: d.confidence, reverse=True,
+                key=lambda d: d.confidence,
+                reverse=True,
             )[:5]
         ],
     )
 
-    verification = VerificationReport(**(s.verification_data or {
-        "evidence_validation": {"evidence_supports_prediction": True, "coherence_score": 0.7, "flagged_for_review": False},
-        "confidence_analysis": {"should_trust_prediction": "medium", "reasoning": "No verification data", "potential_confounders": []},
-        "adversarial_check": {"likely_adversarial": False, "authenticity_score": 0.8},
-    }))
+    verification = VerificationReport(
+        **(
+            s.verification_data
+            or {
+                "evidence_validation": {
+                    "evidence_supports_prediction": True,
+                    "coherence_score": 0.7,
+                    "flagged_for_review": False,
+                },
+                "confidence_analysis": {
+                    "should_trust_prediction": "medium",
+                    "reasoning": "No verification data",
+                    "potential_confounders": [],
+                },
+                "adversarial_check": {"likely_adversarial": False, "authenticity_score": 0.8},
+            }
+        )
+    )
 
-    explanation = ExplanationReport(**(s.explanation_data or {
-        "summary": "No explanation available", "risk_level": s.severity_level or "none",
-        "why_model_thinks_this": "", "key_evidence_quotes": [],
-        "uncertainty_notes": "", "safety_disclaimer": "",
-        "resources": [],
-    }))
+    explanation = ExplanationReport(
+        **(
+            s.explanation_data
+            or {
+                "summary": "No explanation available",
+                "risk_level": s.severity_level or "none",
+                "why_model_thinks_this": "",
+                "key_evidence_quotes": [],
+                "uncertainty_notes": "",
+                "safety_disclaimer": "",
+                "resources": [],
+            }
+        )
+    )
 
     return ScreeningResponse(
         id=s.id,
@@ -85,12 +117,7 @@ async def list_my_screenings(
     query = db.query(Screening).filter(Screening.patient_id == current_user.id)
 
     total = query.count()
-    screenings = (
-        query.order_by(desc(Screening.created_at))
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-        .all()
-    )
+    screenings = query.order_by(desc(Screening.created_at)).offset((page - 1) * page_size).limit(page_size).all()
 
     items = [
         ScreeningListItem(
@@ -107,7 +134,10 @@ async def list_my_screenings(
     ]
 
     return ScreeningHistoryResponse(
-        items=items, total=total, page=page, page_size=page_size,
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
     )
 
 

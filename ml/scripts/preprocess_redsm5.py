@@ -16,10 +16,8 @@ import json
 import re
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 from sklearn.model_selection import GroupShuffleSplit
-
 
 # ── Label configuration ──────────────────────────────────────────────────────
 
@@ -53,6 +51,7 @@ SYMPTOM_READABLE = {
 
 
 # ── Text cleaning ─────────────────────────────────────────────────────────────
+
 
 def clean_sentence(text: str) -> str:
     """Clean a single sentence for model input."""
@@ -92,6 +91,7 @@ def split_into_sentences(text: str) -> list[str]:
 
 # ── Data loading ──────────────────────────────────────────────────────────────
 
+
 def load_data(redsm5_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Load posts and annotations CSVs."""
     posts_path = redsm5_dir / "redsm5_posts.csv"
@@ -110,6 +110,7 @@ def load_data(redsm5_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
 
 
 # ── Positive samples ──────────────────────────────────────────────────────────
+
 
 def create_positive_samples(annotations: pd.DataFrame) -> pd.DataFrame:
     """Create training samples from status=1 (symptom present) annotations.
@@ -134,15 +135,17 @@ def create_positive_samples(annotations: pd.DataFrame) -> pd.DataFrame:
     positives = positives[positives["clean_text"].str.len() >= 5]
 
     print(f"  Positive samples: {len(positives)}")
-    print(f"  Per symptom:")
+    print("  Per symptom:")
     for symptom, count in positives["label"].value_counts().items():
         print(f"    {symptom}: {count}")
 
-    return positives[["post_id", "sentence_id", "sentence_text", "clean_text",
-                       "label", "label_id"]].reset_index(drop=True)
+    return positives[["post_id", "sentence_id", "sentence_text", "clean_text", "label", "label_id"]].reset_index(
+        drop=True
+    )
 
 
 # ── Negative samples ─────────────────────────────────────────────────────────
+
 
 def create_negative_samples(
     posts: pd.DataFrame,
@@ -159,9 +162,9 @@ def create_negative_samples(
     all_sentence_ids = set(annotations["sentence_id"].unique())
     negative_only_ids = all_sentence_ids - positive_sentence_ids
 
-    neg_from_annotations = annotations[
-        annotations["sentence_id"].isin(negative_only_ids)
-    ].drop_duplicates(subset=["sentence_id"], keep="first")
+    neg_from_annotations = annotations[annotations["sentence_id"].isin(negative_only_ids)].drop_duplicates(
+        subset=["sentence_id"], keep="first"
+    )
 
     print(f"  Negative sentences from annotations (status=0 only): {len(neg_from_annotations)}")
 
@@ -175,11 +178,13 @@ def create_negative_samples(
     for _, row in unannotated_posts.iterrows():
         sentences = split_into_sentences(row["text"])
         for i, sent in enumerate(sentences):
-            neg_from_posts_rows.append({
-                "post_id": row["post_id"],
-                "sentence_id": f"{row['post_id']}_neg_{i}",
-                "sentence_text": sent,
-            })
+            neg_from_posts_rows.append(
+                {
+                    "post_id": row["post_id"],
+                    "sentence_id": f"{row['post_id']}_neg_{i}",
+                    "sentence_text": sent,
+                }
+            )
 
     neg_from_posts = pd.DataFrame(neg_from_posts_rows)
     print(f"  Negative sentences from unannotated posts: {len(neg_from_posts)}")
@@ -188,18 +193,22 @@ def create_negative_samples(
     neg_combined_rows = []
 
     for _, row in neg_from_annotations.iterrows():
-        neg_combined_rows.append({
-            "post_id": row["post_id"],
-            "sentence_id": row["sentence_id"],
-            "sentence_text": row["sentence_text"],
-        })
+        neg_combined_rows.append(
+            {
+                "post_id": row["post_id"],
+                "sentence_id": row["sentence_id"],
+                "sentence_text": row["sentence_text"],
+            }
+        )
 
     for _, row in neg_from_posts.iterrows():
-        neg_combined_rows.append({
-            "post_id": row["post_id"],
-            "sentence_id": row["sentence_id"],
-            "sentence_text": row["sentence_text"],
-        })
+        neg_combined_rows.append(
+            {
+                "post_id": row["post_id"],
+                "sentence_id": row["sentence_id"],
+                "sentence_text": row["sentence_text"],
+            }
+        )
 
     negatives = pd.DataFrame(neg_combined_rows)
     negatives["clean_text"] = negatives["sentence_text"].apply(clean_sentence)
@@ -215,11 +224,13 @@ def create_negative_samples(
 
     print(f"  Total negative samples: {len(negatives)}")
 
-    return negatives[["post_id", "sentence_id", "sentence_text", "clean_text",
-                       "label", "label_id"]].reset_index(drop=True)
+    return negatives[["post_id", "sentence_id", "sentence_text", "clean_text", "label", "label_id"]].reset_index(
+        drop=True
+    )
 
 
 # ── Splitting ─────────────────────────────────────────────────────────────────
+
 
 def split_by_post_id(
     df: pd.DataFrame,
@@ -261,21 +272,19 @@ def compute_class_weights(train_df: pd.DataFrame) -> dict[int, float]:
 
 # ── Main pipeline ─────────────────────────────────────────────────────────────
 
+
 def main():
     parser = argparse.ArgumentParser(description="Preprocess ReDSM5 dataset")
-    parser.add_argument("--redsm5-dir", type=str, default=None,
-                        help="Path to redsm5 directory (with CSV files)")
-    parser.add_argument("--output-dir", type=str, default=None,
-                        help="Path to output directory for processed splits")
-    parser.add_argument("--max-negatives", type=int, default=400,
-                        help="Maximum NO_SYMPTOM samples (default: 400)")
+    parser.add_argument("--redsm5-dir", type=str, default=None, help="Path to redsm5 directory (with CSV files)")
+    parser.add_argument("--output-dir", type=str, default=None, help="Path to output directory for processed splits")
+    parser.add_argument("--max-negatives", type=int, default=400, help="Maximum NO_SYMPTOM samples (default: 400)")
     args = parser.parse_args()
 
     # Resolve paths
     project_root = Path(__file__).parent.parent.parent.parent  # backend/ml/scripts → project root
     redsm5_dir = Path(args.redsm5_dir) if args.redsm5_dir else project_root / "redsm5"
-    output_dir = Path(args.output_dir) if args.output_dir else (
-        Path(__file__).parent.parent / "data" / "redsm5" / "processed"
+    output_dir = (
+        Path(args.output_dir) if args.output_dir else (Path(__file__).parent.parent / "data" / "redsm5" / "processed")
     )
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -364,11 +373,11 @@ def main():
     print(f"  train.csv  ({len(train)} rows)")
     print(f"  val.csv    ({len(val)} rows)")
     print(f"  test.csv   ({len(test)} rows)")
-    print(f"  metadata.json")
+    print("  metadata.json")
 
     print("\n" + "=" * 60)
     print("Preprocessing complete!")
-    print(f"Next step: python train_redsm5_model.py")
+    print("Next step: python train_redsm5_model.py")
     print("=" * 60)
 
 

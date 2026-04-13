@@ -1,7 +1,9 @@
 import sys
-from pathlib import Path
 from logging.config import fileConfig
+from pathlib import Path
+
 from sqlalchemy import create_engine
+
 from alembic import context
 
 # Add backend to path so we can import our models

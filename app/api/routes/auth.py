@@ -4,28 +4,29 @@ Authentication API routes.
 Registration, login, token refresh, and profile management.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from app.middleware.rate_limiter import limiter
-from sqlalchemy.orm import Session
 import logging
 
-from app.core.config import get_settings, Settings
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy.orm import Session
+
+from app.core.config import Settings, get_settings
+from app.middleware.rate_limiter import limiter
 from app.models.db import User, get_db
 from app.schemas.analysis import (
-    RegisterRequest,
     LoginRequest,
+    RefreshRequest,
+    RegisterRequest,
     TokenResponse,
     UserProfile,
-    RefreshRequest,
 )
 from app.services.auth import (
-    register_user,
     authenticate_user,
     create_access_token,
     create_refresh_token,
     decode_token,
     get_current_user,
     log_audit,
+    register_user,
 )
 
 router = APIRouter()
@@ -140,10 +141,14 @@ async def link_to_clinician(
     if current_user.role != "patient":
         raise HTTPException(status_code=403, detail="Only patients can link to a clinician")
 
-    clinician = db.query(User).filter(
-        User.clinician_code == clinician_code,
-        User.role == "clinician",
-    ).first()
+    clinician = (
+        db.query(User)
+        .filter(
+            User.clinician_code == clinician_code,
+            User.role == "clinician",
+        )
+        .first()
+    )
     if not clinician:
         raise HTTPException(status_code=404, detail="Invalid clinician code")
 

@@ -6,39 +6,43 @@ appointments, care plans, diagnoses, and notifications.
 Requires clinician role.
 """
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
-from sqlalchemy.orm import Session
-from sqlalchemy import func, desc
-from datetime import datetime, date, timedelta
 import logging
+from datetime import date, datetime, timedelta
+from uuid import uuid4
 
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
+from sqlalchemy import desc, func
+from sqlalchemy.orm import Session
+
+from app.core.config import Settings, get_settings
+from app.middleware.rate_limiter import limiter
 from app.models.db import (
-    User, Screening, ChatMessage, PatientDocument,
-    Appointment, CarePlan, Diagnosis, Notification,
+    Appointment,
+    CarePlan,
+    ChatMessage,
+    Diagnosis,
+    Notification,
+    PatientDocument,
+    Screening,
+    User,
     get_db,
 )
 from app.schemas.analysis import (
-    ScreeningResponse,
-    ScreeningListItem,
-    ScreeningHistoryResponse,
-    DashboardStats,
-    PatientSummary,
-    ChatHistoryResponse,
-    ChatMessageResponse,
     AppointmentCreate,
     AppointmentResponse,
     AppointmentStatusUpdate,
     CarePlanCreate,
     CarePlanResponse,
+    DashboardStats,
     DiagnosisCreate,
     DiagnosisResponse,
     NotificationResponse,
+    PatientSummary,
+    ScreeningHistoryResponse,
+    ScreeningListItem,
 )
-from app.services.auth import get_current_user, require_clinician, log_audit
+from app.services.auth import log_audit, require_clinician
 from app.services.rag import RAGService
-from app.core.config import get_settings, Settings
-from uuid import uuid4
-from app.middleware.rate_limiter import limiter
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -51,9 +55,7 @@ async def get_dashboard_stats(
 ):
     """Get aggregate statistics for the clinician's dashboard."""
     # Get all patients assigned to this clinician
-    patient_ids = [
-        p.id for p in db.query(User).filter(User.clinician_id == current_user.id).all()
-    ]
+    patient_ids = [p.id for p in db.query(User).filter(User.clinician_id == current_user.id).all()]
 
     total_patients = len(patient_ids)
 
@@ -67,17 +69,11 @@ async def get_dashboard_stats(
         )
 
     # Count screenings
-    total_screenings = (
-        db.query(Screening)
-        .filter(Screening.patient_id.in_(patient_ids))
-        .count()
-    )
+    total_screenings = db.query(Screening).filter(Screening.patient_id.in_(patient_ids)).count()
 
     # Flagged count
     flagged_count = (
-        db.query(Screening)
-        .filter(Screening.patient_id.in_(patient_ids), Screening.flagged_for_review == True)
-        .count()
+        db.query(Screening).filter(Screening.patient_id.in_(patient_ids), Screening.flagged_for_review == True).count()
     )
 
     # Severity distribution
@@ -95,9 +91,7 @@ async def get_dashboard_stats(
     # Screenings this week
     week_ago = datetime.utcnow() - timedelta(days=7)
     screenings_this_week = (
-        db.query(Screening)
-        .filter(Screening.patient_id.in_(patient_ids), Screening.created_at >= week_ago)
-        .count()
+        db.query(Screening).filter(Screening.patient_id.in_(patient_ids), Screening.created_at >= week_ago).count()
     )
 
     return DashboardStats(
@@ -121,31 +115,28 @@ async def get_patients(
     for patient in patients:
         # Get latest screening
         latest = (
-            db.query(Screening)
-            .filter(Screening.patient_id == patient.id)
-            .order_by(desc(Screening.created_at))
-            .first()
+            db.query(Screening).filter(Screening.patient_id == patient.id).order_by(desc(Screening.created_at)).first()
         )
 
-        total = (
-            db.query(Screening)
-            .filter(Screening.patient_id == patient.id)
-            .count()
-        )
+        total = db.query(Screening).filter(Screening.patient_id == patient.id).count()
 
-        summaries.append(PatientSummary(
-            id=patient.id,
-            full_name=patient.full_name,
-            email=patient.email,
-            last_screening_date=latest.created_at if latest else None,
-            last_severity=latest.severity_level if latest else None,
-            last_symptom_count=latest.symptom_count if latest else None,
-            total_screenings=total,
-        ))
+        summaries.append(
+            PatientSummary(
+                id=patient.id,
+                full_name=patient.full_name,
+                email=patient.email,
+                last_screening_date=latest.created_at if latest else None,
+                last_severity=latest.severity_level if latest else None,
+                last_symptom_count=latest.symptom_count if latest else None,
+                total_screenings=total,
+            )
+        )
 
     # Sort by severity (severe first, then by last screening date)
     severity_order = {"severe": 0, "moderate": 1, "mild": 2, "none": 3, None: 4}
-    summaries.sort(key=lambda s: (severity_order.get(s.last_severity, 4), s.last_screening_date or datetime.min), reverse=False)
+    summaries.sort(
+        key=lambda s: (severity_order.get(s.last_severity, 4), s.last_screening_date or datetime.min), reverse=False
+    )
 
     return summaries
 
@@ -208,9 +199,7 @@ async def get_all_screenings(
     db: Session = Depends(get_db),
 ):
     """Get all screenings across patients, sorted by severity (urgent first)."""
-    patient_ids = [
-        p.id for p in db.query(User).filter(User.clinician_id == current_user.id).all()
-    ]
+    patient_ids = [p.id for p in db.query(User).filter(User.clinician_id == current_user.id).all()]
 
     query = db.query(Screening).filter(Screening.patient_id.in_(patient_ids))
 
@@ -223,8 +212,7 @@ async def get_all_screenings(
 
     # Sort: flagged first, then by severity, then by date
     screenings = (
-        query
-        .order_by(
+        query.order_by(
             desc(Screening.flagged_for_review),
             desc(Screening.created_at),
         )
@@ -274,10 +262,7 @@ async def get_screening_detail(
 
     # Get chat messages
     messages = (
-        db.query(ChatMessage)
-        .filter(ChatMessage.screening_id == screening_id)
-        .order_by(ChatMessage.created_at)
-        .all()
+        db.query(ChatMessage).filter(ChatMessage.screening_id == screening_id).order_by(ChatMessage.created_at).all()
     )
 
     # Get patient info
@@ -337,6 +322,7 @@ async def update_clinician_notes(
 
 # ── Triage Status ─────────────────────────────────────────────────────────
 
+
 @router.patch("/screenings/{screening_id}/triage")
 @limiter.limit("30/minute")
 async def update_triage_status(
@@ -374,6 +360,7 @@ async def update_triage_status(
 
 # ── Patient Symptom Trends (Clinician View) ───────────────────────────────
 
+
 @router.get("/patients/{patient_id}/trends")
 async def get_patient_trends(
     patient_id: str,
@@ -407,16 +394,18 @@ async def get_patient_trends(
                 symptoms.append(sym)
                 all_symptoms_seen.add(sym)
 
-        timeline.append({
-            "screening_id": s.id,
-            "date": s.created_at.isoformat(),
-            "source": s.source,
-            "severity_level": s.severity_level,
-            "symptom_count": s.symptom_count or 0,
-            "symptoms_detected": sorted(set(symptoms)),
-            "triage_status": s.triage_status,
-            "flagged_for_review": s.flagged_for_review,
-        })
+        timeline.append(
+            {
+                "screening_id": s.id,
+                "date": s.created_at.isoformat(),
+                "source": s.source,
+                "severity_level": s.severity_level,
+                "symptom_count": s.symptom_count or 0,
+                "symptoms_detected": sorted(set(symptoms)),
+                "triage_status": s.triage_status,
+                "flagged_for_review": s.flagged_for_review,
+            }
+        )
 
     return {
         "patient_id": patient_id,
@@ -432,20 +421,20 @@ async def get_patient_trends(
 
 # Document types and who can upload them
 CLINICIAN_DOC_TYPES = [
-    "intake_form",       # Clinician completes during intake
-    "session_notes",     # Clinician's clinical observations
-    "treatment_plan",    # Goals, interventions, timeline
-    "medical_history",   # Reviewed medical history
-    "safety_plan",       # Crisis safety plan
-    "referral_notes",    # Notes from referring provider
+    "intake_form",  # Clinician completes during intake
+    "session_notes",  # Clinician's clinical observations
+    "treatment_plan",  # Goals, interventions, timeline
+    "medical_history",  # Reviewed medical history
+    "safety_plan",  # Crisis safety plan
+    "referral_notes",  # Notes from referring provider
 ]
 
 PATIENT_DOC_TYPES = [
-    "phq9",              # PHQ-9 questionnaire responses
-    "gad7",              # GAD-7 anxiety questionnaire
-    "medication_list",   # Current medications patient is on
-    "journal_entry",     # Personal journal / feelings
-    "previous_diagnosis", # Diagnoses patient is aware of
+    "phq9",  # PHQ-9 questionnaire responses
+    "gad7",  # GAD-7 anxiety questionnaire
+    "medication_list",  # Current medications patient is on
+    "journal_entry",  # Personal journal / feelings
+    "previous_diagnosis",  # Diagnoses patient is aware of
 ]
 
 VALID_DOC_TYPES = CLINICIAN_DOC_TYPES + PATIENT_DOC_TYPES + ["other"]
@@ -697,7 +686,9 @@ async def update_appointment_status(
     db.commit()
     db.refresh(appt)
 
-    log_audit(db, current_user.id, f"appointment_{payload.status}", resource_type="appointment", resource_id=appointment_id)
+    log_audit(
+        db, current_user.id, f"appointment_{payload.status}", resource_type="appointment", resource_id=appointment_id
+    )
     return _appointment_to_response(appt)
 
 
@@ -735,6 +726,7 @@ async def cancel_appointment(
 # Care Plans
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 def _care_plan_to_response(cp: CarePlan) -> CarePlanResponse:
     return CarePlanResponse(
         id=cp.id,
@@ -761,12 +753,7 @@ async def list_care_plans(
     """List all care plans for a patient."""
     _verify_patient_access(db, patient_id, current_user.id)
 
-    plans = (
-        db.query(CarePlan)
-        .filter(CarePlan.patient_id == patient_id)
-        .order_by(desc(CarePlan.created_at))
-        .all()
-    )
+    plans = db.query(CarePlan).filter(CarePlan.patient_id == patient_id).order_by(desc(CarePlan.created_at)).all()
     return [_care_plan_to_response(cp) for cp in plans]
 
 
@@ -870,6 +857,7 @@ async def update_care_plan(
 # ═══════════════════════════════════════════════════════════════════════════════
 # Diagnoses
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 def _diagnosis_to_response(dx: Diagnosis) -> DiagnosisResponse:
     return DiagnosisResponse(
@@ -1018,6 +1006,7 @@ async def get_care_plan_templates(
 # ═══════════════════════════════════════════════════════════════════════════════
 # Notification Sending (clinician → patient)
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 @router.post("/patients/{patient_id}/notify", response_model=NotificationResponse, status_code=201)
 @limiter.limit("30/minute")

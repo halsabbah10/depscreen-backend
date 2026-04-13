@@ -8,16 +8,14 @@ coping strategies, and crisis resources.
 
 import logging
 import re
-from typing import Optional
 from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
-from app.core.config import Settings
 from app.core import localization
 from app.middleware.llm_resilience import llm_retry
-from app.models.db import Screening, ChatMessage
-from app.services.llm import LLMService, extract_json, SAFETY_DISCLAIMER, DEFAULT_RESOURCES
+from app.models.db import ChatMessage, Screening
+from app.services.llm import LLMService
 from app.services.rag import RAGService
 
 logger = logging.getLogger(__name__)
@@ -26,22 +24,51 @@ logger = logging.getLogger(__name__)
 # English — Arabic keywords will be added in Phase 4 (i18n)
 CRISIS_KEYWORDS = [
     # Direct suicidal ideation
-    "kill myself", "killing myself", "suicide", "suicidal",
-    "want to die", "wanna die", "wish i was dead", "wish i were dead",
-    "end my life", "end it all", "end things", "ending it",
-    "take my life", "take my own life",
+    "kill myself",
+    "killing myself",
+    "suicide",
+    "suicidal",
+    "want to die",
+    "wanna die",
+    "wish i was dead",
+    "wish i were dead",
+    "end my life",
+    "end it all",
+    "end things",
+    "ending it",
+    "take my life",
+    "take my own life",
     # Self-harm
-    "self harm", "self-harm", "selfharm", "hurting myself", "hurt myself",
-    "cutting myself", "cut myself",
+    "self harm",
+    "self-harm",
+    "selfharm",
+    "hurting myself",
+    "hurt myself",
+    "cutting myself",
+    "cut myself",
     # Indirect / resigned
-    "no reason to live", "nothing to live for", "better off dead",
-    "can't go on", "cant go on", "cannot go on",
-    "not worth living", "life isn't worth", "life isnt worth",
-    "don't want to be here anymore", "dont want to be here anymore",
-    "tired of being alive", "tired of living",
+    "no reason to live",
+    "nothing to live for",
+    "better off dead",
+    "can't go on",
+    "cant go on",
+    "cannot go on",
+    "not worth living",
+    "life isn't worth",
+    "life isnt worth",
+    "don't want to be here anymore",
+    "dont want to be here anymore",
+    "tired of being alive",
+    "tired of living",
     # Plan-related
-    "have a plan", "made a plan", "have the means",
-    "pills", "overdose", "jump off", "hang myself", "hanging myself",
+    "have a plan",
+    "made a plan",
+    "have the means",
+    "pills",
+    "overdose",
+    "jump off",
+    "hang myself",
+    "hanging myself",
 ]
 
 # Localized crisis response (Bahrain)
@@ -111,10 +138,7 @@ class ChatService:
             # 2. Retrieve RAG context
             detected_symptoms = []
             if screening.symptom_data:
-                detected_symptoms = [
-                    d.get("symptom", "")
-                    for d in screening.symptom_data.get("symptoms_detected", [])
-                ]
+                detected_symptoms = [d.get("symptom", "") for d in screening.symptom_data.get("symptoms_detected", [])]
 
             # Use personalized RAG (patient history + clinical knowledge)
             patient_id = screening.patient_id or ""
@@ -129,6 +153,7 @@ class ChatService:
 
             # 4. Call LLM
             try:
+
                 @llm_retry
                 async def _chat_call():
                     return await self.llm.client.chat.completions.create(
@@ -146,9 +171,7 @@ class ChatService:
                 response_text = response.choices[0].message.content
 
                 # Strip any <think> tags from reasoning models (e.g. DeepSeek R1)
-                response_text = re.sub(
-                    r"<think>.*?</think>", "", response_text, flags=re.DOTALL
-                ).strip()
+                response_text = re.sub(r"<think>.*?</think>", "", response_text, flags=re.DOTALL).strip()
 
             except Exception as e:
                 logger.error(f"Chat LLM call failed: {e}")
@@ -185,11 +208,13 @@ class ChatService:
         symptoms_list = ""
         if screening.symptom_data:
             for d in screening.symptom_data.get("symptoms_detected", []):
-                symptoms_list += f"\n- {d.get('symptom_label', d.get('symptom', ''))}: \"{d.get('sentence_text', '')[:80]}\""
+                symptoms_list += (
+                    f'\n- {d.get("symptom_label", d.get("symptom", ""))}: "{d.get("sentence_text", "")[:80]}"'
+                )
 
         prompt = f"""## Patient's Screening Results
 Severity: {severity} ({symptom_count} DSM-5 symptoms detected)
-Detected symptoms:{symptoms_list if symptoms_list else ' None'}
+Detected symptoms:{symptoms_list if symptoms_list else " None"}
 """
 
         if rag_context:

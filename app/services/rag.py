@@ -12,13 +12,11 @@ Embeddings: sentence-transformers all-MiniLM-L6-v2 (384 dimensions).
 import logging
 import re
 import uuid
-from pathlib import Path
-from typing import Optional
 
 from sentence_transformers import SentenceTransformer
 
 from app.core.config import Settings
-from app.models.db import SessionLocal, KnowledgeChunk, PatientRAGChunk
+from app.models.db import KnowledgeChunk, PatientRAGChunk, SessionLocal
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +26,7 @@ class RAGService:
 
     def __init__(self, settings: Settings):
         self.settings = settings
-        self.embedder: Optional[SentenceTransformer] = None
+        self.embedder: SentenceTransformer | None = None
         self._initialized = False
 
     # ── Initialization ───────────────────────────────────────────────────────
@@ -102,10 +100,7 @@ class RAGService:
         if chunks_to_add:
             db.add_all(chunks_to_add)
             db.commit()
-            logger.info(
-                f"Loaded {len(chunks_to_add)} chunks from "
-                f"{len(list(kb_dir.rglob('*.md')))} files"
-            )
+            logger.info(f"Loaded {len(chunks_to_add)} chunks from {len(list(kb_dir.rglob('*.md')))} files")
         else:
             logger.warning("No knowledge base documents found")
 
@@ -123,8 +118,8 @@ class RAGService:
         self,
         query: str,
         n_results: int = 5,
-        category: Optional[str] = None,
-        symptom: Optional[str] = None,
+        category: str | None = None,
+        symptom: str | None = None,
     ) -> list[dict]:
         """Retrieve relevant documents for a query using pgvector cosine distance.
 
@@ -147,23 +142,21 @@ class RAGService:
                 q = q.filter(KnowledgeChunk.symptom == symptom)
 
             # Order by cosine distance (ascending = most similar first)
-            results = (
-                q.order_by(KnowledgeChunk.embedding.cosine_distance(query_embedding))
-                .limit(n_results)
-                .all()
-            )
+            results = q.order_by(KnowledgeChunk.embedding.cosine_distance(query_embedding)).limit(n_results).all()
 
             output = []
             for chunk in results:
-                output.append({
-                    "text": chunk.content,
-                    "metadata": {
-                        "source_file": chunk.source_file or "",
-                        "category": chunk.category or "",
-                        "symptom": chunk.symptom or "",
-                    },
-                    "distance": 0,  # pgvector ordering handles relevance
-                })
+                output.append(
+                    {
+                        "text": chunk.content,
+                        "metadata": {
+                            "source_file": chunk.source_file or "",
+                            "category": chunk.category or "",
+                            "symptom": chunk.symptom or "",
+                        },
+                        "distance": 0,  # pgvector ordering handles relevance
+                    }
+                )
             return output
         finally:
             db.close()
@@ -263,19 +256,21 @@ class RAGService:
 
         # Store the full screening text
         screening_embedding = self.embedder.encode([text])[0].tolist()
-        chunks_to_add.append(PatientRAGChunk(
-            id=str(uuid.uuid4()),
-            patient_id=patient_id,
-            screening_id=screening_id,
-            content=text,
-            chunk_type="screening_text",
-            metadata_json={
-                "severity_level": severity_level,
-                "symptom_count": len(symptoms_detected),
-                "symptoms": ",".join(d.get("symptom", "") for d in symptoms_detected),
-            },
-            embedding=screening_embedding,
-        ))
+        chunks_to_add.append(
+            PatientRAGChunk(
+                id=str(uuid.uuid4()),
+                patient_id=patient_id,
+                screening_id=screening_id,
+                content=text,
+                chunk_type="screening_text",
+                metadata_json={
+                    "severity_level": severity_level,
+                    "symptom_count": len(symptoms_detected),
+                    "symptoms": ",".join(d.get("symptom", "") for d in symptoms_detected),
+                },
+                embedding=screening_embedding,
+            )
+        )
 
         # Store each detected symptom sentence as a separate chunk
         for det in symptoms_detected:
@@ -284,28 +279,27 @@ class RAGService:
                 continue
 
             symptom_embedding = self.embedder.encode([sentence_text])[0].tolist()
-            chunks_to_add.append(PatientRAGChunk(
-                id=str(uuid.uuid4()),
-                patient_id=patient_id,
-                screening_id=screening_id,
-                content=sentence_text,
-                chunk_type="symptom_evidence",
-                metadata_json={
-                    "symptom": det.get("symptom", ""),
-                    "symptom_label": det.get("symptom_label", ""),
-                    "confidence": str(det.get("confidence", 0)),
-                },
-                embedding=symptom_embedding,
-            ))
+            chunks_to_add.append(
+                PatientRAGChunk(
+                    id=str(uuid.uuid4()),
+                    patient_id=patient_id,
+                    screening_id=screening_id,
+                    content=sentence_text,
+                    chunk_type="symptom_evidence",
+                    metadata_json={
+                        "symptom": det.get("symptom", ""),
+                        "symptom_label": det.get("symptom_label", ""),
+                        "confidence": str(det.get("confidence", 0)),
+                    },
+                    embedding=symptom_embedding,
+                )
+            )
 
         db = SessionLocal()
         try:
             db.add_all(chunks_to_add)
             db.commit()
-            logger.info(
-                f"Ingested screening {screening_id} for patient {patient_id[:8]} "
-                f"({len(chunks_to_add)} chunks)"
-            )
+            logger.info(f"Ingested screening {screening_id} for patient {patient_id[:8]} ({len(chunks_to_add)} chunks)")
         finally:
             db.close()
 
@@ -333,26 +327,27 @@ class RAGService:
         chunks_to_add = []
         for chunk_text in text_chunks:
             embedding = self.embedder.encode([chunk_text])[0].tolist()
-            chunks_to_add.append(PatientRAGChunk(
-                id=str(uuid.uuid4()),
-                patient_id=patient_id,
-                doc_id=doc_id,
-                content=chunk_text,
-                chunk_type="patient_document",
-                metadata_json={
-                    "doc_type": doc_type,
-                    "title": title,
-                },
-                embedding=embedding,
-            ))
+            chunks_to_add.append(
+                PatientRAGChunk(
+                    id=str(uuid.uuid4()),
+                    patient_id=patient_id,
+                    doc_id=doc_id,
+                    content=chunk_text,
+                    chunk_type="patient_document",
+                    metadata_json={
+                        "doc_type": doc_type,
+                        "title": title,
+                    },
+                    embedding=embedding,
+                )
+            )
 
         db = SessionLocal()
         try:
             db.add_all(chunks_to_add)
             db.commit()
             logger.info(
-                f"Ingested document '{title}' ({doc_type}) for patient "
-                f"{patient_id[:8]} — {len(chunks_to_add)} chunks"
+                f"Ingested document '{title}' ({doc_type}) for patient {patient_id[:8]} — {len(chunks_to_add)} chunks"
             )
         finally:
             db.close()
@@ -383,11 +378,13 @@ class RAGService:
             for chunk in results:
                 meta = chunk.metadata_json or {}
                 meta["type"] = chunk.chunk_type
-                output.append({
-                    "text": chunk.content,
-                    "metadata": meta,
-                    "distance": 0,
-                })
+                output.append(
+                    {
+                        "text": chunk.content,
+                        "metadata": meta,
+                        "distance": 0,
+                    }
+                )
             return output
         finally:
             db.close()
@@ -430,19 +427,13 @@ class RAGService:
                 doc_type = meta.get("type", "")
                 if doc_type == "screening_text":
                     severity = meta.get("severity_level", "unknown")
-                    history_parts.append(
-                        f"[Previous check-in, severity={severity}]\n{doc['text'][:300]}"
-                    )
+                    history_parts.append(f"[Previous check-in, severity={severity}]\n{doc['text'][:300]}")
                 elif doc_type == "symptom_evidence":
                     symptom = meta.get("symptom_label", meta.get("symptom", ""))
-                    history_parts.append(
-                        f"[Previous detection: {symptom}]\n{doc['text']}"
-                    )
+                    history_parts.append(f"[Previous detection: {symptom}]\n{doc['text']}")
 
             if history_parts:
-                parts.append(
-                    "### Your Previous Check-ins\n" + "\n\n".join(history_parts)
-                )
+                parts.append("### Your Previous Check-ins\n" + "\n\n".join(history_parts))
 
         return "\n\n---\n\n".join(parts)
 

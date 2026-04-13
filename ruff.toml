@@ -1,0 +1,36 @@
+target-version = "py312"
+line-length = 120
+
+[lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort
+    "B",     # flake8-bugbear
+    "UP",    # pyupgrade
+    "SIM",   # flake8-simplify
+    "S",     # flake8-bandit (security)
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "E711",  # comparison to None — needed for SQLAlchemy filters
+    "E712",  # comparison to True/False — needed for SQLAlchemy filters
+    "S101",  # use of assert (fine in tests)
+    "S104",  # binding to all interfaces — intentional for Docker
+    "S105",  # hardcoded password (false positives on defaults)
+    "S106",  # hardcoded password in func arg
+    "B008",  # function call in default arg (FastAPI Depends pattern)
+    "B904",  # raise from in except — too noisy for FastAPI handlers
+    "UP045", # Optional[X] vs X | None — both valid
+    "UP047", # type parameter syntax — requires Python 3.12+ only features
+    "SIM102",# nested if — sometimes clearer than collapsed
+    "SIM108",# ternary — sometimes less readable
+]
+
+[lint.per-file-ignores]
+"ml/scripts/**" = ["S", "E", "F841", "B905", "F401"]  # ML scripts are less strict
+"ml/scripts/deprecated/**" = ["ALL"]  # Deprecated scripts, not worth linting
+
+[format]
+quote-style = "double"

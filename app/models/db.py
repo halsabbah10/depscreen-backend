@@ -9,14 +9,24 @@ Tables:
 Uses SQLAlchemy with SQLite (development) / PostgreSQL (production).
 """
 
+from datetime import datetime
+
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
-    Column, String, Float, Boolean, DateTime, Integer, Date, Text, JSON,
-    ForeignKey, create_engine,
+    JSON,
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    create_engine,
 )
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
-from pgvector.sqlalchemy import Vector
-from datetime import datetime
+from sqlalchemy.orm import relationship, sessionmaker
 
 from app.core.config import get_settings
 
@@ -42,6 +52,7 @@ Base = declarative_base()
 
 
 # ── Users ─────────────────────────────────────────────────────────────────────
+
 
 class User(Base):
     __tablename__ = "users"
@@ -94,11 +105,14 @@ class User(Base):
     medications = relationship("Medication", back_populates="patient", cascade="all, delete-orphan")
     allergies = relationship("Allergy", back_populates="patient", cascade="all, delete-orphan")
     diagnoses = relationship("Diagnosis", back_populates="patient", cascade="all, delete-orphan")
-    screening_schedules = relationship("ScreeningSchedule", back_populates="patient", foreign_keys="ScreeningSchedule.patient_id")
+    screening_schedules = relationship(
+        "ScreeningSchedule", back_populates="patient", foreign_keys="ScreeningSchedule.patient_id"
+    )
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
 
 
 # ── Screenings ────────────────────────────────────────────────────────────────
+
 
 class Screening(Base):
     __tablename__ = "screenings"
@@ -150,6 +164,7 @@ class Screening(Base):
 
 # ── Chat Messages ─────────────────────────────────────────────────────────────
 
+
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
 
@@ -167,6 +182,7 @@ class ChatMessage(Base):
 
 
 # ── Conversations (Standalone Chat) ──────────────────────────────────────────
+
 
 class Conversation(Base):
     """Standalone conversations not tied to a specific screening."""
@@ -189,6 +205,7 @@ class Conversation(Base):
 
 # ── Patient Documents ─────────────────────────────────────────────────────────
 
+
 class PatientDocument(Base):
     __tablename__ = "patient_documents"
 
@@ -205,6 +222,7 @@ class PatientDocument(Base):
 
 # ── Emergency Contacts ────────────────────────────────────────────────────────
 
+
 class EmergencyContact(Base):
     __tablename__ = "emergency_contacts"
 
@@ -220,6 +238,7 @@ class EmergencyContact(Base):
 
 
 # ── Medications ───────────────────────────────────────────────────────────────
+
 
 class Medication(Base):
     __tablename__ = "medications"
@@ -242,6 +261,7 @@ class Medication(Base):
 
 # ── Allergies ─────────────────────────────────────────────────────────────────
 
+
 class Allergy(Base):
     __tablename__ = "allergies"
 
@@ -259,6 +279,7 @@ class Allergy(Base):
 
 
 # ── Diagnoses ─────────────────────────────────────────────────────────────────
+
 
 class Diagnosis(Base):
     __tablename__ = "diagnoses"
@@ -278,6 +299,7 @@ class Diagnosis(Base):
 
 
 # ── Screening Schedule ────────────────────────────────────────────────────────
+
 
 class ScreeningSchedule(Base):
     __tablename__ = "screening_schedules"
@@ -301,6 +323,7 @@ class ScreeningSchedule(Base):
 
 # ── Appointments ──────────────────────────────────────────────────────────────
 
+
 class Appointment(Base):
     __tablename__ = "appointments"
 
@@ -322,6 +345,7 @@ class Appointment(Base):
 
 # ── Notifications ─────────────────────────────────────────────────────────────
 
+
 class Notification(Base):
     __tablename__ = "notifications"
 
@@ -340,6 +364,7 @@ class Notification(Base):
 
 
 # ── Care Plans ────────────────────────────────────────────────────────────────
+
 
 class CarePlan(Base):
     __tablename__ = "care_plans"
@@ -364,6 +389,7 @@ class CarePlan(Base):
 
 # ── Audit Log ─────────────────────────────────────────────────────────────────
 
+
 class AuditLog(Base):
     __tablename__ = "audit_log"
 
@@ -379,14 +405,16 @@ class AuditLog(Base):
 
 # ── RAG Vector Chunks ───────────────────────────────────────────────────────
 
+
 class KnowledgeChunk(Base):
     """Clinical knowledge base chunks with pgvector embeddings."""
+
     __tablename__ = "knowledge_chunks"
 
     id = Column(String(36), primary_key=True)
     content = Column(Text, nullable=False)
     category = Column(String(50))  # dsm5_criteria, coping_strategies, psychoeducation, crisis
-    symptom = Column(String(50))   # DEPRESSED_MOOD, ANHEDONIA, etc. (or empty)
+    symptom = Column(String(50))  # DEPRESSED_MOOD, ANHEDONIA, etc. (or empty)
     source_file = Column(String(255))
     embedding = Column(Vector(384))  # all-MiniLM-L6-v2 outputs 384-dim vectors
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -394,6 +422,7 @@ class KnowledgeChunk(Base):
 
 class PatientRAGChunk(Base):
     """Per-patient RAG chunks (screenings, documents) with pgvector embeddings."""
+
     __tablename__ = "patient_rag_chunks"
 
     id = Column(String(36), primary_key=True)
@@ -409,6 +438,7 @@ class PatientRAGChunk(Base):
 
 # ── Session Management ────────────────────────────────────────────────────────
 
+
 def get_db():
     """Get database session."""
     db = SessionLocal()
@@ -421,6 +451,7 @@ def get_db():
 def init_db():
     """Initialize database tables. Enables pgvector extension for PostgreSQL."""
     from sqlalchemy import text
+
     if not settings.database_url.startswith("sqlite"):
         with engine.connect() as conn:
             conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))

@@ -9,7 +9,6 @@ For a mental health platform: error messages must be gentle and reassuring.
 """
 
 import logging
-import traceback
 from uuid import uuid4
 
 from fastapi import Request
@@ -32,8 +31,7 @@ class ErrorHandlerMiddleware(BaseHTTPMiddleware):
         except Exception as exc:
             # Log the full traceback server-side
             logger.error(
-                f"Unhandled exception [request_id={request_id}] "
-                f"{request.method} {request.url.path}: {exc}",
+                f"Unhandled exception [request_id={request_id}] {request.method} {request.url.path}: {exc}",
                 exc_info=True,
             )
 

@@ -1,55 +1,107 @@
 """Pydantic schemas for the DepScreen API."""
 
 from .analysis import (
-    # Symptom detection
-    SymptomDetection, PostSymptomSummary,
-    # Verification
-    EvidenceValidation, ConfidenceAnalysis, AdversarialCheck, VerificationReport,
-    # Explanation
-    ExplanationReport, Evidence,
-    # Screening
-    ScreeningRequest, ScreeningResponse, ScreeningListItem, ScreeningHistoryResponse,
-    # Chat
-    ChatMessageRequest, ChatMessageResponse, ChatHistoryResponse,
-    # Auth
-    RegisterRequest, LoginRequest, TokenResponse, UserProfile, RefreshRequest,
-    # Dashboard
-    DashboardStats, PatientSummary,
-    # Medications
-    MedicationCreate, MedicationResponse,
+    AdversarialCheck,
     # Allergies
-    AllergyCreate, AllergyResponse,
-    # Diagnoses
-    DiagnosisCreate, DiagnosisResponse,
-    # Screening Schedule
-    ScreeningScheduleCreate, ScreeningScheduleResponse,
+    AllergyCreate,
+    AllergyResponse,
     # Appointments
-    AppointmentCreate, AppointmentResponse, AppointmentStatusUpdate,
+    AppointmentCreate,
+    AppointmentResponse,
+    AppointmentStatusUpdate,
+    # Care Plans
+    CarePlanCreate,
+    CarePlanGoal,
+    CarePlanIntervention,
+    CarePlanResponse,
+    ChatHistoryResponse,
+    # Chat
+    ChatMessageRequest,
+    ChatMessageResponse,
+    ConfidenceAnalysis,
+    # Conversations
+    ConversationCreate,
+    ConversationResponse,
+    # Dashboard
+    DashboardStats,
+    # Diagnoses
+    DiagnosisCreate,
+    DiagnosisResponse,
+    Evidence,
+    # Verification
+    EvidenceValidation,
+    # Explanation
+    ExplanationReport,
+    LoginRequest,
+    # Medications
+    MedicationCreate,
+    MedicationResponse,
     # Notifications
     NotificationResponse,
-    # Care Plans
-    CarePlanCreate, CarePlanResponse, CarePlanGoal, CarePlanIntervention,
-    # Conversations
-    ConversationCreate, ConversationResponse,
+    OnboardingProgress,
+    PatientSummary,
+    PostSymptomSummary,
     # Profile
-    ProfileUpdate, OnboardingProgress,
+    ProfileUpdate,
+    RefreshRequest,
+    # Auth
+    RegisterRequest,
+    ScreeningHistoryResponse,
+    ScreeningListItem,
+    # Screening
+    ScreeningRequest,
+    ScreeningResponse,
+    # Screening Schedule
+    ScreeningScheduleCreate,
+    ScreeningScheduleResponse,
+    # Symptom detection
+    SymptomDetection,
+    TokenResponse,
+    UserProfile,
+    VerificationReport,
 )
 
 __all__ = [
-    "SymptomDetection", "PostSymptomSummary",
-    "EvidenceValidation", "ConfidenceAnalysis", "AdversarialCheck", "VerificationReport",
-    "ExplanationReport", "Evidence",
-    "ScreeningRequest", "ScreeningResponse", "ScreeningListItem", "ScreeningHistoryResponse",
-    "ChatMessageRequest", "ChatMessageResponse", "ChatHistoryResponse",
-    "RegisterRequest", "LoginRequest", "TokenResponse", "UserProfile", "RefreshRequest",
-    "DashboardStats", "PatientSummary",
-    "MedicationCreate", "MedicationResponse",
-    "AllergyCreate", "AllergyResponse",
-    "DiagnosisCreate", "DiagnosisResponse",
-    "ScreeningScheduleCreate", "ScreeningScheduleResponse",
-    "AppointmentCreate", "AppointmentResponse", "AppointmentStatusUpdate",
+    "SymptomDetection",
+    "PostSymptomSummary",
+    "EvidenceValidation",
+    "ConfidenceAnalysis",
+    "AdversarialCheck",
+    "VerificationReport",
+    "ExplanationReport",
+    "Evidence",
+    "ScreeningRequest",
+    "ScreeningResponse",
+    "ScreeningListItem",
+    "ScreeningHistoryResponse",
+    "ChatMessageRequest",
+    "ChatMessageResponse",
+    "ChatHistoryResponse",
+    "RegisterRequest",
+    "LoginRequest",
+    "TokenResponse",
+    "UserProfile",
+    "RefreshRequest",
+    "DashboardStats",
+    "PatientSummary",
+    "MedicationCreate",
+    "MedicationResponse",
+    "AllergyCreate",
+    "AllergyResponse",
+    "DiagnosisCreate",
+    "DiagnosisResponse",
+    "ScreeningScheduleCreate",
+    "ScreeningScheduleResponse",
+    "AppointmentCreate",
+    "AppointmentResponse",
+    "AppointmentStatusUpdate",
     "NotificationResponse",
-    "CarePlanCreate", "CarePlanResponse", "CarePlanGoal", "CarePlanIntervention",
-    "ConversationCreate", "ConversationResponse",
-    "ProfileUpdate", "OnboardingProgress",
+    "CarePlanCreate",
+    "CarePlanResponse",
+    "CarePlanGoal",
+    "CarePlanIntervention",
+    "ConversationCreate",
+    "ConversationResponse",
+    "ProfileUpdate",
+    "OnboardingProgress",
 ]

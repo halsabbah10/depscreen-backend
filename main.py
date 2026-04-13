@@ -8,27 +8,33 @@ Hardened with: rate limiting, error handling, request logging,
 structured logging, LLM retry logic, deep health checks.
 """
 
+import logging
+import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
-from contextlib import asynccontextmanager
-import logging
-import os
 
 # Silence tokenizer parallelism warnings from HuggingFace
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-from app.core.config import get_settings
 from app.api.routes import (
-    analyze_router, history_router, auth_router,
-    chat_router, dashboard_router, ingest_router, patient_router,
+    analyze_router,
+    auth_router,
+    chat_router,
+    dashboard_router,
+    history_router,
+    ingest_router,
+    patient_router,
 )
 from app.api.routes.analyze import get_services
-from app.models.db import init_db
+from app.core.config import get_settings
 from app.middleware.error_handler import ErrorHandlerMiddleware
-from app.middleware.request_logging import RequestLoggingMiddleware
 from app.middleware.rate_limiter import limiter
+from app.middleware.request_logging import RequestLoggingMiddleware
+from app.models.db import init_db
 
 logging.basicConfig(
     level=logging.INFO,
@@ -155,8 +161,10 @@ def create_app() -> FastAPI:
 
         # Database
         try:
-            from app.models.db import SessionLocal
             from sqlalchemy import text
+
+            from app.models.db import SessionLocal
+
             db = SessionLocal()
             db.execute(text("SELECT 1"))
             db.close()
@@ -181,6 +189,7 @@ def create_app() -> FastAPI:
     @app.get("/health", tags=["Health"])
     async def health_check():
         from app.api.routes.analyze import _model_service
+
         return {
             "status": "healthy",
             "symptom_model_loaded": _model_service is not None and _model_service.is_loaded,

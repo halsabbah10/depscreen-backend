@@ -13,8 +13,6 @@ import json
 import logging
 import re
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Optional
 
 import httpx
 
@@ -25,17 +23,35 @@ logger = logging.getLogger(__name__)
 
 # Subreddits relevant to mental health screening
 MENTAL_HEALTH_SUBREDDITS = {
-    "depression", "anxiety", "mentalhealth", "suicidewatch",
-    "bipolar", "ptsd", "adhd", "socialanxiety", "lonely",
-    "selfharm", "offmychest", "trueoffmychest", "confessions",
-    "decidingtobebetter", "getmotivated", "selfimprovement",
-    "chronicpain", "insomnia", "grief",
+    "depression",
+    "anxiety",
+    "mentalhealth",
+    "suicidewatch",
+    "bipolar",
+    "ptsd",
+    "adhd",
+    "socialanxiety",
+    "lonely",
+    "selfharm",
+    "offmychest",
+    "trueoffmychest",
+    "confessions",
+    "decidingtobebetter",
+    "getmotivated",
+    "selfimprovement",
+    "chronicpain",
+    "insomnia",
+    "grief",
 }
 
 # Broader subreddits where mental health content appears
 GENERAL_SUBREDDITS_TO_INCLUDE = {
-    "askreddit", "casualconversation", "advice", "relationships",
-    "relationship_advice", "amitheasshole",
+    "askreddit",
+    "casualconversation",
+    "advice",
+    "relationships",
+    "relationship_advice",
+    "amitheasshole",
 }
 
 REDDIT_USER_AGENT = "DepScreen/2.0 (Clinical Screening Research Platform)"
@@ -44,6 +60,7 @@ REDDIT_USER_AGENT = "DepScreen/2.0 (Clinical Screening Research Platform)"
 @dataclass
 class RedditPost:
     """A single Reddit post with metadata."""
+
     post_id: str
     subreddit: str
     title: str
@@ -118,15 +135,17 @@ async def fetch_reddit_posts(
                 if len(combined_text) < 20:
                     continue
 
-                posts.append(RedditPost(
-                    post_id=post_data.get("name", ""),
-                    subreddit=subreddit,
-                    title=title,
-                    text=combined_text,
-                    created_utc=post_data.get("created_utc", 0),
-                    score=post_data.get("score", 0),
-                    url=f"https://reddit.com{post_data.get('permalink', '')}",
-                ))
+                posts.append(
+                    RedditPost(
+                        post_id=post_data.get("name", ""),
+                        subreddit=subreddit,
+                        title=title,
+                        text=combined_text,
+                        created_utc=post_data.get("created_utc", 0),
+                        score=post_data.get("score", 0),
+                        url=f"https://reddit.com{post_data.get('permalink', '')}",
+                    )
+                )
 
                 fetched += 1
                 if fetched >= limit:
@@ -144,18 +163,42 @@ async def fetch_reddit_posts(
 
 # Mental health keywords to filter tweets
 MENTAL_HEALTH_KEYWORDS = [
-    "depressed", "depression", "anxiety", "anxious", "sad", "lonely",
-    "hopeless", "worthless", "can't sleep", "insomnia", "exhausted",
-    "no energy", "suicidal", "self harm", "panic attack", "therapy",
-    "therapist", "medication", "antidepressant", "mental health",
-    "crying", "overwhelmed", "burned out", "burnout", "numb",
-    "can't focus", "can't concentrate", "no motivation", "isolation",
+    "depressed",
+    "depression",
+    "anxiety",
+    "anxious",
+    "sad",
+    "lonely",
+    "hopeless",
+    "worthless",
+    "can't sleep",
+    "insomnia",
+    "exhausted",
+    "no energy",
+    "suicidal",
+    "self harm",
+    "panic attack",
+    "therapy",
+    "therapist",
+    "medication",
+    "antidepressant",
+    "mental health",
+    "crying",
+    "overwhelmed",
+    "burned out",
+    "burnout",
+    "numb",
+    "can't focus",
+    "can't concentrate",
+    "no motivation",
+    "isolation",
 ]
 
 
 @dataclass
 class Tweet:
     """A single X/Twitter post with metadata."""
+
     tweet_id: str
     text: str
     created_at: str
@@ -231,19 +274,20 @@ async def fetch_x_posts(
                     if not any(kw in text_lower for kw in MENTAL_HEALTH_KEYWORDS):
                         continue
 
-                tweets.append(Tweet(
-                    tweet_id=f"tweet_{i}",
-                    text=text,
-                    created_at="",
-                    like_count=0,
-                    retweet_count=0,
-                ))
+                tweets.append(
+                    Tweet(
+                        tweet_id=f"tweet_{i}",
+                        text=text,
+                        created_at="",
+                        like_count=0,
+                        retweet_count=0,
+                    )
+                )
 
         except httpx.HTTPError as e:
             logger.error(f"X/Twitter fetch error: {e}")
             raise ValueError(
-                f"Failed to fetch X/Twitter posts for @{username}. "
-                "Please ensure the profile is public and try again."
+                f"Failed to fetch X/Twitter posts for @{username}. Please ensure the profile is public and try again."
             )
 
     logger.info(f"Fetched {len(tweets)} tweets for @{username}")
@@ -252,13 +296,15 @@ async def fetch_x_posts(
 
 # ── Guided Clinical Check-in ─────────────────────────────────────────────────
 
+
 @dataclass
 class CheckInPrompt:
     """A structured check-in prompt mapped to a DSM-5 criterion."""
+
     id: str
     dsm5_criterion: str
     question: str
-    follow_up: Optional[str] = None
+    follow_up: str | None = None
 
 
 CHECKIN_PROMPTS = [
@@ -352,6 +398,7 @@ def combine_checkin_responses(responses: dict[str, str]) -> str:
 
 # ── Bulk Text Parsing ─────────────────────────────────────────────────────────
 
+
 def parse_reddit_export(content: str) -> list[dict]:
     """Parse a Reddit GDPR data export (CSV or JSON format).
 
@@ -369,11 +416,13 @@ def parse_reddit_export(content: str) -> list[dict]:
                 title = item.get("title", "")
                 combined = f"{title}. {text}" if text else title
                 if len(combined.strip()) >= 20:
-                    entries.append({
-                        "text": combined.strip(),
-                        "source": item.get("subreddit", "export"),
-                        "date": item.get("date", item.get("created_utc", "")),
-                    })
+                    entries.append(
+                        {
+                            "text": combined.strip(),
+                            "source": item.get("subreddit", "export"),
+                            "date": item.get("date", item.get("created_utc", "")),
+                        }
+                    )
             return entries
     except (json.JSONDecodeError, TypeError):
         pass

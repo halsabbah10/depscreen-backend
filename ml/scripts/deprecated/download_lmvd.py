@@ -12,7 +12,6 @@ Usage:
     python download_lmvd.py
 """
 
-import os
 from pathlib import Path
 
 
@@ -25,7 +24,7 @@ def print_download_instructions():
     print("LMVD Dataset Download Instructions")
     print("=" * 70)
 
-    print("""
+    print(f"""
 The LMVD (Large-scale Multimodal Vlog Dataset) is a dataset for depression
 detection from vlog videos. Due to its size and licensing, it requires
 manual download.
@@ -83,7 +82,7 @@ This will:
 - Extract frames from each video at 1 FPS
 - Organize frames by label (depressed/control)
 - Create a processed dataset ready for training
-""".format(data_dir=data_dir))
+""")
 
     # Create directories
     data_dir.mkdir(parents=True, exist_ok=True)
@@ -117,10 +116,7 @@ def verify_dataset():
     print("\nVerifying dataset...")
 
     # Check for videos
-    video_dirs = [
-        data_dir / "videos" / "depressed",
-        data_dir / "videos" / "control"
-    ]
+    video_dirs = [data_dir / "videos" / "depressed", data_dir / "videos" / "control"]
 
     video_count = 0
     for vdir in video_dirs:
@@ -157,7 +153,7 @@ video_004,control,val
 video_005,depressed,test
 """
 
-    with open(labels_path, 'w') as f:
+    with open(labels_path, "w") as f:
         f.write(template)
 
     print(f"\nCreated labels template at: {labels_path}")

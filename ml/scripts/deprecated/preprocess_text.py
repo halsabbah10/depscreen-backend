@@ -13,13 +13,12 @@ Usage:
 """
 
 import argparse
+import json
 import re
 from pathlib import Path
+
 import pandas as pd
-import numpy as np
 from sklearn.model_selection import train_test_split
-from collections import Counter
-import json
 
 
 def clean_text(text: str) -> str:
@@ -28,17 +27,17 @@ def clean_text(text: str) -> str:
         return ""
 
     # Remove URLs
-    text = re.sub(r'http\S+|www\.\S+', '[URL]', text)
+    text = re.sub(r"http\S+|www\.\S+", "[URL]", text)
 
     # Remove Reddit-style usernames
-    text = re.sub(r'u/\w+', '[USER]', text)
-    text = re.sub(r'@\w+', '[USER]', text)
+    text = re.sub(r"u/\w+", "[USER]", text)
+    text = re.sub(r"@\w+", "[USER]", text)
 
     # Remove subreddit references
-    text = re.sub(r'r/\w+', '[SUBREDDIT]', text)
+    text = re.sub(r"r/\w+", "[SUBREDDIT]", text)
 
     # Normalize whitespace
-    text = re.sub(r'\s+', ' ', text)
+    text = re.sub(r"\s+", " ", text)
 
     # Remove leading/trailing whitespace
     text = text.strip()
@@ -73,13 +72,13 @@ def load_and_explore(data_dir: Path) -> pd.DataFrame:
     label_col = None
 
     # Common text column names
-    for col in ['text', 'Text', 'content', 'Content', 'post', 'Post', 'body']:
+    for col in ["text", "Text", "content", "Content", "post", "Post", "body"]:
         if col in df.columns:
             text_col = col
             break
 
     # Common label column names
-    for col in ['class', 'Class', 'label', 'Label', 'category', 'target']:
+    for col in ["class", "Class", "label", "Label", "category", "target"]:
         if col in df.columns:
             label_col = col
             break
@@ -87,7 +86,7 @@ def load_and_explore(data_dir: Path) -> pd.DataFrame:
     if text_col is None:
         # Use first string column
         for col in df.columns:
-            if df[col].dtype == 'object':
+            if df[col].dtype == "object":
                 text_col = col
                 break
 
@@ -98,12 +97,12 @@ def load_and_explore(data_dir: Path) -> pd.DataFrame:
                 label_col = col
                 break
 
-    print(f"\nIdentified columns:")
+    print("\nIdentified columns:")
     print(f"  Text column: {text_col}")
     print(f"  Label column: {label_col}")
 
     if label_col:
-        print(f"\nLabel distribution:")
+        print("\nLabel distribution:")
         print(df[label_col].value_counts())
 
     return df, text_col, label_col
@@ -123,48 +122,44 @@ def map_labels(df: pd.DataFrame, label_col: str, multiclass: bool = False) -> pd
     if multiclass:
         # Multi-class: keep separate categories
         label_map = {}
-        risk_labels = ['suicide', 'Suicide', 'depression', 'Depression', 'SuicideWatch']
-        neutral_labels = ['non-suicide', 'normal', 'Normal', 'teenager', 'teenagers']
+        risk_labels = ["suicide", "Suicide", "depression", "Depression", "SuicideWatch"]
+        neutral_labels = ["non-suicide", "normal", "Normal", "teenager", "teenagers"]
 
         for label in unique_labels:
             label_str = str(label).lower()
-            if any(risk in label_str for risk in ['suicide', 'depression']):
-                if 'suicide' in label_str:
-                    label_map[label] = 'suicide'
+            if any(risk in label_str for risk in ["suicide", "depression"]):
+                if "suicide" in label_str:
+                    label_map[label] = "suicide"
                 else:
-                    label_map[label] = 'depression'
+                    label_map[label] = "depression"
             else:
-                label_map[label] = 'neutral'
+                label_map[label] = "neutral"
 
-        df['label'] = df[label_col].map(label_map)
-        df['label_id'] = df['label'].map({'neutral': 0, 'depression': 1, 'suicide': 2})
+        df["label"] = df[label_col].map(label_map)
+        df["label_id"] = df["label"].map({"neutral": 0, "depression": 1, "suicide": 2})
 
     else:
         # Binary: risk vs no-risk
         label_map = {}
         for label in unique_labels:
             label_str = str(label).lower()
-            if any(risk in label_str for risk in ['suicide', 'depression', 'suicidewatch']):
-                label_map[label] = 'high_risk'
+            if any(risk in label_str for risk in ["suicide", "depression", "suicidewatch"]):
+                label_map[label] = "high_risk"
             else:
-                label_map[label] = 'low_risk'
+                label_map[label] = "low_risk"
 
-        df['label'] = df[label_col].map(label_map)
-        df['label_id'] = df['label'].map({'low_risk': 0, 'high_risk': 1})
+        df["label"] = df[label_col].map(label_map)
+        df["label_id"] = df["label"].map({"low_risk": 0, "high_risk": 1})
 
     print(f"\nLabel mapping: {label_map}")
-    print(f"\nNew label distribution:")
-    print(df['label'].value_counts())
+    print("\nNew label distribution:")
+    print(df["label"].value_counts())
 
     return df
 
 
 def preprocess_dataset(
-    df: pd.DataFrame,
-    text_col: str,
-    output_dir: Path,
-    test_size: float = 0.15,
-    val_size: float = 0.15
+    df: pd.DataFrame, text_col: str, output_dir: Path, test_size: float = 0.15, val_size: float = 0.15
 ) -> dict:
     """Preprocess and split the dataset."""
     print("\n" + "=" * 50)
@@ -173,22 +168,22 @@ def preprocess_dataset(
 
     # Clean text
     print("Cleaning text...")
-    df['clean_text'] = df[text_col].apply(clean_text)
+    df["clean_text"] = df[text_col].apply(clean_text)
 
     # Remove empty texts
     original_len = len(df)
-    df = df[df['clean_text'].str.len() > 10]  # Min 10 chars
+    df = df[df["clean_text"].str.len() > 10]  # Min 10 chars
     print(f"Removed {original_len - len(df)} samples with empty/short text")
 
     # Calculate text statistics
-    df['text_length'] = df['clean_text'].str.len()
-    df['word_count'] = df['clean_text'].str.split().str.len()
+    df["text_length"] = df["clean_text"].str.len()
+    df["word_count"] = df["clean_text"].str.split().str.len()
 
-    print(f"\nText length stats:")
-    print(df['text_length'].describe())
+    print("\nText length stats:")
+    print(df["text_length"].describe())
 
-    print(f"\nWord count stats:")
-    print(df['word_count'].describe())
+    print("\nWord count stats:")
+    print(df["word_count"].describe())
 
     # Stratified split
     print("\n" + "=" * 50)
@@ -196,20 +191,12 @@ def preprocess_dataset(
     print("=" * 50)
 
     # First split: train+val vs test
-    train_val, test = train_test_split(
-        df,
-        test_size=test_size,
-        stratify=df['label_id'],
-        random_state=42
-    )
+    train_val, test = train_test_split(df, test_size=test_size, stratify=df["label_id"], random_state=42)
 
     # Second split: train vs val
     relative_val_size = val_size / (1 - test_size)
     train, val = train_test_split(
-        train_val,
-        test_size=relative_val_size,
-        stratify=train_val['label_id'],
-        random_state=42
+        train_val, test_size=relative_val_size, stratify=train_val["label_id"], random_state=42
     )
 
     print(f"Train set: {len(train)} samples")
@@ -219,35 +206,28 @@ def preprocess_dataset(
     # Save splits
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    train[['clean_text', 'label', 'label_id']].to_csv(
-        output_dir / 'train.csv', index=False
-    )
-    val[['clean_text', 'label', 'label_id']].to_csv(
-        output_dir / 'val.csv', index=False
-    )
-    test[['clean_text', 'label', 'label_id']].to_csv(
-        output_dir / 'test.csv', index=False
-    )
+    train[["clean_text", "label", "label_id"]].to_csv(output_dir / "train.csv", index=False)
+    val[["clean_text", "label", "label_id"]].to_csv(output_dir / "val.csv", index=False)
+    test[["clean_text", "label", "label_id"]].to_csv(output_dir / "test.csv", index=False)
 
     print(f"\nSaved to: {output_dir}")
 
     # Create metadata
-    label_counts = df['label'].value_counts().to_dict()
-    label_map = {label: int(df[df['label'] == label]['label_id'].iloc[0])
-                 for label in df['label'].unique()}
+    label_counts = df["label"].value_counts().to_dict()
+    label_map = {label: int(df[df["label"] == label]["label_id"].iloc[0]) for label in df["label"].unique()}
 
     metadata = {
-        'total_samples': len(df),
-        'train_samples': len(train),
-        'val_samples': len(val),
-        'test_samples': len(test),
-        'label_distribution': label_counts,
-        'label_map': label_map,
-        'avg_text_length': float(df['text_length'].mean()),
-        'avg_word_count': float(df['word_count'].mean())
+        "total_samples": len(df),
+        "train_samples": len(train),
+        "val_samples": len(val),
+        "test_samples": len(test),
+        "label_distribution": label_counts,
+        "label_map": label_map,
+        "avg_text_length": float(df["text_length"].mean()),
+        "avg_word_count": float(df["word_count"].mean()),
     }
 
-    with open(output_dir / 'metadata.json', 'w') as f:
+    with open(output_dir / "metadata.json", "w") as f:
         json.dump(metadata, f, indent=2)
 
     print(f"\nMetadata saved to: {output_dir / 'metadata.json'}")
@@ -256,13 +236,10 @@ def preprocess_dataset(
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Preprocess Suicide-Watch dataset')
-    parser.add_argument('--multiclass', action='store_true',
-                        help='Use multi-class labels instead of binary')
-    parser.add_argument('--data-dir', type=str, default=None,
-                        help='Path to raw data directory')
-    parser.add_argument('--output-dir', type=str, default=None,
-                        help='Path to output directory')
+    parser = argparse.ArgumentParser(description="Preprocess Suicide-Watch dataset")
+    parser.add_argument("--multiclass", action="store_true", help="Use multi-class labels instead of binary")
+    parser.add_argument("--data-dir", type=str, default=None, help="Path to raw data directory")
+    parser.add_argument("--output-dir", type=str, default=None, help="Path to output directory")
     args = parser.parse_args()
 
     # Set paths
@@ -289,7 +266,7 @@ def main():
     print("\n" + "=" * 60)
     print("Preprocessing complete!")
     print("=" * 60)
-    print(f"\nNext step: python train_text_model.py")
+    print("\nNext step: python train_text_model.py")
 
 
 if __name__ == "__main__":
