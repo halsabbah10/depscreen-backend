@@ -86,6 +86,13 @@ jobs:
             -e ENVIRONMENT=testing \
             -p 8000:8000 \
             depscreen-backend
-          sleep 10
+          echo "Waiting for container to start..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8000/health/live > /dev/null 2>&1; then
+              echo "Health check passed after ${i}s"
+              break
+            fi
+            sleep 2
+          done
           curl -f http://localhost:8000/health/live || (docker logs test-container && exit 1)
           docker stop test-container
