@@ -1,7 +1,7 @@
 ---
 title: DepScreen
 emoji: 🧠
-colorFrom: teal
+colorFrom: green
 colorTo: blue
 sdk: docker
 app_port: 8000
