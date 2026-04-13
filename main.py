@@ -195,6 +195,35 @@ def create_app() -> FastAPI:
             "symptom_model_loaded": _model_service is not None and _model_service.is_loaded,
         }
 
+    @app.get("/health/llm-test", tags=["Health"])
+    async def llm_test():
+        """Debug: test LLM call directly."""
+        try:
+            from openai import AsyncOpenAI
+
+            client = AsyncOpenAI(
+                api_key=settings.llm_api_key,
+                base_url=settings.llm_base_url,
+            )
+            response = await client.chat.completions.create(
+                model=settings.llm_model,
+                messages=[{"role": "user", "content": "Say hello in one word."}],
+                max_tokens=10,
+            )
+            return {
+                "status": "ok",
+                "response": response.choices[0].message.content,
+                "model": settings.llm_model,
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "error_type": type(e).__name__,
+                "error": str(e),
+                "model": settings.llm_model,
+                "base_url": settings.llm_base_url,
+            }
+
     return app
 
 
