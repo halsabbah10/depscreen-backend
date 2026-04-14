@@ -115,6 +115,36 @@ class LLMService:
             data["resources"] = data.get("resources", DEFAULT_RESOURCES)
             data.setdefault("symptom_explanations", {})
 
+            # Safety guard on narrative fields — patient-visible text that could
+            # contain unsafe clinical claims from the LLM.
+            try:
+                from app.services.safety_guard import scan_text as _sg_scan
+
+                for key in ("summary", "why_model_thinks_this", "uncertainty_notes"):
+                    if isinstance(data.get(key), str):
+                        result = _sg_scan(data[key], context="explanation")
+                        if result.violations:
+                            logger.warning(
+                                f"[llm explanation] {key} violations: "
+                                f"{[(v.category, v.severity) for v in result.violations]}"
+                            )
+                        data[key] = result.redacted
+                # Symptom explanations dict — scan each value
+                symp_exp = data.get("symptom_explanations") or {}
+                if isinstance(symp_exp, dict):
+                    for sym_key, sym_val in list(symp_exp.items()):
+                        if isinstance(sym_val, str):
+                            result = _sg_scan(sym_val, context="explanation")
+                            if result.violations:
+                                logger.warning(
+                                    f"[llm explanation] symptom {sym_key} violations: "
+                                    f"{[(v.category, v.severity) for v in result.violations]}"
+                                )
+                            symp_exp[sym_key] = result.redacted
+                    data["symptom_explanations"] = symp_exp
+            except Exception as _sg_err:
+                logger.warning(f"Safety guard error on explanation (non-fatal): {_sg_err}")
+
             return ExplanationReport(**data)
 
         except Exception as e:

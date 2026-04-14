@@ -181,6 +181,18 @@ class ChatService:
                 # Strip any <think> tags from reasoning models (e.g. DeepSeek R1)
                 response_text = re.sub(r"<think>.*?</think>", "", response_text, flags=re.DOTALL).strip()
 
+                # Safety guard: scan LLM output for prescription advice,
+                # diagnostic claims, self-harm, undermining professional care.
+                from app.services.safety_guard import scan_text
+
+                safety = scan_text(response_text, context="chat")
+                if safety.violations:
+                    logger.warning(
+                        f"Chat safety violations for screening {screening.id}: "
+                        f"{[(v.category, v.severity) for v in safety.violations]}"
+                    )
+                response_text = safety.redacted
+
             except Exception as e:
                 logger.error(f"Chat LLM call failed: {type(e).__name__}: {e}", exc_info=True)
                 response_text = (
@@ -297,6 +309,24 @@ class ChatService:
             )
             yield fallback
             full_response = fallback
+
+        # Safety guard: scan the assembled stream output before persisting.
+        # If violations were found, we persist the REDACTED version (what the
+        # user already saw in their stream may include unsafe text — we can't
+        # un-ring that bell, but we can prevent it from being re-delivered on
+        # history reload). A post-scan audit log is written for review.
+        try:
+            from app.services.safety_guard import scan_text
+
+            safety = scan_text(full_response, context="chat")
+            if safety.violations:
+                logger.warning(
+                    f"Streaming chat violations for screening {screening.id}: "
+                    f"{[(v.category, v.severity) for v in safety.violations]}"
+                )
+            full_response = safety.redacted
+        except Exception as e:
+            logger.warning(f"Safety guard error (non-fatal): {e}")
 
         # Save the complete assistant message
         assistant_msg = ChatMessage(

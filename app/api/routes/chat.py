@@ -375,6 +375,16 @@ async def send_conversation_message(
                 )
                 response_text = response.choices[0].message.content
                 response_text = re.sub(r"<think>.*?</think>", "", response_text, flags=re.DOTALL).strip()
+                # Safety guard
+                from app.services.safety_guard import scan_text as _sg_scan
+
+                _sg = _sg_scan(response_text, context="chat")
+                if _sg.violations:
+                    logger.warning(
+                        f"Standalone chat violations for user {current_user.id[:8]}: "
+                        f"{[(v.category, v.severity) for v in _sg.violations]}"
+                    )
+                response_text = _sg.redacted
             except Exception as e:
                 logger.error(f"Standalone chat LLM failed: {e}")
                 response_text = (
@@ -588,6 +598,19 @@ async def send_conversation_message_stream(
                         yield f"data: {escaped}\n\n"
 
                 full_response = re_module.sub(r"<think>.*?</think>", "", full_response, flags=re_module.DOTALL).strip()
+                # Safety guard on stream output
+                try:
+                    from app.services.safety_guard import scan_text as _sg_scan
+
+                    _sg = _sg_scan(full_response, context="chat")
+                    if _sg.violations:
+                        logger.warning(
+                            f"Streaming standalone chat violations for user {current_user.id[:8]}: "
+                            f"{[(v.category, v.severity) for v in _sg.violations]}"
+                        )
+                    full_response = _sg.redacted
+                except Exception as _sg_err:
+                    logger.warning(f"Safety guard error (non-fatal): {_sg_err}")
             except Exception as e:
                 logger.error(f"Standalone chat streaming failed: {type(e).__name__}: {e}", exc_info=True)
                 fallback = (
