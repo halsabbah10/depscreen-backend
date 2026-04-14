@@ -321,6 +321,109 @@ async def get_patient_full_profile(
     }
 
 
+@router.get("/patients/{patient_id}/summary.pdf")
+async def download_patient_summary_pdf(
+    patient_id: str,
+    current_user: User = Depends(require_clinician()),
+    db: Session = Depends(get_db),
+):
+    """Clinician downloads a PDF clinical summary for a patient."""
+    from fastapi.responses import StreamingResponse
+
+    from app.services.reports import build_patient_summary_pdf
+
+    patient = _verify_patient_access(db, patient_id, current_user.id)
+
+    medications = db.query(Medication).filter(Medication.patient_id == patient_id).all()
+    allergies = db.query(Allergy).filter(Allergy.patient_id == patient_id).all()
+    diagnoses = db.query(Diagnosis).filter(Diagnosis.patient_id == patient_id).all()
+    contacts = db.query(EmergencyContact).filter(EmergencyContact.patient_id == patient_id).all()
+    care_plans = (
+        db.query(CarePlan)
+        .filter(CarePlan.patient_id == patient_id)
+        .order_by(desc(CarePlan.updated_at))
+        .all()
+    )
+    screenings = (
+        db.query(Screening)
+        .filter(Screening.patient_id == patient_id)
+        .order_by(desc(Screening.created_at))
+        .limit(10)
+        .all()
+    )
+
+    patient_dict = {
+        "full_name": patient.full_name,
+        "email": patient.email,
+        "phone": patient.phone,
+        "date_of_birth": patient.date_of_birth,
+        "gender": patient.gender,
+        "nationality": patient.nationality,
+        "cpr_number": patient.cpr_number,
+        "medical_record_number": patient.medical_record_number,
+        "blood_type": patient.blood_type,
+    }
+
+    export_dict = {
+        "medications": [
+            {
+                "name": m.name, "dosage": m.dosage, "frequency": m.frequency,
+                "start_date": m.start_date, "prescribed_by": m.prescribed_by,
+                "is_active": m.is_active,
+            }
+            for m in medications
+        ],
+        "allergies": [
+            {
+                "allergen": a.allergen, "allergy_type": a.allergy_type,
+                "severity": a.severity, "reaction": a.reaction, "notes": a.notes,
+            }
+            for a in allergies
+        ],
+        "diagnoses": [
+            {
+                "condition": d.condition, "icd10_code": d.icd10_code, "status": d.status,
+                "diagnosed_date": d.diagnosed_date, "diagnosed_by": d.diagnosed_by,
+            }
+            for d in diagnoses
+        ],
+        "emergency_contacts": [
+            {
+                "contact_name": c.contact_name, "phone": c.phone,
+                "relation": c.relation, "is_primary": c.is_primary,
+            }
+            for c in contacts
+        ],
+        "care_plans": [
+            {
+                "title": cp.title, "description": cp.description,
+                "status": cp.status, "review_date": cp.review_date,
+            }
+            for cp in care_plans
+        ],
+        "screenings": [
+            {
+                "created_at": s.created_at,
+                "severity_label": s.severity_level or "none",
+                "severity_score": s.symptom_count,
+                "flagged_for_review": s.flagged_for_review,
+                "clinician_notes": s.clinician_notes,
+            }
+            for s in screenings
+        ],
+    }
+
+    buf = build_patient_summary_pdf(patient_dict, export_dict, clinician_name=current_user.full_name)
+    log_audit(db, current_user.id, "patient_summary_pdf", resource_type="patient", resource_id=patient_id)
+
+    filename = f"depscreen-summary-{patient.full_name.replace(' ', '-')}-{datetime.utcnow().strftime('%Y%m%d')}.pdf"
+    return StreamingResponse(
+        buf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.get("/patients/{patient_id}/screenings", response_model=ScreeningHistoryResponse)
 async def get_patient_screenings(
     patient_id: str,

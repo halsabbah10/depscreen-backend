@@ -1301,6 +1301,106 @@ async def export_my_data(
     }
 
 
+@router.get("/export/pdf")
+async def export_my_data_pdf(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Export the patient's full record as a printable PDF."""
+    from fastapi.responses import StreamingResponse
+
+    from app.services.reports import build_patient_export_pdf
+
+    screenings = (
+        db.query(Screening)
+        .filter(Screening.patient_id == current_user.id)
+        .order_by(desc(Screening.created_at))
+        .all()
+    )
+    documents = db.query(PatientDocument).filter(PatientDocument.patient_id == current_user.id).all()
+    contacts = db.query(EmergencyContact).filter(EmergencyContact.patient_id == current_user.id).all()
+    medications = db.query(Medication).filter(Medication.patient_id == current_user.id).all()
+    allergies = db.query(Allergy).filter(Allergy.patient_id == current_user.id).all()
+    diagnoses = db.query(Diagnosis).filter(Diagnosis.patient_id == current_user.id).all()
+    care_plans = db.query(CarePlan).filter(CarePlan.patient_id == current_user.id).all()
+
+    patient_dict = {
+        "full_name": current_user.full_name,
+        "email": current_user.email,
+        "phone": current_user.phone,
+        "date_of_birth": current_user.date_of_birth,
+        "gender": current_user.gender,
+        "nationality": current_user.nationality,
+        "cpr_number": current_user.cpr_number,
+        "medical_record_number": current_user.medical_record_number,
+        "blood_type": current_user.blood_type,
+        "language_preference": current_user.language_preference,
+        "timezone": current_user.timezone,
+    }
+
+    export_dict = {
+        "screenings": [
+            {
+                "created_at": s.created_at,
+                "severity_label": s.severity_level or "none",
+                "severity_score": s.symptom_count,
+                "flagged_for_review": s.flagged_for_review,
+            }
+            for s in screenings
+        ],
+        "medications": [
+            {
+                "name": m.name, "dosage": m.dosage, "frequency": m.frequency,
+                "start_date": m.start_date, "prescribed_by": m.prescribed_by,
+                "is_active": m.is_active,
+            }
+            for m in medications
+        ],
+        "allergies": [
+            {
+                "allergen": a.allergen, "allergy_type": a.allergy_type,
+                "severity": a.severity, "reaction": a.reaction,
+            }
+            for a in allergies
+        ],
+        "diagnoses": [
+            {
+                "condition": d.condition, "icd10_code": d.icd10_code, "status": d.status,
+                "diagnosed_date": d.diagnosed_date, "diagnosed_by": d.diagnosed_by,
+            }
+            for d in diagnoses
+        ],
+        "emergency_contacts": [
+            {
+                "contact_name": c.contact_name, "phone": c.phone,
+                "relation": c.relation, "is_primary": c.is_primary,
+            }
+            for c in contacts
+        ],
+        "care_plans": [
+            {
+                "title": cp.title, "description": cp.description,
+                "status": cp.status, "review_date": cp.review_date,
+            }
+            for cp in care_plans
+        ],
+        "documents": [
+            {"title": d.title, "doc_type": d.doc_type, "created_at": d.created_at}
+            for d in documents
+        ],
+    }
+
+    buf = build_patient_export_pdf(patient_dict, export_dict)
+    log_audit(db, current_user.id, "data_exported_pdf", resource_type="user")
+
+    filename = f"depscreen-my-record-{datetime.utcnow().strftime('%Y%m%d')}.pdf"
+    return StreamingResponse(
+        buf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 # ── Patient Notifications ────────────────────────────────────────────────────
 
 

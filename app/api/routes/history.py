@@ -8,11 +8,13 @@ Clinicians access patient history via /api/dashboard endpoints instead.
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from app.middleware.rate_limiter import limiter
 from app.models.db import Screening, User, get_db
+from app.services.reports import build_screening_pdf
 from app.schemas.analysis import (
     Evidence,
     ExplanationReport,
@@ -160,6 +162,64 @@ async def get_screening_by_id(
             raise HTTPException(status_code=403, detail="This patient is not assigned to you")
 
     return _screening_to_response(screening)
+
+
+@router.get("/{screening_id}/pdf")
+async def download_screening_pdf(
+    screening_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Download a single screening as a printable PDF report."""
+    screening = db.query(Screening).filter(Screening.id == screening_id).first()
+    if not screening:
+        raise HTTPException(status_code=404, detail="Screening not found")
+
+    # Same authorization as the JSON endpoint
+    if current_user.role == "patient" and screening.patient_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Cannot access this screening")
+    if current_user.role == "clinician":
+        if screening.patient and screening.patient.clinician_id != current_user.id:
+            raise HTTPException(status_code=403, detail="This patient is not assigned to you")
+
+    patient = screening.patient
+    symptom_data = screening.symptom_data or {}
+    explanation_data = screening.explanation_data or {}
+
+    screening_dict = {
+        "id": screening.id,
+        "created_at": screening.created_at,
+        "severity_label": screening.severity_level or "none",
+        "severity_score": symptom_data.get("total_sentences_analyzed"),
+        "symptoms": [
+            {"criterion": sym.get("dsm5_criterion", sym.get("criterion", "")),
+             "confidence": sym.get("confidence", 0)}
+            for sym in symptom_data.get("symptoms_detected", [])
+        ],
+        "detected_sentences": [
+            sym.get("sentence_text", "")
+            for sym in symptom_data.get("symptoms_detected", [])
+            if sym.get("sentence_text")
+        ],
+        "llm_explanation": explanation_data.get("why_model_thinks_this") or explanation_data.get("summary") or "",
+        "flagged_for_review": bool(screening.flagged_for_review),
+    }
+
+    patient_dict = {
+        "full_name": patient.full_name if patient else "—",
+        "email": patient.email if patient else None,
+        "date_of_birth": patient.date_of_birth if patient else None,
+        "cpr_number": patient.cpr_number if patient else None,
+        "medical_record_number": patient.medical_record_number if patient else None,
+    }
+
+    buf = build_screening_pdf(screening_dict, patient_dict)
+    filename = f"depscreen-screening-{screening_id[:8]}.pdf"
+    return StreamingResponse(
+        buf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.delete("/{screening_id}")
