@@ -135,6 +135,94 @@ async def create_conversation(
     )
 
 
+@router.patch("/conversations/{conversation_id}")
+@limiter.limit("30/minute")
+async def rename_conversation(
+    request: Request,
+    conversation_id: str,
+    body: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Rename a conversation. Accepts { title: str }."""
+    conv = (
+        db.query(Conversation)
+        .filter(Conversation.id == conversation_id, Conversation.user_id == current_user.id)
+        .first()
+    )
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    new_title = (body.get("title") or "").strip()
+    if not new_title or len(new_title) > 120:
+        raise HTTPException(status_code=400, detail="Title must be 1-120 characters")
+
+    conv.title = new_title
+    db.commit()
+    log_audit(db, current_user.id, "conversation_renamed", "conversation", conv.id)
+    return {"status": "renamed", "title": new_title}
+
+
+@router.post("/conversations/{conversation_id}/auto-title")
+@limiter.limit("20/minute")
+async def auto_title_conversation(
+    request: Request,
+    conversation_id: str,
+    current_user: User = Depends(get_current_user),
+    chat_service: ChatService = Depends(get_chat_service),
+    db: Session = Depends(get_db),
+):
+    """Generate a concise title from the conversation's first exchange using the LLM."""
+    conv = (
+        db.query(Conversation)
+        .filter(Conversation.id == conversation_id, Conversation.user_id == current_user.id)
+        .first()
+    )
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    msgs = (
+        db.query(ChatMessage)
+        .filter(ChatMessage.conversation_id == conversation_id)
+        .order_by(ChatMessage.created_at)
+        .limit(4)
+        .all()
+    )
+    if not msgs:
+        raise HTTPException(status_code=400, detail="Conversation has no messages yet")
+
+    exchange = "\n".join(f"{'Patient' if m.role == 'user' else 'Assistant'}: {m.content[:200]}" for m in msgs)
+
+    try:
+        response = await chat_service.llm.client.chat.completions.create(
+            model=chat_service.llm.model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Generate a concise 3-6 word title for this conversation that captures its topic. "
+                        "Return ONLY the title, no quotes, no punctuation at the end, no prefix like 'Title:'. "
+                        "Keep it neutral and professional."
+                    ),
+                },
+                {"role": "user", "content": exchange},
+            ],
+            temperature=0.3,
+            max_tokens=30,
+        )
+        title = (response.choices[0].message.content or "").strip().strip("\"'").rstrip(".")
+        if len(title) < 2 or len(title) > 120:
+            title = msgs[0].content[:50]
+    except Exception as e:
+        logger.warning(f"Auto-title LLM call failed: {e}")
+        title = msgs[0].content[:50]
+
+    conv.title = title
+    db.commit()
+    log_audit(db, current_user.id, "conversation_auto_titled", "conversation", conv.id)
+    return {"status": "titled", "title": title}
+
+
 @router.post("/conversations/{conversation_id}/message", response_model=ChatMessageResponse)
 @limiter.limit("30/minute")
 async def send_conversation_message(
