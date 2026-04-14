@@ -17,13 +17,17 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings, get_settings
 from app.middleware.rate_limiter import limiter
 from app.models.db import (
+    Allergy,
     Appointment,
     CarePlan,
     ChatMessage,
     Diagnosis,
+    EmergencyContact,
+    Medication,
     Notification,
     PatientDocument,
     Screening,
+    ScreeningSchedule,
     User,
     get_db,
 )
@@ -139,6 +143,173 @@ async def get_patients(
     )
 
     return summaries
+
+
+@router.get("/patients/{patient_id}/full-profile")
+async def get_patient_full_profile(
+    patient_id: str,
+    current_user: User = Depends(require_clinician()),
+    db: Session = Depends(get_db),
+):
+    """Return ALL profile + clinical data for a patient in a single response.
+
+    Used by the clinician's patient-detail view. Combining 8+ queries into one
+    HTTP round-trip eliminates the waterfall that dominated page load time.
+
+    Returns: demographics, medical identifiers, medications, allergies, active
+    diagnoses, emergency contacts, social media handles, screening schedule,
+    and aggregate counts (screenings, documents, appointments, care plans).
+    """
+    from datetime import date as _date
+
+    patient = _verify_patient_access(db, patient_id, current_user.id)
+
+    # Demographics
+    age = None
+    if patient.date_of_birth:
+        today = _date.today()
+        age = (
+            today.year
+            - patient.date_of_birth.year
+            - ((today.month, today.day) < (patient.date_of_birth.month, patient.date_of_birth.day))
+        )
+
+    meds = (
+        db.query(Medication)
+        .filter(Medication.patient_id == patient_id)
+        .order_by(Medication.start_date.desc().nullslast())
+        .all()
+    )
+    allergies = db.query(Allergy).filter(Allergy.patient_id == patient_id).all()
+    diagnoses = (
+        db.query(Diagnosis)
+        .filter(Diagnosis.patient_id == patient_id)
+        .order_by(Diagnosis.diagnosed_date.desc().nullslast())
+        .all()
+    )
+    contacts = db.query(EmergencyContact).filter(EmergencyContact.patient_id == patient_id).all()
+    schedule = (
+        db.query(ScreeningSchedule)
+        .filter(ScreeningSchedule.patient_id == patient_id, ScreeningSchedule.is_active == True)
+        .first()
+    )
+
+    # Aggregate counts
+    screening_count = db.query(Screening).filter(Screening.patient_id == patient_id).count()
+    doc_count = db.query(PatientDocument).filter(PatientDocument.patient_id == patient_id).count()
+    appt_count = (
+        db.query(Appointment)
+        .filter(
+            Appointment.patient_id == patient_id,
+            Appointment.status.in_(["scheduled", "confirmed"]),
+            Appointment.scheduled_at >= datetime.utcnow(),
+        )
+        .count()
+    )
+    cp_count = (
+        db.query(CarePlan)
+        .filter(CarePlan.patient_id == patient_id, CarePlan.status.in_(["active", "review_needed"]))
+        .count()
+    )
+    latest_screening = (
+        db.query(Screening).filter(Screening.patient_id == patient_id).order_by(desc(Screening.created_at)).first()
+    )
+
+    return {
+        "id": patient.id,
+        "email": patient.email,
+        "full_name": patient.full_name,
+        "demographics": {
+            "date_of_birth": patient.date_of_birth.isoformat() if patient.date_of_birth else None,
+            "age": age,
+            "gender": patient.gender,
+            "nationality": patient.nationality,
+            "language_preference": patient.language_preference,
+            "timezone": patient.timezone,
+        },
+        "medical_identifiers": {
+            "cpr_number": patient.cpr_number,
+            "medical_record_number": patient.medical_record_number,
+            "blood_type": patient.blood_type,
+        },
+        "contact": {
+            "phone": patient.phone,
+            "reddit_username": patient.reddit_username,
+            "twitter_username": patient.twitter_username,
+        },
+        "onboarding_completed": bool(patient.onboarding_completed),
+        "profile_picture_url": patient.profile_picture_url,
+        "created_at": patient.created_at.isoformat() if patient.created_at else None,
+        "last_login_at": patient.last_login_at.isoformat() if patient.last_login_at else None,
+        "medications": [
+            {
+                "id": m.id,
+                "name": m.name,
+                "dosage": m.dosage,
+                "frequency": m.frequency,
+                "start_date": m.start_date.isoformat() if m.start_date else None,
+                "end_date": m.end_date.isoformat() if m.end_date else None,
+                "is_active": m.is_active,
+                "prescribed_by": m.prescribed_by,
+                "notes": m.notes,
+            }
+            for m in meds
+        ],
+        "allergies": [
+            {
+                "id": a.id,
+                "allergen": a.allergen,
+                "severity": a.severity,
+                "allergy_type": a.allergy_type,
+                "reaction": a.reaction,
+                "diagnosed_date": a.diagnosed_date.isoformat() if a.diagnosed_date else None,
+                "notes": a.notes,
+            }
+            for a in allergies
+        ],
+        "diagnoses": [
+            {
+                "id": d.id,
+                "condition": d.condition,
+                "icd10_code": d.icd10_code,
+                "status": d.status,
+                "diagnosed_date": d.diagnosed_date.isoformat() if d.diagnosed_date else None,
+                "diagnosed_by": d.diagnosed_by,
+                "notes": d.notes,
+            }
+            for d in diagnoses
+        ],
+        "emergency_contacts": [
+            {
+                "id": c.id,
+                "contact_name": c.contact_name,
+                "phone": c.phone,
+                "relation": c.relation,
+                "is_primary": c.is_primary,
+            }
+            for c in contacts
+        ],
+        "screening_schedule": (
+            {
+                "id": schedule.id,
+                "frequency": schedule.frequency,
+                "day_of_week": schedule.day_of_week,
+                "preferred_time": schedule.preferred_time,
+                "next_due_at": schedule.next_due_at.isoformat() if schedule.next_due_at else None,
+                "last_completed_at": schedule.last_completed_at.isoformat() if schedule.last_completed_at else None,
+            }
+            if schedule
+            else None
+        ),
+        "stats": {
+            "total_screenings": screening_count,
+            "total_documents": doc_count,
+            "upcoming_appointments": appt_count,
+            "active_care_plans": cp_count,
+            "last_severity": latest_screening.severity_level if latest_screening else None,
+            "last_screening_date": latest_screening.created_at.isoformat() if latest_screening else None,
+        },
+    }
 
 
 @router.get("/patients/{patient_id}/screenings", response_model=ScreeningHistoryResponse)
