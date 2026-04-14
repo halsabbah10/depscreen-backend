@@ -101,8 +101,11 @@ class ChatService:
     """Service for patient-facing psychoeducation chat."""
 
     def __init__(self, llm_service: LLMService, rag_service: RAGService):
+        from app.services.patient_context import PatientContextService
+
         self.llm = llm_service
         self.rag = rag_service
+        self.patient_context = PatientContextService()
 
     async def respond(
         self,
@@ -151,8 +154,16 @@ class ChatService:
                 logger.warning(f"RAG context retrieval failed: {e}")
                 rag_context = ""
 
+            # Full patient profile (demographics, meds, diagnoses, care plan, etc.)
+            patient_profile = ""
+            try:
+                if screening.patient_id and screening.patient:
+                    patient_profile = self.patient_context.build_context(screening.patient, db)
+            except Exception as e:
+                logger.warning(f"Patient context build failed: {e}")
+
             # 3. Build prompt
-            prompt = self._build_prompt(screening, message, history, rag_context)
+            prompt = self._build_prompt(screening, message, history, rag_context, patient_profile)
 
             # 4. Call LLM
             try:
@@ -244,7 +255,15 @@ class ChatService:
             logger.warning(f"RAG context retrieval failed: {e}")
             rag_context = ""
 
-        prompt = self._build_prompt(screening, message, history, rag_context)
+        # Full patient profile
+        patient_profile = ""
+        try:
+            if screening.patient_id and screening.patient:
+                patient_profile = self.patient_context.build_context(screening.patient, db)
+        except Exception as e:
+            logger.warning(f"Patient context build failed: {e}")
+
+        prompt = self._build_prompt(screening, message, history, rag_context, patient_profile)
 
         # Stream from LLM
         full_response = ""
@@ -295,9 +314,16 @@ class ChatService:
         message: str,
         history: list[ChatMessage],
         rag_context: str,
+        patient_context: str = "",
     ) -> str:
-        """Build the full prompt with screening context, RAG docs, and chat history."""
-        # Screening context
+        """Build the full prompt with patient profile, screening context, RAG docs, and chat history."""
+        parts: list[str] = []
+
+        # 1. Full patient profile (demographics, medications, allergies, diagnoses, care plan, etc.)
+        if patient_context:
+            parts.append(patient_context)
+
+        # 2. Screening-specific context
         severity = screening.severity_level or "unknown"
         symptom_count = screening.symptom_count or 0
         symptoms_list = ""
@@ -306,30 +332,28 @@ class ChatService:
                 symptoms_list += (
                     f'\n- {d.get("symptom_label", d.get("symptom", ""))}: "{d.get("sentence_text", "")[:80]}"'
                 )
+        parts.append(
+            f"## Context: Focused Screening\nSeverity: {severity} ({symptom_count} DSM-5 symptoms detected)"
+            f"\nDetected symptoms:{symptoms_list if symptoms_list else ' None'}"
+        )
 
-        prompt = f"""## Patient's Screening Results
-Severity: {severity} ({symptom_count} DSM-5 symptoms detected)
-Detected symptoms:{symptoms_list if symptoms_list else " None"}
-"""
-
+        # 3. RAG clinical knowledge
         if rag_context:
-            prompt += f"""
-## Relevant Clinical Information
-{rag_context}
-"""
+            parts.append(f"## Relevant Clinical Information\n{rag_context}")
 
-        # Chat history (last 10 messages for context window management)
+        # 4. Recent conversation history
         if history:
-            prompt += "\n## Recent Conversation\n"
-            for msg in history[-10:]:
-                role_label = "Patient" if msg.role == "user" else "Assistant"
-                prompt += f"{role_label}: {msg.content[:300]}\n"
+            hist = "\n".join(
+                f"{'Patient' if m.role == 'user' else 'Assistant'}: {m.content[:300]}" for m in history[-10:]
+            )
+            parts.append(f"## Recent Conversation\n{hist}")
 
-        prompt += f"""
-## Patient's Current Message
-{message}
+        # 5. Current message
+        parts.append(
+            f"## Patient's Current Message\n{message}\n\n"
+            "Respond helpfully, empathetically, and concisely. Personalize using the patient profile. "
+            "Reference medications, diagnoses, or care plan goals when clinically relevant. "
+            "Do not diagnose. Recommend professional help when appropriate."
+        )
 
-Respond helpfully, empathetically, and concisely. Use the clinical information above to ground your response.
-Do not diagnose. Recommend professional help when appropriate."""
-
-        return prompt
+        return "\n\n".join(parts)

@@ -241,25 +241,38 @@ async def send_conversation_message(
                     detected_symptoms=detected_symptoms,
                 )
 
-            # Build prompt
+            # Full patient profile — demographics, meds, allergies, diagnoses, etc.
+            patient_profile = ""
+            try:
+                patient_profile = chat_service.patient_context.build_context(current_user, db)
+            except Exception as e:
+                logger.warning(f"Patient context build failed: {e}")
+
             from app.services.chat import CHAT_SYSTEM_PROMPT
 
-            prompt_parts = [f"## Patient's Message\n{body.message}"]
-            if rag_context:
-                prompt_parts.insert(0, f"## Clinical Context\n{rag_context}")
+            prompt_parts: list[str] = []
+            if patient_profile:
+                prompt_parts.append(patient_profile)
             if recent_screening:
                 severity = recent_screening.severity_level or "unknown"
-                prompt_parts.insert(
-                    0, f"## Recent Screening\nSeverity: {severity}, Symptoms: {recent_screening.symptom_count or 0}"
+                prompt_parts.append(
+                    f"## Most Recent Screening\nSeverity: {severity}, Symptoms detected: {recent_screening.symptom_count or 0}"
                 )
+            if rag_context:
+                prompt_parts.append(f"## Relevant Clinical Knowledge\n{rag_context}")
             if history:
                 hist_text = "\n".join(
-                    f"{'Patient' if m.role == 'user' else 'Assistant'}: {m.content[:200]}" for m in history[-8:]
+                    f"{'Patient' if m.role == 'user' else 'Assistant'}: {m.content[:300]}" for m in history[-10:]
                 )
-                prompt_parts.insert(0, f"## Recent Conversation\n{hist_text}")
+                prompt_parts.append(f"## Recent Conversation\n{hist_text}")
+            prompt_parts.append(f"## Patient's Current Message\n{body.message}")
 
             prompt = "\n\n".join(prompt_parts)
-            prompt += "\n\nRespond helpfully, empathetically, and concisely. Do not diagnose."
+            prompt += (
+                "\n\nRespond helpfully, empathetically, and concisely. Personalize using the patient profile above. "
+                "Reference medications, diagnoses, or care plan goals when clinically relevant. "
+                "Never disclose CPR/MRN numbers back to the patient. Do not diagnose."
+            )
 
             try:
                 llm_svc = chat_service.llm
@@ -424,22 +437,37 @@ async def send_conversation_message_stream(
     except Exception as e:
         logger.warning(f"RAG retrieval failed in stream: {e}")
 
-    prompt_parts = [f"## Patient's Message\n{body.message}"]
-    if rag_context:
-        prompt_parts.insert(0, f"## Clinical Context\n{rag_context}")
+    # Full patient profile — demographics, meds, allergies, diagnoses, care plan, etc.
+    patient_profile = ""
+    try:
+        patient_profile = chat_service.patient_context.build_context(current_user, db)
+    except Exception as e:
+        logger.warning(f"Patient context build failed: {e}")
+
+    # Build prompt in order: patient profile → screening → RAG → conversation → current message
+    prompt_parts: list[str] = []
+    if patient_profile:
+        prompt_parts.append(patient_profile)
     if recent_screening:
         severity = recent_screening.severity_level or "unknown"
-        prompt_parts.insert(
-            0, f"## Recent Screening\nSeverity: {severity}, Symptoms: {recent_screening.symptom_count or 0}"
+        prompt_parts.append(
+            f"## Most Recent Screening\nSeverity: {severity}, Symptoms detected: {recent_screening.symptom_count or 0}"
         )
+    if rag_context:
+        prompt_parts.append(f"## Relevant Clinical Knowledge\n{rag_context}")
     if history:
         hist_text = "\n".join(
-            f"{'Patient' if m.role == 'user' else 'Assistant'}: {m.content[:200]}" for m in history[-8:]
+            f"{'Patient' if m.role == 'user' else 'Assistant'}: {m.content[:300]}" for m in history[-10:]
         )
-        prompt_parts.insert(0, f"## Recent Conversation\n{hist_text}")
+        prompt_parts.append(f"## Recent Conversation\n{hist_text}")
+    prompt_parts.append(f"## Patient's Current Message\n{body.message}")
 
     prompt = "\n\n".join(prompt_parts)
-    prompt += "\n\nRespond helpfully, empathetically, and concisely. Do not diagnose."
+    prompt += (
+        "\n\nRespond helpfully, empathetically, and concisely. Personalize using the patient profile above. "
+        "Reference medications, diagnoses, or care plan goals when clinically relevant. "
+        "Never disclose CPR/MRN numbers back to the patient. Do not diagnose."
+    )
 
     async def event_generator_standalone():
         full_response = ""
