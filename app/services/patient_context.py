@@ -95,6 +95,15 @@ class PatientContextService:
         if demo_parts:
             sections.append(f"**Demographics**\n{user.full_name}. " + ", ".join(demo_parts) + ".")
 
+        # Social media handles (used for ingestion + context)
+        social_parts = []
+        if user.reddit_username:
+            social_parts.append(f"Reddit: u/{user.reddit_username}")
+        if user.twitter_username:
+            social_parts.append(f"X/Twitter: @{user.twitter_username}")
+        if social_parts:
+            sections.append("**Social Media Handles**\n" + " · ".join(social_parts))
+
         # 2. Medical identifiers (redacted for LLM)
         if user.cpr_number or user.medical_record_number or user.blood_type:
             id_parts = []

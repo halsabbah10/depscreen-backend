@@ -42,6 +42,11 @@ def _user_to_profile(user: User) -> UserProfile:
         role=user.role,
         clinician_code=user.clinician_code,
         created_at=user.created_at,
+        onboarding_completed=user.onboarding_completed or False,
+        profile_picture_url=user.profile_picture_url,
+        language_preference=user.language_preference,
+        reddit_username=user.reddit_username,
+        twitter_username=user.twitter_username,
     )
 
 

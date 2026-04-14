@@ -238,6 +238,11 @@ class UserProfile(BaseModel):
     role: str
     clinician_code: str | None = None
     created_at: datetime
+    onboarding_completed: bool = False
+    profile_picture_url: str | None = None
+    language_preference: str | None = None
+    reddit_username: str | None = None
+    twitter_username: str | None = None
 
 
 class TokenResponse(BaseModel):
@@ -498,6 +503,9 @@ class ProfileUpdate(BaseModel):
     language_preference: str | None = Field(None, description="en, ar")
     timezone: str | None = Field(None, max_length=50)
     email_notifications: bool | None = None
+    reddit_username: str | None = Field(None, max_length=50)
+    twitter_username: str | None = Field(None, max_length=50)
+    onboarding_completed: bool | None = None
     new_password: str | None = Field(None, min_length=8, max_length=128)
 
 

@@ -80,6 +80,10 @@ class User(Base):
     phone = Column(String(20), nullable=True)
     profile_picture_url = Column(String(500), nullable=True)
 
+    # Social media (for screening analysis)
+    reddit_username = Column(String(50), nullable=True)
+    twitter_username = Column(String(50), nullable=True)
+
     # Clinician-specific
     specialization = Column(String(100), nullable=True)
     license_number = Column(String(50), nullable=True)

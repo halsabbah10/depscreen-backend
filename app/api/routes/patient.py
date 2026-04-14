@@ -141,6 +141,21 @@ async def update_profile(
         current_user.email_notifications = body.email_notifications
         changes.append("email_notifications")
 
+    if body.reddit_username is not None:
+        # Strip leading 'u/' or '/u/' if present; keep alphanumeric + underscore/dash
+        val = body.reddit_username.strip().lstrip("/").lstrip("u/") if body.reddit_username else ""
+        current_user.reddit_username = val or None
+        changes.append("reddit_username")
+
+    if body.twitter_username is not None:
+        val = body.twitter_username.strip().lstrip("@") if body.twitter_username else ""
+        current_user.twitter_username = val or None
+        changes.append("twitter_username")
+
+    if body.onboarding_completed is not None:
+        current_user.onboarding_completed = body.onboarding_completed
+        changes.append("onboarding_completed")
+
     # ── Phone validation ──────────────────────────────────────────────────
     if body.phone is not None:
         try:
