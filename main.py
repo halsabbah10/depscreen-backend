@@ -66,9 +66,23 @@ async def lifespan(app: FastAPI):
     logger.info(f"LLM model: {settings.llm_model}")
     logger.info(f"Rate limits: auth={settings.rate_limit_auth}, screening={settings.rate_limit_screening}")
 
+    # Start the background scheduler (screening reminders, appointment reminders, care plan reviews)
+    try:
+        from app.services.scheduler import start_scheduler
+
+        start_scheduler()
+    except Exception as e:
+        logger.warning(f"Scheduler failed to start (non-fatal): {e}")
+
     yield
 
     logger.info("Shutting down...")
+    try:
+        from app.services.scheduler import stop_scheduler
+
+        stop_scheduler()
+    except Exception as e:
+        logger.warning(f"Scheduler stop failed (non-fatal): {e}")
     await model_svc.unload_models()
 
 

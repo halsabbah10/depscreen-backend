@@ -39,6 +39,9 @@ structlog>=23.1.0
 resend>=0.8.0
 jinja2>=3.1.0
 
+# Background scheduler (screening/appointment reminder jobs)
+apscheduler>=3.10.0
+
 # Development / CI
 ruff>=0.4.0
 

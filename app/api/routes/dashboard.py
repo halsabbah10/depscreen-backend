@@ -614,6 +614,7 @@ async def create_appointment(
     payload: AppointmentCreate,
     current_user: User = Depends(require_clinician()),
     db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
 ):
     """Create a new appointment for a patient."""
     _verify_patient_access(db, payload.patient_id, current_user.id)
@@ -631,8 +632,38 @@ async def create_appointment(
         location=payload.location,
     )
     db.add(appt)
+
+    # Also create an in-app notification for the patient
+    patient = db.query(User).filter(User.id == payload.patient_id).first()
+    formatted = appt.scheduled_at.strftime("%d/%m/%Y at %H:%M")
+    db.add(
+        Notification(
+            user_id=payload.patient_id,
+            notification_type="appointment_scheduled",
+            title="New appointment scheduled",
+            message=f"Your clinician scheduled an appointment on {formatted}.",
+            link="/appointments",
+        )
+    )
+
     db.commit()
     db.refresh(appt)
+
+    # Email the patient immediately (confirmation). The 24h reminder fires separately via scheduler.
+    try:
+        from app.services.email import get_email_service
+
+        if patient and patient.email and patient.email_notifications:
+            get_email_service(settings).send_appointment_reminder(
+                patient_name=patient.full_name,
+                patient_email=patient.email,
+                appointment_at=formatted,
+                clinician_name=current_user.full_name,
+            )
+    except Exception as e:
+        import logging as _logging
+
+        _logging.getLogger(__name__).warning(f"Appointment email failed: {e}")
 
     log_audit(db, current_user.id, "appointment_created", resource_type="appointment", resource_id=appt_id)
     return _appointment_to_response(appt)
@@ -820,6 +851,7 @@ async def update_care_plan(
     description: str = Body(None),
     current_user: User = Depends(require_clinician()),
     db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
 ):
     """Update goals, interventions, status, or review date of a care plan."""
     cp = db.query(CarePlan).filter(CarePlan.id == care_plan_id).first()
@@ -847,8 +879,36 @@ async def update_care_plan(
         cp.description = description
 
     cp.updated_at = datetime.utcnow()
+
+    # In-app notification for the patient
+    db.add(
+        Notification(
+            user_id=cp.patient_id,
+            notification_type="care_plan_updated",
+            title="Your care plan has been updated",
+            message=f"Your clinician updated: {cp.title}",
+            link="/care-plan",
+        )
+    )
+
     db.commit()
     db.refresh(cp)
+
+    # Email the patient
+    try:
+        from app.services.email import get_email_service
+
+        patient = db.query(User).filter(User.id == cp.patient_id).first()
+        if patient and patient.email and patient.email_notifications:
+            get_email_service(settings).send_care_plan_update(
+                patient_name=patient.full_name,
+                patient_email=patient.email,
+                plan_title=cp.title,
+            )
+    except Exception as e:
+        import logging as _logging
+
+        _logging.getLogger(__name__).warning(f"Care plan update email failed: {e}")
 
     log_audit(db, current_user.id, "care_plan_updated", resource_type="care_plan", resource_id=care_plan_id)
     return _care_plan_to_response(cp)

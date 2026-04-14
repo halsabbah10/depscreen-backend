@@ -10,6 +10,7 @@ Uses SQLAlchemy with SQLite (development) / PostgreSQL (production).
 """
 
 from datetime import datetime
+from uuid import uuid4
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
@@ -316,6 +317,7 @@ class ScreeningSchedule(Base):
     preferred_time = Column(String(10), nullable=True)  # HH:MM format
     next_due_at = Column(DateTime, nullable=True, index=True)
     last_completed_at = Column(DateTime, nullable=True)
+    last_reminder_sent_at = Column(DateTime, nullable=True)  # de-dupe reminder emails
     assigned_by = Column(String(36), ForeignKey("users.id"), nullable=True)
     is_active = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -340,6 +342,7 @@ class Appointment(Base):
     status = Column(String(50), default="scheduled", index=True)  # scheduled, confirmed, completed, cancelled, no_show
     notes = Column(Text, nullable=True)
     location = Column(String(255), nullable=True)
+    reminder_sent_at = Column(DateTime, nullable=True)  # de-dupe 24h reminder emails
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -353,7 +356,7 @@ class Appointment(Base):
 class Notification(Base):
     __tablename__ = "notifications"
 
-    id = Column(String(36), primary_key=True, index=True)
+    id = Column(String(36), primary_key=True, index=True, default=lambda: str(uuid4()))
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     notification_type = Column(String(50), nullable=False, index=True)
     # Types: screening_due, screening_missed, new_message, appointment_reminder,
