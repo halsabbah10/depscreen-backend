@@ -121,8 +121,8 @@ def screening_reminders_job() -> None:
                     Notification(
                         user_id=patient.id,
                         notification_type="screening_overdue",
-                        title="Your check-in is overdue",
-                        message=f"It's been {days_overdue} day(s) since your scheduled check-in.",
+                        title="A check-in is waiting for you",
+                        message=f"It's been {days_overdue} day(s) since your last check-in. Whenever you're ready.",
                         link="/screening",
                     )
                 )

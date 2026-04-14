@@ -359,8 +359,8 @@ CHECKIN_PROMPTS = [
     CheckInPrompt(
         id="safety",
         dsm5_criterion="SUICIDAL_THOUGHTS",
-        question="Have you had any thoughts that life is not worth living, or thoughts of harming yourself?",
-        follow_up="If yes, do you have a plan or have you acted on these thoughts?",
+        question="Sometimes, when things feel heavy, people have thoughts that life isn't worth it, or thoughts of hurting themselves. Has anything like that been on your mind?",
+        follow_up="If yes — even a little — it helps us to know more. Is it a passing thought, or has it felt more concrete than that?",
     ),
 ]
 

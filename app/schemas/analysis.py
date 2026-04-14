@@ -388,6 +388,8 @@ class ScreeningScheduleResponse(BaseModel):
     next_due_at: datetime | None = None
     last_completed_at: datetime | None = None
     is_active: bool
+    assigned_by: str | None = None
+    assigned_by_name: str | None = None
     created_at: datetime
 
 
@@ -493,6 +495,31 @@ class ConversationResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     message_count: int = 0
+
+
+# ── Direct messaging (patient ↔ clinician) ──────────────────────────────────
+
+
+class DirectMessageCreate(BaseModel):
+    content: str = Field(min_length=1, max_length=5000)
+
+
+class DirectMessageResponse(BaseModel):
+    id: str
+    role: str  # "user" (patient) or "clinician"
+    sender_name: str | None = None
+    content: str
+    created_at: datetime
+
+
+class DirectMessageThread(BaseModel):
+    conversation_id: str
+    patient_id: str
+    patient_name: str
+    clinician_id: str | None = None
+    clinician_name: str | None = None
+    messages: list[DirectMessageResponse]
+    unread_count: int = 0
 
 
 # ── Extended Profile Schemas ──────────────────────────────────────────────────

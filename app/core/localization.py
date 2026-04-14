@@ -37,7 +37,7 @@ CRISIS_RESOURCES = [
         "name_short": "Emergency",
         "phone": "999",
         "phone_display": "999",
-        "description": "Police, ambulance, or fire. Call for life-threatening situations. Toll-free, 24/7.",
+        "description": "Police, ambulance, or fire. Call when immediate help is needed. Toll-free, 24/7.",
         "priority": 1,
         "available_247": True,
     },
@@ -109,11 +109,10 @@ CRISIS_RESOURCES_BY_PRIORITY = sorted(CRISIS_RESOURCES, key=lambda r: r["priorit
 # ── Safety Disclaimer ────────────────────────────────────────────────────────
 
 SAFETY_DISCLAIMER = (
-    "This screening is NOT a medical diagnosis. The results represent statistical "
-    "patterns detected by an AI model and should not be used as a substitute for "
-    "professional mental health evaluation. If you or someone you know is experiencing "
-    "a mental health crisis in Bahrain, call 999 for emergency services or visit the "
-    "Salmaniya Medical Complex Psychiatric Hospital emergency department."
+    "This is a screening companion — not a medical diagnosis. What it shows is one "
+    "small window into how you're doing, and a clinician can see much more. In Bahrain, "
+    "if things feel urgent, 999 is there 24/7, and Salmaniya Medical Complex's "
+    "psychiatric emergency department is available any time."
 )
 
 CRISIS_RESPONSE = """I hear you, and what you're carrying is real. Thank you for saying it out loud — that took courage.

@@ -22,6 +22,7 @@ from app.models.db import (
     Appointment,
     CarePlan,
     ChatMessage,
+    Conversation,
     Diagnosis,
     EmergencyContact,
     Medication,
@@ -41,10 +42,17 @@ from app.schemas.analysis import (
     DashboardStats,
     DiagnosisCreate,
     DiagnosisResponse,
+    DirectMessageCreate,
+    DirectMessageResponse,
+    DirectMessageThread,
+    MedicationCreate,
+    MedicationResponse,
     NotificationResponse,
     PatientSummary,
     ScreeningHistoryResponse,
     ScreeningListItem,
+    ScreeningScheduleCreate,
+    ScreeningScheduleResponse,
 )
 from app.services.auth import log_audit, require_clinician
 from app.services.rag import RAGService
@@ -1200,6 +1208,352 @@ async def update_diagnosis(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# Clinician Medication Management
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def _medication_to_response(med: Medication) -> MedicationResponse:
+    return MedicationResponse(
+        id=med.id,
+        name=med.name,
+        dosage=med.dosage,
+        frequency=med.frequency,
+        start_date=med.start_date.isoformat() if med.start_date else None,
+        end_date=med.end_date.isoformat() if med.end_date else None,
+        prescribed_by=med.prescribed_by,
+        notes=med.notes,
+        is_active=med.is_active,
+        created_at=med.created_at,
+    )
+
+
+@router.get("/patients/{patient_id}/medications", response_model=list[MedicationResponse])
+async def list_patient_medications(
+    patient_id: str,
+    current_user: User = Depends(require_clinician()),
+    db: Session = Depends(get_db),
+):
+    """List a patient's medications (clinician view)."""
+    _verify_patient_access(db, patient_id, current_user.id)
+    meds = (
+        db.query(Medication)
+        .filter(Medication.patient_id == patient_id)
+        .order_by(desc(Medication.created_at))
+        .all()
+    )
+    return [_medication_to_response(m) for m in meds]
+
+
+@router.post("/patients/{patient_id}/medications", response_model=MedicationResponse, status_code=201)
+@limiter.limit("30/minute")
+async def add_patient_medication(
+    patient_id: str,
+    request: Request,
+    payload: MedicationCreate,
+    current_user: User = Depends(require_clinician()),
+    db: Session = Depends(get_db),
+):
+    """Clinician adds a medication to a patient's record."""
+    _verify_patient_access(db, patient_id, current_user.id)
+
+    start_dt = None
+    if payload.start_date:
+        try:
+            start_dt = date.fromisoformat(payload.start_date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid start_date format. Use YYYY-MM-DD.")
+
+    end_dt = None
+    if payload.end_date:
+        try:
+            end_dt = date.fromisoformat(payload.end_date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid end_date format. Use YYYY-MM-DD.")
+
+    if start_dt and end_dt and end_dt < start_dt:
+        raise HTTPException(status_code=400, detail="end_date cannot be before start_date.")
+
+    med_id = str(uuid4())
+    med = Medication(
+        id=med_id,
+        patient_id=patient_id,
+        name=payload.name,
+        dosage=payload.dosage,
+        frequency=payload.frequency,
+        start_date=start_dt,
+        end_date=end_dt,
+        prescribed_by=payload.prescribed_by or current_user.full_name,
+        notes=payload.notes,
+        is_active=True,
+    )
+    db.add(med)
+    db.commit()
+    db.refresh(med)
+
+    log_audit(db, current_user.id, "medication_added_by_clinician", resource_type="medication", resource_id=med_id)
+
+    # Notify patient that a clinician added a medication
+    db.add(
+        Notification(
+            user_id=patient_id,
+            notification_type="care_plan_updated",
+            title="Your clinician updated your medications",
+            message=f"{current_user.full_name} added {med.name} to your record. No action needed from you right now — this is just so you have visibility.",
+            link="/profile",
+        )
+    )
+    db.commit()
+
+    return _medication_to_response(med)
+
+
+@router.put("/medications/{medication_id}", response_model=MedicationResponse)
+@limiter.limit("30/minute")
+async def update_patient_medication(
+    medication_id: str,
+    request: Request,
+    payload: MedicationCreate,
+    current_user: User = Depends(require_clinician()),
+    db: Session = Depends(get_db),
+):
+    """Clinician updates an existing medication on a patient's record."""
+    med = db.query(Medication).filter(Medication.id == medication_id).first()
+    if not med:
+        raise HTTPException(status_code=404, detail="Medication not found")
+
+    _verify_patient_access(db, med.patient_id, current_user.id)
+
+    med.name = payload.name
+    med.dosage = payload.dosage
+    med.frequency = payload.frequency
+    med.prescribed_by = payload.prescribed_by
+    med.notes = payload.notes
+
+    if payload.start_date:
+        try:
+            med.start_date = date.fromisoformat(payload.start_date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid start_date format. Use YYYY-MM-DD.")
+    else:
+        med.start_date = None
+
+    if payload.end_date:
+        try:
+            med.end_date = date.fromisoformat(payload.end_date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid end_date format. Use YYYY-MM-DD.")
+    else:
+        med.end_date = None
+
+    if med.start_date and med.end_date and med.end_date < med.start_date:
+        raise HTTPException(status_code=400, detail="end_date cannot be before start_date.")
+
+    db.commit()
+    db.refresh(med)
+    log_audit(db, current_user.id, "medication_updated_by_clinician", resource_type="medication", resource_id=medication_id)
+
+    return _medication_to_response(med)
+
+
+@router.delete("/medications/{medication_id}")
+@limiter.limit("30/minute")
+async def deactivate_patient_medication(
+    medication_id: str,
+    request: Request,
+    current_user: User = Depends(require_clinician()),
+    db: Session = Depends(get_db),
+):
+    """Clinician deactivates (soft-deletes) a medication."""
+    med = db.query(Medication).filter(Medication.id == medication_id).first()
+    if not med:
+        raise HTTPException(status_code=404, detail="Medication not found")
+
+    _verify_patient_access(db, med.patient_id, current_user.id)
+
+    med.is_active = False
+    db.commit()
+    log_audit(db, current_user.id, "medication_deactivated_by_clinician", resource_type="medication", resource_id=medication_id)
+
+    return {"status": "deactivated", "medication_id": medication_id}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Clinician Screening Schedule Assignment
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def _schedule_to_response(schedule: ScreeningSchedule, db: Session) -> ScreeningScheduleResponse:
+    assigned_name = None
+    if schedule.assigned_by:
+        clinician = db.query(User).filter(User.id == schedule.assigned_by).first()
+        if clinician:
+            assigned_name = clinician.full_name
+    return ScreeningScheduleResponse(
+        id=schedule.id,
+        frequency=schedule.frequency,
+        custom_days=schedule.custom_days,
+        day_of_week=schedule.day_of_week,
+        preferred_time=schedule.preferred_time,
+        next_due_at=schedule.next_due_at,
+        last_completed_at=schedule.last_completed_at,
+        is_active=schedule.is_active,
+        assigned_by=schedule.assigned_by,
+        assigned_by_name=assigned_name,
+        created_at=schedule.created_at,
+    )
+
+
+@router.get("/patients/{patient_id}/screening-schedule", response_model=ScreeningScheduleResponse | None)
+async def get_patient_screening_schedule(
+    patient_id: str,
+    current_user: User = Depends(require_clinician()),
+    db: Session = Depends(get_db),
+):
+    """Get a patient's active screening schedule (clinician view)."""
+    _verify_patient_access(db, patient_id, current_user.id)
+    schedule = (
+        db.query(ScreeningSchedule)
+        .filter(
+            ScreeningSchedule.patient_id == patient_id,
+            ScreeningSchedule.is_active == True,
+        )
+        .first()
+    )
+    if not schedule:
+        return None
+    return _schedule_to_response(schedule, db)
+
+
+@router.post("/patients/{patient_id}/screening-schedule", response_model=ScreeningScheduleResponse, status_code=201)
+@limiter.limit("30/minute")
+async def assign_patient_screening_schedule(
+    patient_id: str,
+    request: Request,
+    body: ScreeningScheduleCreate,
+    current_user: User = Depends(require_clinician()),
+    db: Session = Depends(get_db),
+):
+    """Clinician assigns or updates a screening schedule for a patient."""
+    _verify_patient_access(db, patient_id, current_user.id)
+
+    valid_frequencies = {"weekly", "biweekly", "monthly", "custom"}
+    if body.frequency not in valid_frequencies:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid frequency. Must be one of: {', '.join(sorted(valid_frequencies))}",
+        )
+    if body.frequency == "custom" and not body.custom_days:
+        raise HTTPException(status_code=400, detail="custom_days is required when frequency is 'custom'.")
+    if body.frequency in {"weekly", "biweekly"} and body.day_of_week is None:
+        raise HTTPException(status_code=400, detail="day_of_week is required for weekly/biweekly schedules.")
+
+    # Deactivate existing active schedules
+    existing = (
+        db.query(ScreeningSchedule)
+        .filter(
+            ScreeningSchedule.patient_id == patient_id,
+            ScreeningSchedule.is_active == True,
+        )
+        .all()
+    )
+    for s in existing:
+        s.is_active = False
+
+    now = datetime.utcnow()
+    if body.frequency == "weekly":
+        days_ahead = (body.day_of_week - now.weekday()) % 7
+        if days_ahead == 0:
+            days_ahead = 7
+        next_due = now + timedelta(days=days_ahead)
+    elif body.frequency == "biweekly":
+        days_ahead = (body.day_of_week - now.weekday()) % 7
+        if days_ahead == 0:
+            days_ahead = 14
+        next_due = now + timedelta(days=days_ahead)
+    elif body.frequency == "monthly":
+        next_due = now + timedelta(days=30)
+    elif body.frequency == "custom":
+        next_due = now + timedelta(days=body.custom_days)
+    else:
+        next_due = now + timedelta(days=7)
+
+    if body.preferred_time:
+        try:
+            hour, minute = map(int, body.preferred_time.split(":"))
+            next_due = next_due.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        except (ValueError, IndexError):
+            raise HTTPException(status_code=400, detail="Invalid preferred_time format. Use HH:MM.")
+
+    schedule_id = str(uuid4())
+    schedule = ScreeningSchedule(
+        id=schedule_id,
+        patient_id=patient_id,
+        frequency=body.frequency,
+        custom_days=body.custom_days,
+        day_of_week=body.day_of_week,
+        preferred_time=body.preferred_time,
+        next_due_at=next_due,
+        is_active=True,
+        assigned_by=current_user.id,
+    )
+    db.add(schedule)
+
+    # Notify the patient
+    freq_label = {"weekly": "weekly", "biweekly": "every two weeks", "monthly": "monthly", "custom": f"every {body.custom_days} days"}.get(body.frequency, body.frequency)
+    db.add(
+        Notification(
+            user_id=patient_id,
+            notification_type="care_plan_updated",
+            title="Your clinician set up a check-in rhythm",
+            message=f"{current_user.full_name} suggests a {freq_label} check-in. Whenever you're ready, your next one is waiting.",
+            link="/screening",
+        )
+    )
+
+    db.commit()
+    db.refresh(schedule)
+
+    log_audit(
+        db,
+        current_user.id,
+        "screening_schedule_assigned_by_clinician",
+        resource_type="screening_schedule",
+        resource_id=schedule_id,
+    )
+
+    return _schedule_to_response(schedule, db)
+
+
+@router.delete("/patients/{patient_id}/screening-schedule")
+@limiter.limit("30/minute")
+async def deactivate_patient_screening_schedule(
+    patient_id: str,
+    request: Request,
+    current_user: User = Depends(require_clinician()),
+    db: Session = Depends(get_db),
+):
+    """Clinician deactivates a patient's active schedule."""
+    _verify_patient_access(db, patient_id, current_user.id)
+    active = (
+        db.query(ScreeningSchedule)
+        .filter(
+            ScreeningSchedule.patient_id == patient_id,
+            ScreeningSchedule.is_active == True,
+        )
+        .all()
+    )
+    if not active:
+        raise HTTPException(status_code=404, detail="No active schedule for this patient")
+
+    for s in active:
+        s.is_active = False
+
+    db.commit()
+    log_audit(db, current_user.id, "screening_schedule_deactivated_by_clinician", resource_type="screening_schedule")
+    return {"status": "deactivated", "count": len(active)}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # Care Plan Templates (hardcoded fixtures)
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1305,4 +1659,137 @@ async def send_patient_notification(
         link=notif.link,
         is_read=notif.is_read,
         created_at=notif.created_at,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Clinician ↔ Patient Direct Messages
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def _get_or_create_patient_thread(db: Session, patient: User, clinician: User) -> Conversation:
+    """Get or create the clinician-direct conversation for this patient-clinician pair."""
+    conv = (
+        db.query(Conversation)
+        .filter(
+            Conversation.user_id == patient.id,
+            Conversation.context_type == "clinician_direct",
+            Conversation.linked_clinician_id == clinician.id,
+            Conversation.is_active == True,
+        )
+        .first()
+    )
+    if conv:
+        return conv
+
+    conv = Conversation(
+        id=str(uuid4()),
+        user_id=patient.id,
+        title="Messages with your clinician",
+        context_type="clinician_direct",
+        linked_clinician_id=clinician.id,
+        is_active=True,
+    )
+    db.add(conv)
+    db.commit()
+    db.refresh(conv)
+    return conv
+
+
+@router.get("/patients/{patient_id}/messages", response_model=DirectMessageThread)
+async def get_patient_messages(
+    patient_id: str,
+    current_user: User = Depends(require_clinician()),
+    db: Session = Depends(get_db),
+):
+    """Get the direct-message thread with a specific patient."""
+    patient = _verify_patient_access(db, patient_id, current_user.id)
+    conv = _get_or_create_patient_thread(db, patient, current_user)
+
+    messages = (
+        db.query(ChatMessage)
+        .filter(ChatMessage.conversation_id == conv.id)
+        .order_by(ChatMessage.created_at.asc())
+        .all()
+    )
+
+    sender_lookup = {
+        "user": patient.full_name,
+        "clinician": current_user.full_name,
+    }
+
+    # Mark clinician's new_message notifications linked to this patient as read
+    link = f"/patients/{patient_id}"
+    db.query(Notification).filter(
+        Notification.user_id == current_user.id,
+        Notification.notification_type == "new_message",
+        Notification.link == link,
+        Notification.is_read == False,
+    ).update({"is_read": True})
+    db.commit()
+
+    return DirectMessageThread(
+        conversation_id=conv.id,
+        patient_id=patient.id,
+        patient_name=patient.full_name,
+        clinician_id=current_user.id,
+        clinician_name=current_user.full_name,
+        messages=[
+            DirectMessageResponse(
+                id=m.id,
+                role=m.role,
+                sender_name=sender_lookup.get(m.role),
+                content=m.content,
+                created_at=m.created_at,
+            )
+            for m in messages
+        ],
+        unread_count=0,
+    )
+
+
+@router.post("/patients/{patient_id}/messages", response_model=DirectMessageResponse, status_code=201)
+@limiter.limit("30/minute")
+async def post_patient_message(
+    patient_id: str,
+    request: Request,
+    body: DirectMessageCreate,
+    current_user: User = Depends(require_clinician()),
+    db: Session = Depends(get_db),
+):
+    """Clinician posts a message to a patient."""
+    patient = _verify_patient_access(db, patient_id, current_user.id)
+    conv = _get_or_create_patient_thread(db, patient, current_user)
+
+    msg = ChatMessage(
+        id=str(uuid4()),
+        conversation_id=conv.id,
+        role="clinician",
+        content=body.content.strip(),
+    )
+    db.add(msg)
+    conv.updated_at = datetime.utcnow()
+
+    # Notify patient
+    db.add(
+        Notification(
+            user_id=patient.id,
+            notification_type="new_message",
+            title=f"Message from {current_user.full_name}",
+            message=body.content.strip()[:140],
+            link="/messages",
+        )
+    )
+
+    db.commit()
+    db.refresh(msg)
+
+    log_audit(db, current_user.id, "clinician_message_sent", resource_type="message", resource_id=msg.id)
+
+    return DirectMessageResponse(
+        id=msg.id,
+        role=msg.role,
+        sender_name=current_user.full_name,
+        content=msg.content,
+        created_at=msg.created_at,
     )

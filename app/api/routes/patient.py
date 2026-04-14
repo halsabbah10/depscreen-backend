@@ -25,6 +25,7 @@ from app.models.db import (
     Appointment,
     CarePlan,
     ChatMessage,
+    Conversation,
     Diagnosis,
     EmergencyContact,
     Medication,
@@ -39,6 +40,9 @@ from app.schemas.analysis import (
     AllergyCreate,
     AllergyResponse,
     DiagnosisResponse,
+    DirectMessageCreate,
+    DirectMessageResponse,
+    DirectMessageThread,
     MedicationCreate,
     MedicationResponse,
     NotificationResponse,
@@ -1428,3 +1432,137 @@ async def get_my_care_plan(
         "created_at": cp.created_at.isoformat() if cp.created_at else None,
         "updated_at": cp.updated_at.isoformat() if cp.updated_at else None,
     }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Clinician ↔ Patient Direct Messages
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def _get_or_create_clinician_thread(db: Session, patient: User) -> Conversation | None:
+    """Return the active clinician-direct conversation for this patient,
+    lazily creating it if the patient has an assigned clinician and one doesn't exist yet.
+    Returns None if the patient has no clinician assigned."""
+    if not patient.clinician_id:
+        return None
+
+    conv = (
+        db.query(Conversation)
+        .filter(
+            Conversation.user_id == patient.id,
+            Conversation.context_type == "clinician_direct",
+            Conversation.linked_clinician_id == patient.clinician_id,
+            Conversation.is_active == True,
+        )
+        .first()
+    )
+    if conv:
+        return conv
+
+    conv = Conversation(
+        id=str(uuid4()),
+        user_id=patient.id,
+        title="Messages with your clinician",
+        context_type="clinician_direct",
+        linked_clinician_id=patient.clinician_id,
+        is_active=True,
+    )
+    db.add(conv)
+    db.commit()
+    db.refresh(conv)
+    return conv
+
+
+def _serialize_dm(msg: ChatMessage, sender_lookup: dict) -> DirectMessageResponse:
+    return DirectMessageResponse(
+        id=msg.id,
+        role=msg.role,
+        sender_name=sender_lookup.get(msg.role),
+        content=msg.content,
+        created_at=msg.created_at,
+    )
+
+
+@router.get("/clinician-messages", response_model=DirectMessageThread | None)
+async def get_clinician_thread(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return the patient's message thread with their assigned clinician.
+    Returns null if the patient has no assigned clinician."""
+    conv = _get_or_create_clinician_thread(db, current_user)
+    if not conv:
+        return None
+
+    clinician = db.query(User).filter(User.id == conv.linked_clinician_id).first()
+
+    messages = (
+        db.query(ChatMessage)
+        .filter(ChatMessage.conversation_id == conv.id)
+        .order_by(ChatMessage.created_at.asc())
+        .all()
+    )
+
+    sender_lookup = {
+        "user": current_user.full_name,
+        "clinician": clinician.full_name if clinician else "Your clinician",
+    }
+
+    # Mark patient's new_message notifications as read (conversation opened)
+    db.query(Notification).filter(
+        Notification.user_id == current_user.id,
+        Notification.notification_type == "new_message",
+        Notification.is_read == False,
+    ).update({"is_read": True})
+    db.commit()
+
+    return DirectMessageThread(
+        conversation_id=conv.id,
+        patient_id=current_user.id,
+        patient_name=current_user.full_name,
+        clinician_id=clinician.id if clinician else None,
+        clinician_name=clinician.full_name if clinician else None,
+        messages=[_serialize_dm(m, sender_lookup) for m in messages],
+        unread_count=0,
+    )
+
+
+@router.post("/clinician-messages", response_model=DirectMessageResponse, status_code=201)
+@limiter.limit("30/minute")
+async def post_clinician_message(
+    request: Request,
+    body: DirectMessageCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Patient posts a message to their clinician."""
+    conv = _get_or_create_clinician_thread(db, current_user)
+    if not conv:
+        raise HTTPException(status_code=400, detail="No clinician is assigned to your account yet.")
+
+    msg = ChatMessage(
+        id=str(uuid4()),
+        conversation_id=conv.id,
+        role="user",
+        content=body.content.strip(),
+    )
+    db.add(msg)
+    conv.updated_at = datetime.utcnow()
+
+    # Notify clinician
+    db.add(
+        Notification(
+            user_id=conv.linked_clinician_id,
+            notification_type="new_message",
+            title=f"New message from {current_user.full_name}",
+            message=body.content.strip()[:140],
+            link=f"/patients/{current_user.id}",
+        )
+    )
+
+    db.commit()
+    db.refresh(msg)
+
+    log_audit(db, current_user.id, "clinician_message_sent", resource_type="message", resource_id=msg.id)
+
+    return _serialize_dm(msg, {"user": current_user.full_name})

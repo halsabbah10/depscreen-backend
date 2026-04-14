@@ -192,20 +192,25 @@ class EmailService:
         return self.send(clinician_email, subject, _wrap(subject, body, "Review screening", url))
 
     def send_screening_reminder(self, patient_name: str, patient_email: str, days_overdue: int = 0) -> bool:
+        # Intentionally avoid "missed" / "overdue" language — it reads as
+        # shaming to a vulnerable audience. Reframe as waiting, not a failure.
         if days_overdue > 0:
-            subject = "Your check-in is overdue"
-            headline = "We noticed you missed your check-in"
-            detail = f"It's been {days_overdue} day{'s' if days_overdue > 1 else ''} since your scheduled check-in. No pressure — life happens. Whenever you're ready, we're here."
+            subject = "A gentle check-in, whenever you're ready"
+            headline = "Thinking of you"
+            detail = (
+                f"It's been {days_overdue} day{'s' if days_overdue > 1 else ''} "
+                "since your last check-in. No pressure at all — whenever feels right, we're here."
+            )
         else:
-            subject = "Your check-in is due"
-            headline = "A gentle reminder"
-            detail = "Your scheduled check-in is due today. Taking a few minutes to reflect can make a real difference."
+            subject = "Your check-in is ready"
+            headline = "A quiet reminder"
+            detail = "A check-in is waiting for you today. Just a few minutes of reflection can be surprisingly helpful."
         body = f"""
             <h2>{headline}</h2>
             <p>Hello {patient_name},</p>
             <p>{detail}</p>
             <div class="card">
-              <p style="margin:0">A check-in takes about 2-3 minutes and helps track how you've been feeling over time.</p>
+              <p style="margin:0">It usually takes 2–3 minutes. You can skip any question that doesn't feel right.</p>
             </div>
         """
         return self.send(
@@ -219,14 +224,14 @@ class EmailService:
         appointment_at: str,
         clinician_name: str | None = None,
     ) -> bool:
-        subject = "Appointment reminder"
+        subject = "A quiet reminder about tomorrow"
         clinician_line = f" with Dr. {clinician_name}" if clinician_name else ""
         body = f"""
-            <h2>Your appointment is tomorrow</h2>
+            <h2>A quiet reminder</h2>
             <p>Hello {patient_name},</p>
-            <p>This is a reminder that you have an appointment{clinician_line} on <strong>{appointment_at}</strong>.</p>
+            <p>Just a gentle note that you have an appointment{clinician_line} on <strong>{appointment_at}</strong>.</p>
             <div class="card">
-              <p style="margin:0">If you need to reschedule, please let your clinician know in advance.</p>
+              <p style="margin:0">If the time no longer works, letting your clinician know ahead of time is always okay.</p>
             </div>
         """
         return self.send(
@@ -241,7 +246,8 @@ class EmailService:
             <h2>Care plan update</h2>
             <p>Hello {patient_name},</p>
             <p>Your clinician has updated your care plan: <strong>{plan_title}</strong></p>
-            <p>Take a moment to review the updated goals and interventions when you have a chance.</p>
+            <p>No action needed from you right now — just know your clinician is thinking about your care.
+            Take a look at the updated goals and interventions whenever you have a moment.</p>
         """
         return self.send(
             patient_email, subject, _wrap(subject, body, "View care plan", "https://depscreen.vercel.app/care-plan")
