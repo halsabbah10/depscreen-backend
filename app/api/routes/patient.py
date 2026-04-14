@@ -22,6 +22,8 @@ from app.core.localization import normalize_phone, validate_cpr, validate_dob
 from app.middleware.rate_limiter import limiter
 from app.models.db import (
     Allergy,
+    Appointment,
+    CarePlan,
     ChatMessage,
     Diagnosis,
     EmergencyContact,
@@ -1306,3 +1308,86 @@ async def upload_profile_picture(
     logger.info(f"Profile picture uploaded for user {current_user.id} ({len(contents)} bytes, {file.content_type})")
 
     return {"status": "uploaded", "url": data_uri[:50] + "..."}
+
+
+# ── Patient-Facing Appointments ───────────────────────────────────────────────
+
+
+@router.get("/appointments")
+async def list_my_appointments(
+    status: str = Query(None, description="Filter by status, or 'all' for every status"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List the patient's own appointments. Defaults to upcoming scheduled/confirmed."""
+    if current_user.role != "patient":
+        raise HTTPException(status_code=403, detail="Only patients can access their own appointments")
+
+    query = db.query(Appointment).filter(Appointment.patient_id == current_user.id)
+
+    if status and status != "all":
+        query = query.filter(Appointment.status == status)
+    elif not status:
+        query = query.filter(
+            Appointment.status.in_(["scheduled", "confirmed"]),
+            Appointment.scheduled_at >= datetime.utcnow(),
+        )
+
+    results = []
+    for appt in query.order_by(Appointment.scheduled_at).all():
+        clinician = db.query(User).filter(User.id == appt.clinician_id).first()
+        results.append(
+            {
+                "id": appt.id,
+                "clinician_id": appt.clinician_id,
+                "clinician_name": clinician.full_name if clinician else "Unknown",
+                "scheduled_at": appt.scheduled_at.isoformat() if appt.scheduled_at else None,
+                "duration_minutes": appt.duration_minutes,
+                "appointment_type": appt.appointment_type,
+                "status": appt.status,
+                "notes": appt.notes,
+                "location": appt.location,
+            }
+        )
+    return results
+
+
+# ── Patient-Facing Care Plan ──────────────────────────────────────────────────
+
+
+@router.get("/care-plan")
+async def get_my_care_plan(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return the patient's active care plan (or null if none)."""
+    if current_user.role != "patient":
+        raise HTTPException(status_code=403, detail="Only patients can access their own care plan")
+
+    cp = (
+        db.query(CarePlan)
+        .filter(
+            CarePlan.patient_id == current_user.id,
+            CarePlan.status.in_(["active", "review_needed"]),
+        )
+        .order_by(CarePlan.created_at.desc())
+        .first()
+    )
+    if not cp:
+        return None
+
+    clinician = db.query(User).filter(User.id == cp.clinician_id).first()
+    return {
+        "id": cp.id,
+        "clinician_id": cp.clinician_id,
+        "clinician_name": clinician.full_name if clinician else "Unknown",
+        "title": cp.title,
+        "description": cp.description,
+        "template_name": cp.template_name,
+        "goals": cp.goals,
+        "interventions": cp.interventions,
+        "review_date": cp.review_date.isoformat() if cp.review_date else None,
+        "status": cp.status,
+        "created_at": cp.created_at.isoformat() if cp.created_at else None,
+        "updated_at": cp.updated_at.isoformat() if cp.updated_at else None,
+    }
