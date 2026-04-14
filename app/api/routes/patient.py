@@ -322,6 +322,99 @@ async def upload_my_document(
     return {"status": "uploaded", "document_id": doc_id}
 
 
+@router.post("/documents/upload")
+@limiter.limit("20/minute")
+async def upload_my_document_file(
+    request: Request,
+    file: UploadFile = File(...),
+    title: str = Query(..., min_length=1, max_length=255),
+    doc_type: str = Query(...),
+    current_user: User = Depends(get_current_user),
+    rag: RAGService = Depends(_get_rag),
+    db: Session = Depends(get_db),
+):
+    """Upload a file (PDF or text) directly. PDFs are parsed automatically.
+
+    Accepts multipart/form-data. For PDFs we run pdfplumber; for .txt we
+    decode as UTF-8. Other formats are rejected. Extracted text goes through
+    the same DB + RAG pipeline as the JSON upload endpoint.
+    """
+    from app.services.pdf_extractor import PDFExtractionError, extract_text_from_pdf_bytes
+
+    if doc_type not in PATIENT_DOC_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid doc_type. Must be one of: {', '.join(PATIENT_DOC_TYPES)}",
+        )
+
+    raw = await file.read()
+    filename = (file.filename or "").lower()
+    content_type = (file.content_type or "").lower()
+
+    is_pdf = filename.endswith(".pdf") or content_type == "application/pdf"
+    is_text = (
+        filename.endswith(".txt")
+        or content_type.startswith("text/")
+    )
+
+    if is_pdf:
+        try:
+            content = await extract_text_from_pdf_bytes(raw)
+        except PDFExtractionError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+    elif is_text:
+        try:
+            content = raw.decode("utf-8", errors="replace").strip()
+        except Exception:
+            raise HTTPException(status_code=400, detail="Could not read this text file.")
+        if len(content) < 10:
+            raise HTTPException(status_code=400, detail="This file seems empty. Please add some content.")
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Only PDF (.pdf) and plain-text (.txt) files are supported here. For other formats, paste the content manually.",
+        )
+
+    if len(content) > 100_000:
+        content = content[:100_000]
+
+    doc_id = str(uuid4())
+    doc = PatientDocument(
+        id=doc_id,
+        patient_id=current_user.id,
+        uploaded_by=current_user.id,
+        doc_type=doc_type,
+        title=title,
+        content=content,
+    )
+    db.add(doc)
+    db.commit()
+
+    if rag.is_initialized:
+        rag.ingest_patient_document(
+            patient_id=current_user.id,
+            doc_id=doc_id,
+            doc_type=doc_type,
+            title=title,
+            content=content,
+        )
+
+    log_audit(
+        db,
+        current_user.id,
+        "document_uploaded_file",
+        resource_type="document",
+        resource_id=doc_id,
+    )
+
+    return {
+        "status": "uploaded",
+        "document_id": doc_id,
+        "extracted_chars": len(content),
+        "source": "pdf" if is_pdf else "text",
+    }
+
+
 @router.get("/documents")
 async def list_my_documents(
     current_user: User = Depends(get_current_user),

@@ -28,6 +28,7 @@ from app.api.routes import (
     history_router,
     ingest_router,
     patient_router,
+    terminology_router,
 )
 from app.api.routes.analyze import get_services
 from app.core.config import get_settings
@@ -147,6 +148,7 @@ def create_app() -> FastAPI:
     app.include_router(dashboard_router, prefix=f"{settings.api_v1_prefix}/dashboard", tags=["Dashboard"])
     app.include_router(ingest_router, prefix=f"{settings.api_v1_prefix}/ingest", tags=["Data Ingestion"])
     app.include_router(patient_router, prefix=f"{settings.api_v1_prefix}/patient", tags=["Patient Self-Service"])
+    app.include_router(terminology_router, prefix=f"{settings.api_v1_prefix}/terminology", tags=["Terminology"])
 
     # ── Health Checks ──
 

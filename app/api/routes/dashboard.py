@@ -1139,6 +1139,23 @@ def _diagnosis_to_response(dx: Diagnosis) -> DiagnosisResponse:
     )
 
 
+@router.get("/patients/{patient_id}/diagnoses", response_model=list[DiagnosisResponse])
+async def list_diagnoses(
+    patient_id: str,
+    current_user: User = Depends(require_clinician()),
+    db: Session = Depends(get_db),
+):
+    """List a patient's diagnoses (clinician view)."""
+    _verify_patient_access(db, patient_id, current_user.id)
+    rows = (
+        db.query(Diagnosis)
+        .filter(Diagnosis.patient_id == patient_id)
+        .order_by(desc(Diagnosis.created_at))
+        .all()
+    )
+    return [_diagnosis_to_response(dx) for dx in rows]
+
+
 @router.post("/patients/{patient_id}/diagnoses", response_model=DiagnosisResponse, status_code=201)
 @limiter.limit("30/minute")
 async def add_diagnosis(
@@ -1205,6 +1222,27 @@ async def update_diagnosis(
 
     log_audit(db, current_user.id, "diagnosis_updated", resource_type="diagnosis", resource_id=diagnosis_id)
     return _diagnosis_to_response(dx)
+
+
+@router.delete("/diagnoses/{diagnosis_id}")
+@limiter.limit("30/minute")
+async def delete_diagnosis(
+    diagnosis_id: str,
+    request: Request,
+    current_user: User = Depends(require_clinician()),
+    db: Session = Depends(get_db),
+):
+    """Remove a diagnosis from a patient's record."""
+    dx = db.query(Diagnosis).filter(Diagnosis.id == diagnosis_id).first()
+    if not dx:
+        raise HTTPException(status_code=404, detail="Diagnosis not found")
+
+    _verify_patient_access(db, dx.patient_id, current_user.id)
+
+    db.delete(dx)
+    db.commit()
+    log_audit(db, current_user.id, "diagnosis_deleted", resource_type="diagnosis", resource_id=diagnosis_id)
+    return {"status": "deleted", "diagnosis_id": diagnosis_id}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
