@@ -202,7 +202,10 @@ async def auto_title_conversation(
                     "content": (
                         "Generate a concise 3-6 word title for this conversation that captures its topic. "
                         "Return ONLY the title, no quotes, no punctuation at the end, no prefix like 'Title:'. "
-                        "Keep it neutral and professional."
+                        "Keep it gentle and non-clinical — something the patient would be okay seeing "
+                        "in a sidebar list weeks later. Avoid clinical terms (depression, suicidal, "
+                        "crisis, disorder, diagnosis). Prefer soft topical phrasing like 'Rough week' "
+                        "or 'Thoughts about sleep' or 'A quieter night'. Never name a diagnosis."
                     ),
                 },
                 {"role": "user", "content": exchange},

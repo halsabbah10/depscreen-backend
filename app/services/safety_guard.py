@@ -144,13 +144,14 @@ _UNDERMINE_PATTERNS = [
 
 # ── Replacement strings (safe substitutes) ───────────────────────────────────
 
-# Tone principle: the patient may be distressed. Don't speak at them in
-# alarmed clinical brackets. Use gentle, first-person-friend language.
+# Tone principle: the patient may be distressed. Use warm, first-person-friend
+# language — but keep it specific enough to preserve clinical context. Empty
+# empathy without substance helps no one.
 _SAFE_SUBSTITUTES = {
-    "prescription": "(something specific about medication — it's best to talk that through with your clinician rather than take it from me)",
-    "diagnosis": "(it's not my place to label what you're going through — a licensed clinician is the right person for that)",
+    "prescription": "(medication specifics like dosage or timing — that's something your clinician should guide, not me. They can tailor it to your full history.)",
+    "diagnosis": "(I can describe what the screening noticed, but diagnosing is something only a licensed clinician can do — they have the training and the full picture.)",
     "self_harm": "(I'm not going to repeat that — what you're feeling matters, and you deserve real support right now)",
-    "undermine_professional": "(professional support can genuinely help, and you don't have to navigate this alone)",
+    "undermine_professional": "(evidence-based care — therapy, medication when indicated, or both — genuinely helps many people. You don't have to navigate this alone.)",
 }
 
 
