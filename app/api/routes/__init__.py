@@ -8,6 +8,7 @@ from .history import router as history_router
 from .ingest import router as ingest_router
 from .patient import router as patient_router
 from .terminology import router as terminology_router
+from .webhooks import router as webhooks_router
 
 __all__ = [
     "auth_router",
@@ -18,4 +19,5 @@ __all__ = [
     "ingest_router",
     "patient_router",
     "terminology_router",
+    "webhooks_router",
 ]

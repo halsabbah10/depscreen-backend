@@ -17,6 +17,8 @@ Design principles:
 """
 
 import logging
+from datetime import datetime
+from uuid import uuid4
 
 import resend
 
@@ -129,16 +131,41 @@ class EmailService:
         else:
             logger.info("Email service disabled (no RESEND_API_KEY configured)")
 
-    def send(self, to: str, subject: str, html: str) -> bool:
-        """Low-level send. Returns True on success, False on failure (never raises)."""
+    def send(
+        self,
+        to: str,
+        subject: str,
+        html: str,
+        *,
+        template_key: str = "generic",
+        user_id: str | None = None,
+    ) -> bool:
+        """Low-level send. Returns True on success, False on failure (never raises).
+
+        Also records an EmailDelivery row so Resend webhooks can correlate
+        downstream delivery/open/bounce events back to this send. The DB
+        write is wrapped so a database hiccup never blocks an outgoing email.
+        """
         if not self.enabled:
             logger.debug(f"Email skipped (disabled): to={to}, subject={subject}")
             return False
         if not to or "@" not in to:
             logger.warning(f"Invalid recipient address: {to}")
             return False
+
+        # Create a tracking row up-front (best-effort)
+        delivery_id = str(uuid4())
+        self._record_delivery(
+            delivery_id=delivery_id,
+            user_id=user_id,
+            recipient=to,
+            subject=subject,
+            template_key=template_key,
+            status="queued",
+        )
+
         try:
-            resend.Emails.send(
+            response = resend.Emails.send(
                 {
                     "from": self.from_address,
                     "to": [to],
@@ -146,11 +173,88 @@ class EmailService:
                     "html": html,
                 }
             )
-            logger.info(f"Email sent: to={to}, subject={subject}")
+            resend_id = None
+            if isinstance(response, dict):
+                resend_id = response.get("id")
+            self._update_delivery(
+                delivery_id=delivery_id,
+                resend_email_id=resend_id,
+                status="sent",
+            )
+            logger.info(f"Email sent: to={to}, subject={subject}, resend_id={resend_id}")
             return True
         except Exception as e:
             logger.error(f"Email send failed: {type(e).__name__}: {e}")
+            self._update_delivery(
+                delivery_id=delivery_id,
+                status="failed",
+                error_message=f"{type(e).__name__}: {e}",
+            )
             return False
+
+    # ── Delivery tracking helpers ──
+
+    def _record_delivery(
+        self,
+        *,
+        delivery_id: str,
+        user_id: str | None,
+        recipient: str,
+        subject: str,
+        template_key: str,
+        status: str,
+    ) -> None:
+        """Insert a row into email_deliveries. Best-effort — never raises."""
+        try:
+            from app.models.db import EmailDelivery, SessionLocal
+
+            db = SessionLocal()
+            try:
+                row = EmailDelivery(
+                    id=delivery_id,
+                    user_id=user_id,
+                    recipient=recipient,
+                    subject=subject,
+                    template_key=template_key,
+                    status=status,
+                    events=[],
+                )
+                db.add(row)
+                db.commit()
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning(f"Could not record email delivery row ({delivery_id}): {e}")
+
+    def _update_delivery(
+        self,
+        *,
+        delivery_id: str,
+        resend_email_id: str | None = None,
+        status: str | None = None,
+        error_message: str | None = None,
+    ) -> None:
+        """Update the delivery row after the Resend call returns. Best-effort."""
+        try:
+            from app.models.db import EmailDelivery, SessionLocal
+
+            db = SessionLocal()
+            try:
+                row = db.query(EmailDelivery).filter(EmailDelivery.id == delivery_id).first()
+                if not row:
+                    return
+                if resend_email_id:
+                    row.resend_email_id = resend_email_id
+                if status:
+                    row.status = status
+                if error_message:
+                    row.error_message = error_message
+                row.updated_at = datetime.utcnow()
+                db.commit()
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning(f"Could not update email delivery row ({delivery_id}): {e}")
 
     # ── High-level templates ──
 
@@ -166,7 +270,10 @@ class EmailService:
             <p>Everything you share is confidential and stored securely. You control your data.</p>
         """
         return self.send(
-            patient_email, subject, _wrap(subject, body, "Go to DepScreen", "https://depscreen.vercel.app")
+            patient_email,
+            subject,
+            _wrap(subject, body, "Go to DepScreen", "https://depscreen.vercel.app"),
+            template_key="welcome",
         )
 
     def send_crisis_alert_to_clinician(
@@ -189,7 +296,12 @@ class EmailService:
             <p>Please review the screening and consider reaching out to the patient. DepScreen is a screening aid, not a diagnostic tool — your clinical judgment is essential.</p>
         """
         url = f"https://depscreen.vercel.app/screening/{screening_id}"
-        return self.send(clinician_email, subject, _wrap(subject, body, "Review screening", url))
+        return self.send(
+            clinician_email,
+            subject,
+            _wrap(subject, body, "Review screening", url),
+            template_key="crisis_alert_clinician",
+        )
 
     def send_screening_reminder(self, patient_name: str, patient_email: str, days_overdue: int = 0) -> bool:
         # Intentionally avoid "missed" / "overdue" language — it reads as
@@ -214,7 +326,10 @@ class EmailService:
             </div>
         """
         return self.send(
-            patient_email, subject, _wrap(subject, body, "Start check-in", "https://depscreen.vercel.app/screening")
+            patient_email,
+            subject,
+            _wrap(subject, body, "Start check-in", "https://depscreen.vercel.app/screening"),
+            template_key="screening_reminder",
         )
 
     def send_appointment_reminder(
@@ -238,6 +353,7 @@ class EmailService:
             patient_email,
             subject,
             _wrap(subject, body, "View appointments", "https://depscreen.vercel.app/appointments"),
+            template_key="appointment_reminder",
         )
 
     def send_care_plan_update(self, patient_name: str, patient_email: str, plan_title: str) -> bool:
@@ -250,7 +366,10 @@ class EmailService:
             Take a look at the updated goals and interventions whenever you have a moment.</p>
         """
         return self.send(
-            patient_email, subject, _wrap(subject, body, "View care plan", "https://depscreen.vercel.app/care-plan")
+            patient_email,
+            subject,
+            _wrap(subject, body, "View care plan", "https://depscreen.vercel.app/care-plan"),
+            template_key="care_plan_update",
         )
 
 

@@ -38,6 +38,7 @@ class Settings(BaseSettings):
 
     # ── Email (Resend) ─────────────────────────────────────────────────────
     resend_api_key: str = ""
+    resend_webhook_secret: str = ""  # svix-compatible; paste from Resend dashboard after adding the webhook endpoint
     email_from: str = "DepScreen <onboarding@resend.dev>"
     email_enabled: bool = True  # master switch — emails silently skip if resend_api_key is empty
 

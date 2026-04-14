@@ -410,6 +410,36 @@ class AuditLog(Base):
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
+# ── Email Deliveries (Resend webhook tracking) ──────────────────────────────
+#
+# Records every outbound transactional email. Status transitions are driven
+# by Resend webhook events: queued → sent → delivered → opened / clicked,
+# or sent → bounced / complained. The `events` column is an append-only
+# audit trail of every hook we received for this email.
+
+
+class EmailDelivery(Base):
+    __tablename__ = "email_deliveries"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    resend_email_id = Column(String(64), nullable=True, unique=True, index=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    recipient = Column(String(255), nullable=False, index=True)
+    subject = Column(String(500), nullable=False)
+    template_key = Column(String(64), nullable=False, index=True)  # e.g., 'welcome', 'appointment_reminder'
+    status = Column(
+        String(32),
+        nullable=False,
+        default="queued",
+        index=True,
+    )  # queued, sent, delivered, delivery_delayed, opened, clicked, bounced, complained, failed
+    last_event_at = Column(DateTime, nullable=True)
+    events = Column(JSON, nullable=True)  # list of {type, at, raw}
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
 # ── RAG Vector Chunks ───────────────────────────────────────────────────────
 
 
