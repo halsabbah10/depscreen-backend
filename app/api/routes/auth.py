@@ -47,6 +47,13 @@ def _user_to_profile(user: User) -> UserProfile:
         language_preference=user.language_preference,
         reddit_username=user.reddit_username,
         twitter_username=user.twitter_username,
+        date_of_birth=user.date_of_birth.isoformat() if user.date_of_birth else None,
+        gender=user.gender,
+        nationality=user.nationality,
+        cpr_number=user.cpr_number,
+        phone=user.phone,
+        blood_type=user.blood_type,
+        timezone=user.timezone,
     )
 
 

@@ -243,6 +243,14 @@ class UserProfile(BaseModel):
     language_preference: str | None = None
     reddit_username: str | None = None
     twitter_username: str | None = None
+    # Demographics (used to pre-fill onboarding form for returning users)
+    date_of_birth: str | None = None
+    gender: str | None = None
+    nationality: str | None = None
+    cpr_number: str | None = None
+    phone: str | None = None
+    blood_type: str | None = None
+    timezone: str | None = None
 
 
 class TokenResponse(BaseModel):
