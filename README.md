@@ -10,7 +10,7 @@ pinned: false
 
 # DepScreen Backend
 
-AI-powered depression screening platform with DSM-5 symptom detection, LLM verification, and RAG clinical context. Localized for Bahrain.
+AI-powered depression screening platform with DSM-5 symptom detection, LLM verification, and RAG clinical context.
 
 ## Architecture
 
