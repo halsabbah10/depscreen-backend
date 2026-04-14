@@ -73,6 +73,58 @@ CRISIS_KEYWORDS = [
 # Localized crisis response (Bahrain)
 CRISIS_RESPONSE = localization.CRISIS_RESPONSE
 
+# ── Crisis-specific system prompt ────────────────────────────────────────────
+# Used when the patient's input contains suicidal/self-harm keywords. Instead
+# of dumping a cold resource list, we guide the LLM to respond like a grounded,
+# calm, trusted presence — then we append the emergency resources at the end
+# deterministically (never relying on the LLM to remember them).
+CRISIS_CHAT_SYSTEM_PROMPT = """You are responding to a person who has just shared thoughts of self-harm or suicide.
+
+Tone: imagine you are a close, trusted friend sitting beside them. Warm. Steady.
+Calm. Unhurried. The opposite of clinical.
+
+Your entire response must:
+1. Acknowledge what they said directly and with warmth — do NOT pretend you
+   didn't hear it. Do NOT lecture. Do NOT panic.
+2. Validate the pain. Phrases like "that sounds incredibly heavy", "you're
+   not alone with this", "what you're carrying is real" — but be genuine,
+   not formulaic.
+3. Stay grounded in the present moment. Gently invite them to take a breath,
+   notice their surroundings, drink some water, call someone they trust.
+4. Offer one small, achievable next step — NOT a list of commands. Something
+   like "could you reach out to one person you trust tonight?" or "is there
+   somewhere in your home that feels safer right now?"
+5. Keep it SHORT — 3 to 5 short paragraphs, maximum. Long responses feel
+   overwhelming in a crisis.
+
+You must NEVER:
+- Say "I am an AI and cannot help you" — that abandons them in a vulnerable moment.
+- Give diagnoses or medication advice.
+- Minimize ("it'll pass", "it's not that bad", "other people have it worse").
+- Use exclamation marks or high-energy language.
+- Ask "why" questions that feel interrogative.
+- List phone numbers or resources — a footer will be added after your response.
+
+End with a soft sentence suggesting they reach out to trusted human support,
+but do NOT list specific phone numbers. The system appends those separately."""
+
+
+# Footer appended to every crisis response — deterministic so the patient
+# always sees the right local resources, regardless of what the LLM said.
+CRISIS_RESOURCE_FOOTER = """
+
+---
+
+_If you're in immediate danger, please reach out right now:_
+
+- **999** — National Emergency (police / ambulance, toll-free, 24/7)
+- **Shamsaha** — 17651421 — 24/7 confidential support, just to talk
+- **Salmaniya Psychiatric Hospital** — +973 1728 8888 — ask for psychiatric emergency
+- If you're under 18: **Child Protection Centre** — 998
+
+You don't have to know what to say. Just call. They want to help."""
+
+
 CHAT_SYSTEM_PROMPT = """You are a supportive mental health psychoeducation assistant for the DepScreen platform.
 You have access to this patient's depression screening results and evidence-based clinical information.
 
@@ -107,6 +159,39 @@ class ChatService:
         self.rag = rag_service
         self.patient_context = PatientContextService()
 
+    async def generate_warm_crisis_response(self, message: str) -> str:
+        """Generate a warm, grounded Gemini response to a distressed patient.
+
+        Called by every code path where the patient has expressed suicidal
+        thoughts. The response is always from Gemini (using the CRISIS system
+        prompt); the emergency resources are appended as a deterministic
+        footer. On LLM failure, we fall back to the static CRISIS_RESPONSE —
+        never leave someone in a crisis with an error.
+        """
+        from app.services.safety_guard import scan_text
+
+        try:
+            resp = await self.llm.client.chat.completions.create(
+                model=self.llm.model,
+                messages=[
+                    {"role": "system", "content": CRISIS_CHAT_SYSTEM_PROMPT},
+                    {"role": "user", "content": message},
+                ],
+                temperature=0.5,
+                max_tokens=500,
+            )
+            body = resp.choices[0].message.content or ""
+            body = re.sub(r"<think>.*?</think>", "", body, flags=re.DOTALL).strip()
+            safety = scan_text(body, context="chat")
+            if safety.violations:
+                logger.warning(
+                    f"Crisis response safety violations: {[(v.category, v.severity) for v in safety.violations]}"
+                )
+            return safety.redacted + CRISIS_RESOURCE_FOOTER
+        except Exception as e:
+            logger.error(f"Crisis LLM call failed, using static fallback: {e}")
+            return CRISIS_RESPONSE
+
     async def respond(
         self,
         screening: Screening,
@@ -133,9 +218,11 @@ class ChatService:
 
         # 1. Crisis check
         message_lower = message.lower()
-        if any(kw in message_lower for kw in CRISIS_KEYWORDS):
+        is_crisis = any(kw in message_lower for kw in CRISIS_KEYWORDS)
+
+        if is_crisis:
             logger.warning(f"Crisis keywords detected in chat for screening {screening.id}")
-            response_text = CRISIS_RESPONSE
+            response_text = await self.generate_warm_crisis_response(message)
         else:
             # 2. Retrieve RAG context
             detected_symptoms = []
@@ -196,10 +283,13 @@ class ChatService:
             except Exception as e:
                 logger.error(f"Chat LLM call failed: {type(e).__name__}: {e}", exc_info=True)
                 response_text = (
-                    "I'm sorry, I'm having trouble responding right now. "
-                    "If you need immediate support, please call 999 for "
-                    "emergency services in Bahrain, or contact the "
-                    "Psychiatric Hospital at Salmaniya (+973 1728 8888)."
+                    "I'm having trouble putting something together for you right "
+                    "now — that's on my side, not yours. Whatever you wrote still "
+                    "matters. Try sending it again in a moment, or take a breath "
+                    "and come back when you feel like it.\n\n"
+                    "If things are heavy right now and you'd rather talk to a "
+                    "person, Shamsaha (17651421) answers 24/7 — it's free and "
+                    "confidential. For an emergency, 999."
                 )
 
         # 5. Save assistant response
@@ -236,16 +326,21 @@ class ChatService:
         db.add(user_msg)
         db.commit()
 
-        # Crisis check — don't stream, send the full crisis response
+        # Crisis check — streaming fakes chunks so the UX feels consistent,
+        # but the response itself is a warm Gemini-generated message + footer.
         message_lower = message.lower()
         if any(kw in message_lower for kw in CRISIS_KEYWORDS):
             logger.warning(f"Crisis keywords detected in chat for screening {screening.id}")
-            yield CRISIS_RESPONSE
+            warm_response = await self.generate_warm_crisis_response(message)
+            # Stream the response in small chunks so the UI shows progressive
+            # appearance instead of a sudden dump (matches the calm tone).
+            for i in range(0, len(warm_response), 40):
+                yield warm_response[i : i + 40]
             assistant_msg = ChatMessage(
                 id=str(uuid4()),
                 screening_id=screening.id,
                 role="assistant",
-                content=CRISIS_RESPONSE,
+                content=warm_response,
             )
             db.add(assistant_msg)
             db.commit()

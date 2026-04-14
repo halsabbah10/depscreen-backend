@@ -144,18 +144,20 @@ _UNDERMINE_PATTERNS = [
 
 # ── Replacement strings (safe substitutes) ───────────────────────────────────
 
+# Tone principle: the patient may be distressed. Don't speak at them in
+# alarmed clinical brackets. Use gentle, first-person-friend language.
 _SAFE_SUBSTITUTES = {
-    "prescription": "[Medication specifics have been removed — please discuss with your clinician.]",
-    "diagnosis": "[The previous statement was too absolute — DepScreen is a screening aid, not a diagnostic tool. Only a licensed clinician can diagnose.]",
-    "self_harm": "[This message contained unsafe content and has been redacted. If you're in crisis, please reach out: Bahrain emergency 999 or Shamsaha 17651421 (24/7 confidential).]",
-    "undermine_professional": "[Content encouraging bypass of professional care has been removed. Please continue working with your clinician.]",
+    "prescription": "(something specific about medication — it's best to talk that through with your clinician rather than take it from me)",
+    "diagnosis": "(it's not my place to label what you're going through — a licensed clinician is the right person for that)",
+    "self_harm": "(I'm not going to repeat that — what you're feeling matters, and you deserve real support right now)",
+    "undermine_professional": "(professional support can genuinely help, and you don't have to navigate this alone)",
 }
 
 
 _DISCLAIMER_FOOTER = (
-    "\n\n---\n**Important reminder:** DepScreen is a screening aid, not a diagnostic tool. "
-    "Never stop or change medications without consulting your clinician. "
-    "If you're in crisis: Bahrain emergency **999** or Shamsaha **17651421** (24/7 confidential)."
+    "\n\n---\n_A gentle reminder: I'm here to listen and share information, but I'm not a doctor. "
+    "For medication questions or a diagnosis, please talk with your clinician. "
+    "And if things feel too heavy to carry, Bahrain 999 or Shamsaha 17651421 are there, 24/7."
 )
 
 

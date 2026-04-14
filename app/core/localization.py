@@ -116,18 +116,24 @@ SAFETY_DISCLAIMER = (
     "Salmaniya Medical Complex Psychiatric Hospital emergency department."
 )
 
-CRISIS_RESPONSE = """I hear you, and what you're feeling matters. If you're having thoughts of suicide or self-harm, please reach out to someone who can help right now:
+CRISIS_RESPONSE = """I hear you, and what you're carrying is real. Thank you for saying it out loud — that took courage.
 
-- **999** — National Emergency (police / ambulance / fire, toll-free, 24/7)
-- **Psychiatric Hospital (Salmaniya)**: +973 1728 8888 — ask to be connected to the psychiatric emergency service
-- **Shamsaha**: 17651421 — 24/7 confidential support
-- **Child Protection Centre**: 998 (if you are under 18)
+Right now, you don't have to do anything big. Just one small thing. Take a slow breath if you can. Notice where you are. Maybe get a glass of water.
 
-For an immediate life-threatening situation, call **999** — the ambulance will take you to Salmaniya Medical Complex, which has a psychiatric emergency department.
+You said something really heavy, and I want to sit with you for a moment rather than rush past it. Feelings like this can come in waves — they don't always mean what they feel like they mean in the worst moments.
 
-You don't have to go through this alone. These services are free, confidential, and staffed by trained professionals who want to help.
+Is there one person you trust who you could reach out to tonight? A family member, a friend, or someone you could sit next to?
 
-I'm an AI assistant and I'm not equipped to provide crisis support. Please reach out to one of the resources above."""
+---
+
+_And whenever you're ready — these are here for you, 24/7:_
+
+- **Shamsaha** — 17651421 — free, confidential, just to talk
+- **999** — if you're in immediate danger
+- **Salmaniya Psychiatric Hospital** — +973 1728 8888
+- If you're under 18: **Child Protection Centre** — 998
+
+You don't have to know what to say. Just calling is enough. They want to help."""
 
 
 # ── Phone Number Validation (+973) ───────────────────────────────────────────

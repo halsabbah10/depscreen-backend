@@ -291,7 +291,7 @@ async def send_conversation_message(
         # Standalone chat without screening context
         import re
 
-        from app.services.chat import CRISIS_KEYWORDS, CRISIS_RESPONSE
+        from app.services.chat import CRISIS_KEYWORDS
 
         # Save user message
         user_msg = ChatMessage(
@@ -302,11 +302,11 @@ async def send_conversation_message(
         )
         db.add(user_msg)
 
-        # Crisis check
+        # Crisis check — warm LLM response (not a canned dump)
         message_lower = body.message.lower()
         if any(kw in message_lower for kw in CRISIS_KEYWORDS):
             logger.warning(f"Crisis keywords in standalone chat for user {current_user.id[:8]}")
-            response_text = CRISIS_RESPONSE
+            response_text = await chat_service.generate_warm_crisis_response(body.message)
         else:
             # RAG context based on user's detected symptoms from recent screenings
             detected_symptoms = []
@@ -388,10 +388,13 @@ async def send_conversation_message(
             except Exception as e:
                 logger.error(f"Standalone chat LLM failed: {e}")
                 response_text = (
-                    "I'm sorry, I'm having trouble responding right now. "
-                    "If you need immediate support, please call 999 for "
-                    "emergency services in Bahrain, or contact the "
-                    "Psychiatric Hospital at Salmaniya (+973 1728 8888)."
+                    "I'm having trouble putting something together for you right "
+                    "now — that's on my side, not yours. Whatever you wrote still "
+                    "matters. Try sending it again in a moment, or take a breath "
+                    "and come back when you feel like it.\n\n"
+                    "If things are heavy right now and you'd rather talk to a "
+                    "person, Shamsaha (17651421) answers 24/7 — it's free and "
+                    "confidential. For an emergency, 999."
                 )
 
         assistant_msg = ChatMessage(
@@ -492,7 +495,7 @@ async def send_conversation_message_stream(
     # Standalone conversation (no screening linked)
     import re as re_module
 
-    from app.services.chat import CHAT_SYSTEM_PROMPT, CRISIS_KEYWORDS, CRISIS_RESPONSE
+    from app.services.chat import CHAT_SYSTEM_PROMPT, CRISIS_KEYWORDS
 
     # Save user message
     user_msg = ChatMessage(
@@ -572,12 +575,14 @@ async def send_conversation_message_stream(
 
         if is_crisis:
             logger.warning(f"Crisis keywords in standalone stream for user {current_user.id[:8]}")
-            yield f"data: {CRISIS_RESPONSE}\n\n".replace("\n\n", "\\n\\n", 1).replace("\\n\\n", "\n\n", 1)
-            # Send it word by word for visual streaming effect on crisis too
-            for word in CRISIS_RESPONSE.split(" "):
-                escaped = word.replace("\n", "\\n")
-                yield f"data: {escaped} \n\n"
-            full_response = CRISIS_RESPONSE
+            warm_response = await chat_service.generate_warm_crisis_response(body.message)
+            # Stream in small chunks so the UI shows a gentle progressive
+            # appearance (matches the calm tone — no sudden wall of text).
+            for i in range(0, len(warm_response), 40):
+                chunk_text = warm_response[i : i + 40]
+                escaped = chunk_text.replace("\n", "\\n")
+                yield f"data: {escaped}\n\n"
+            full_response = warm_response
         else:
             try:
                 stream = await chat_service.llm.client.chat.completions.create(
@@ -614,10 +619,13 @@ async def send_conversation_message_stream(
             except Exception as e:
                 logger.error(f"Standalone chat streaming failed: {type(e).__name__}: {e}", exc_info=True)
                 fallback = (
-                    "I'm sorry, I'm having trouble responding right now. "
-                    "If you need immediate support, please call 999 for "
-                    "emergency services in Bahrain, or contact the "
-                    "Psychiatric Hospital at Salmaniya (+973 1728 8888)."
+                    "I'm having trouble putting something together for you right "
+                    "now — that's on my side, not yours. Whatever you wrote still "
+                    "matters. Try sending it again in a moment, or take a breath "
+                    "and come back when you feel like it.\n\n"
+                    "If things are heavy right now and you'd rather talk to a "
+                    "person, Shamsaha (17651421) answers 24/7 — it's free and "
+                    "confidential. For an emergency, 999."
                 )
                 yield f"data: {fallback}\n\n"
                 full_response = fallback
