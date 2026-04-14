@@ -7,6 +7,7 @@ Registration, login, token refresh, and profile management.
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
@@ -105,7 +106,13 @@ async def login(
     settings: Settings = Depends(get_settings),
 ):
     """Authenticate and receive JWT tokens."""
+    from datetime import datetime as _dt
+
     user = authenticate_user(body.email, body.password, db)
+
+    # Track last_login_at for audit / clinician view
+    user.last_login_at = _dt.utcnow()
+    db.commit()
 
     access_token = create_access_token(user.id, user.role, settings)
     refresh_token = create_refresh_token(user.id, settings)
@@ -152,15 +159,35 @@ async def get_profile(current_user: User = Depends(get_current_user)):
     return _user_to_profile(current_user)
 
 
+@router.post("/logout")
+async def logout(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Server-side logout — records the audit event.
+
+    Note: stateless JWTs can't be truly revoked without a denylist. For now,
+    we log the event and rely on the client clearing tokens. A production
+    deployment should add a Redis-backed denylist keyed by jti claim.
+    """
+    log_audit(db, current_user.id, "logout", resource_type="user")
+    return {"status": "logged_out"}
+
+
+class LinkClinicianRequest(BaseModel):
+    clinician_code: str = Field(min_length=4, max_length=12)
+
+
 @router.post("/link")
 async def link_to_clinician(
-    clinician_code: str,
+    body: LinkClinicianRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Link a patient to a clinician using their invite code."""
     if current_user.role != "patient":
         raise HTTPException(status_code=403, detail="Only patients can link to a clinician")
+    clinician_code = body.clinician_code
 
     clinician = (
         db.query(User)

@@ -736,6 +736,43 @@ async def add_allergy(
     )
 
 
+@router.put("/allergies/{allergy_id}", response_model=AllergyResponse)
+@limiter.limit("30/minute")
+async def update_allergy(
+    allergy_id: str,
+    request: Request,
+    body: AllergyCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update an existing allergy on the patient's record."""
+    allergy = db.query(Allergy).filter(Allergy.id == allergy_id, Allergy.patient_id == current_user.id).first()
+    if not allergy:
+        raise HTTPException(status_code=404, detail="Allergy not found")
+
+    allergy.allergen = body.allergen
+    if body.severity is not None:
+        allergy.severity = body.severity
+    if body.allergy_type is not None:
+        allergy.allergy_type = body.allergy_type
+    if body.reaction is not None:
+        allergy.reaction = body.reaction
+    if body.notes is not None:
+        allergy.notes = body.notes
+    db.commit()
+    db.refresh(allergy)
+    log_audit(db, current_user.id, "allergy_updated", "allergy", allergy.id)
+    return AllergyResponse(
+        id=allergy.id,
+        allergen=allergy.allergen,
+        severity=allergy.severity,
+        allergy_type=allergy.allergy_type,
+        reaction=allergy.reaction,
+        diagnosed_date=allergy.diagnosed_date.isoformat() if allergy.diagnosed_date else None,
+        notes=allergy.notes,
+    )
+
+
 @router.delete("/allergies/{allergy_id}")
 @limiter.limit("30/minute")
 async def delete_allergy(

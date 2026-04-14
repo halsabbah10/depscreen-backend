@@ -11,6 +11,7 @@ from datetime import date, datetime, timedelta
 from uuid import uuid4
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
+from pydantic import BaseModel, Field
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
@@ -471,12 +472,16 @@ async def get_screening_detail(
     }
 
 
+class _ClinicianNotesBody(BaseModel):
+    notes: str = Field(default="", max_length=10000)
+
+
 @router.put("/screenings/{screening_id}/notes")
 @limiter.limit("30/minute")
 async def update_clinician_notes(
     screening_id: str,
     request: Request,
-    notes: str,
+    body: _ClinicianNotesBody,
     current_user: User = Depends(require_clinician()),
     db: Session = Depends(get_db),
 ):
@@ -485,7 +490,7 @@ async def update_clinician_notes(
     if not screening:
         raise HTTPException(status_code=404, detail="Screening not found")
 
-    screening.clinician_notes = notes
+    screening.clinician_notes = body.notes
     db.commit()
 
     return {"status": "updated", "screening_id": screening_id}
@@ -741,11 +746,22 @@ def _verify_patient_access(db: Session, patient_id: str, clinician_id: str) -> U
     return patient
 
 
-def _appointment_to_response(appt: Appointment) -> AppointmentResponse:
+def _appointment_to_response(appt: Appointment, db: Session | None = None) -> AppointmentResponse:
+    patient_name = None
+    clinician_name = None
+    if db is not None:
+        if appt.patient_id:
+            p = db.query(User).filter(User.id == appt.patient_id).first()
+            patient_name = p.full_name if p else None
+        if appt.clinician_id:
+            c = db.query(User).filter(User.id == appt.clinician_id).first()
+            clinician_name = c.full_name if c else None
     return AppointmentResponse(
         id=appt.id,
         patient_id=appt.patient_id,
+        patient_name=patient_name,
         clinician_id=appt.clinician_id,
+        clinician_name=clinician_name,
         scheduled_at=appt.scheduled_at,
         duration_minutes=appt.duration_minutes,
         appointment_type=appt.appointment_type,
@@ -775,7 +791,7 @@ async def list_appointments(
         )
 
     appointments = query.order_by(Appointment.scheduled_at).all()
-    return [_appointment_to_response(a) for a in appointments]
+    return [_appointment_to_response(a, db) for a in appointments]
 
 
 @router.post("/appointments", response_model=AppointmentResponse, status_code=201)
@@ -837,7 +853,7 @@ async def create_appointment(
         _logging.getLogger(__name__).warning(f"Appointment email failed: {e}")
 
     log_audit(db, current_user.id, "appointment_created", resource_type="appointment", resource_id=appt_id)
-    return _appointment_to_response(appt)
+    return _appointment_to_response(appt, db)
 
 
 @router.get("/appointments/{appointment_id}", response_model=AppointmentResponse)
@@ -852,7 +868,7 @@ async def get_appointment(
         raise HTTPException(status_code=404, detail="Appointment not found")
     if appt.clinician_id != current_user.id:
         raise HTTPException(status_code=403, detail="This appointment is not assigned to you")
-    return _appointment_to_response(appt)
+    return _appointment_to_response(appt, db)
 
 
 @router.patch("/appointments/{appointment_id}/status", response_model=AppointmentResponse)
@@ -891,7 +907,7 @@ async def update_appointment_status(
     log_audit(
         db, current_user.id, f"appointment_{payload.status}", resource_type="appointment", resource_id=appointment_id
     )
-    return _appointment_to_response(appt)
+    return _appointment_to_response(appt, db)
 
 
 @router.delete("/appointments/{appointment_id}", response_model=AppointmentResponse)
@@ -921,7 +937,7 @@ async def cancel_appointment(
     db.refresh(appt)
 
     log_audit(db, current_user.id, "appointment_cancelled", resource_type="appointment", resource_id=appointment_id)
-    return _appointment_to_response(appt)
+    return _appointment_to_response(appt, db)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -929,17 +945,29 @@ async def cancel_appointment(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-def _care_plan_to_response(cp: CarePlan) -> CarePlanResponse:
+def _care_plan_to_response(cp: CarePlan, db: Session | None = None) -> CarePlanResponse:
+    patient_name = None
+    clinician_name = None
+    if db is not None:
+        if cp.patient_id:
+            p = db.query(User).filter(User.id == cp.patient_id).first()
+            patient_name = p.full_name if p else None
+        if cp.clinician_id:
+            c = db.query(User).filter(User.id == cp.clinician_id).first()
+            clinician_name = c.full_name if c else None
     return CarePlanResponse(
         id=cp.id,
         patient_id=cp.patient_id,
+        patient_name=patient_name,
         clinician_id=cp.clinician_id,
+        clinician_name=clinician_name,
         title=cp.title,
         description=cp.description,
         template_name=cp.template_name,
         goals=cp.goals or [],
         interventions=cp.interventions or [],
-        review_date=cp.review_date.strftime("%d/%m/%Y") if cp.review_date else None,
+        # ISO 8601 — frontend formats for display via formatDate()
+        review_date=cp.review_date.isoformat() if cp.review_date else None,
         status=cp.status,
         created_at=cp.created_at,
         updated_at=cp.updated_at,
@@ -956,7 +984,7 @@ async def list_care_plans(
     _verify_patient_access(db, patient_id, current_user.id)
 
     plans = db.query(CarePlan).filter(CarePlan.patient_id == patient_id).order_by(desc(CarePlan.created_at)).all()
-    return [_care_plan_to_response(cp) for cp in plans]
+    return [_care_plan_to_response(cp, db) for cp in plans]
 
 
 @router.post("/care-plans", response_model=CarePlanResponse, status_code=201)
@@ -992,7 +1020,7 @@ async def create_care_plan(
     db.refresh(cp)
 
     log_audit(db, current_user.id, "care_plan_created", resource_type="care_plan", resource_id=cp_id)
-    return _care_plan_to_response(cp)
+    return _care_plan_to_response(cp, db)
 
 
 @router.get("/care-plans/{care_plan_id}", response_model=CarePlanResponse)
@@ -1007,7 +1035,7 @@ async def get_care_plan(
         raise HTTPException(status_code=404, detail="Care plan not found")
     if cp.clinician_id != current_user.id:
         raise HTTPException(status_code=403, detail="This care plan is not assigned to you")
-    return _care_plan_to_response(cp)
+    return _care_plan_to_response(cp, db)
 
 
 @router.put("/care-plans/{care_plan_id}", response_model=CarePlanResponse)
@@ -1082,7 +1110,7 @@ async def update_care_plan(
         _logging.getLogger(__name__).warning(f"Care plan update email failed: {e}")
 
     log_audit(db, current_user.id, "care_plan_updated", resource_type="care_plan", resource_id=care_plan_id)
-    return _care_plan_to_response(cp)
+    return _care_plan_to_response(cp, db)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1095,7 +1123,7 @@ def _diagnosis_to_response(dx: Diagnosis) -> DiagnosisResponse:
         id=dx.id,
         condition=dx.condition,
         icd10_code=dx.icd10_code,
-        diagnosed_date=dx.diagnosed_date.strftime("%d/%m/%Y") if dx.diagnosed_date else None,
+        diagnosed_date=dx.diagnosed_date.isoformat() if dx.diagnosed_date else None,
         status=dx.status,
         diagnosed_by=dx.diagnosed_by,
         notes=dx.notes,
