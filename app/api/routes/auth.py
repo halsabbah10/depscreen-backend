@@ -73,6 +73,15 @@ async def register(
 
     log_audit(db, user.id, "register", resource_type="user")
 
+    # Fire-and-forget welcome email (silent if email service not configured)
+    if user.role == "patient":
+        try:
+            from app.services.email import get_email_service
+
+            get_email_service(settings).send_welcome(user.full_name, user.email)
+        except Exception as e:
+            logger.warning(f"Welcome email failed: {e}")
+
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,

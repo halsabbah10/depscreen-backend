@@ -180,6 +180,25 @@ async def screen_text(
     db.add(screening_record)
     db.commit()
 
+    # Send crisis alert email to the patient's clinician if flagged
+    if flagged and current_user.clinician_id:
+        try:
+            from app.models.db import User as UserModel
+            from app.services.email import get_email_service
+
+            clinician = db.query(UserModel).filter(UserModel.id == current_user.clinician_id).first()
+            if clinician and clinician.email:
+                get_email_service(settings).send_crisis_alert_to_clinician(
+                    clinician_name=clinician.full_name,
+                    clinician_email=clinician.email,
+                    patient_name=current_user.full_name,
+                    severity=symptom_analysis.severity_level or "unknown",
+                    symptom_count=symptom_analysis.unique_symptom_count or 0,
+                    screening_id=screening_id,
+                )
+        except Exception as e:
+            logger.warning(f"Crisis alert email failed: {e}")
+
     # Step 6b: Ingest into patient RAG for future chat context
     rag_service.ingest_patient_screening(
         patient_id=current_user.id,

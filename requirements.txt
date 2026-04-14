@@ -35,6 +35,10 @@ sentence-transformers>=2.2.0
 slowapi>=0.1.9
 structlog>=23.1.0
 
+# Email notifications
+resend>=0.8.0
+jinja2>=3.1.0
+
 # Development / CI
 ruff>=0.4.0
 

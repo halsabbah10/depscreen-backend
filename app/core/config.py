@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     llm_timeout_seconds: int = 60
     llm_max_retries: int = 3
 
+    # ── Email (Resend) ─────────────────────────────────────────────────────
+    resend_api_key: str = ""
+    email_from: str = "DepScreen <onboarding@resend.dev>"
+    email_enabled: bool = True  # master switch — emails silently skip if resend_api_key is empty
+
     # ── Database ───────────────────────────────────────────────────────────
     database_url: str = "sqlite:///./app.db"
 
