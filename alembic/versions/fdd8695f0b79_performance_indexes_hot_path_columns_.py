@@ -57,15 +57,9 @@ def upgrade() -> None:
     # don't blow up.
     op.execute("CREATE INDEX IF NOT EXISTS ix_medications_is_active ON medications(is_active)")
     op.execute("CREATE INDEX IF NOT EXISTS ix_care_plans_status ON care_plans(status)")
-    op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_notifications_user_read "
-        "ON notifications(user_id, is_read)"
-    )
+    op.execute("CREATE INDEX IF NOT EXISTS ix_notifications_user_read ON notifications(user_id, is_read)")
     op.execute("CREATE INDEX IF NOT EXISTS ix_allergies_severity ON allergies(severity)")
-    op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_screenings_patient_created "
-        "ON screenings(patient_id, created_at DESC)"
-    )
+    op.execute("CREATE INDEX IF NOT EXISTS ix_screenings_patient_created ON screenings(patient_id, created_at DESC)")
 
     # pgvector HNSW indexes — Postgres-only. Skipping on SQLite dev DBs
     # (no pgvector there anyway).
