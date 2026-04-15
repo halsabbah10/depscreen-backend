@@ -33,6 +33,7 @@ from app.api.routes import (
 )
 from app.api.routes.analyze import get_services
 from app.core.config import get_settings
+from app.core.sentry import init_sentry
 from app.middleware.error_handler import ErrorHandlerMiddleware
 from app.middleware.rate_limiter import limiter
 from app.middleware.request_logging import RequestLoggingMiddleware
@@ -44,6 +45,17 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+
+# Initialize Sentry BEFORE FastAPI is constructed so any errors during
+# startup (DB connection failures, ML model load issues) are captured.
+# No-op when SENTRY_DSN is unset.
+_settings_for_sentry = get_settings()
+init_sentry(
+    dsn=_settings_for_sentry.sentry_dsn,
+    environment=_settings_for_sentry.environment,
+    release=_settings_for_sentry.app_version,
+)
 
 
 @asynccontextmanager

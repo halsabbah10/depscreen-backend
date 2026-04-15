@@ -74,3 +74,6 @@ reportlab>=4.0.0
 # Supabase Storage (avatar uploads) + image normalisation
 supabase>=2.0.0
 Pillow>=10.0.0
+
+# Error monitoring
+sentry-sdk[fastapi]>=2.0.0

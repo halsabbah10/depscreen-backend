@@ -48,6 +48,10 @@ class Settings(BaseSettings):
     supabase_service_role_key: str = ""
     supabase_avatar_bucket: str = "depscreen-avatars"
 
+    # ── Error monitoring (Sentry) ──────────────────────────────────────────
+    # If unset, Sentry initializes as a no-op (local dev, CI).
+    sentry_dsn: str = ""
+
     # ── Database ───────────────────────────────────────────────────────────
     database_url: str = "sqlite:///./app.db"
 
