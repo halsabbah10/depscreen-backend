@@ -338,12 +338,7 @@ async def download_patient_summary_pdf(
     allergies = db.query(Allergy).filter(Allergy.patient_id == patient_id).all()
     diagnoses = db.query(Diagnosis).filter(Diagnosis.patient_id == patient_id).all()
     contacts = db.query(EmergencyContact).filter(EmergencyContact.patient_id == patient_id).all()
-    care_plans = (
-        db.query(CarePlan)
-        .filter(CarePlan.patient_id == patient_id)
-        .order_by(desc(CarePlan.updated_at))
-        .all()
-    )
+    care_plans = db.query(CarePlan).filter(CarePlan.patient_id == patient_id).order_by(desc(CarePlan.updated_at)).all()
     screenings = (
         db.query(Screening)
         .filter(Screening.patient_id == patient_id)
@@ -367,37 +362,50 @@ async def download_patient_summary_pdf(
     export_dict = {
         "medications": [
             {
-                "name": m.name, "dosage": m.dosage, "frequency": m.frequency,
-                "start_date": m.start_date, "prescribed_by": m.prescribed_by,
+                "name": m.name,
+                "dosage": m.dosage,
+                "frequency": m.frequency,
+                "start_date": m.start_date,
+                "prescribed_by": m.prescribed_by,
                 "is_active": m.is_active,
             }
             for m in medications
         ],
         "allergies": [
             {
-                "allergen": a.allergen, "allergy_type": a.allergy_type,
-                "severity": a.severity, "reaction": a.reaction, "notes": a.notes,
+                "allergen": a.allergen,
+                "allergy_type": a.allergy_type,
+                "severity": a.severity,
+                "reaction": a.reaction,
+                "notes": a.notes,
             }
             for a in allergies
         ],
         "diagnoses": [
             {
-                "condition": d.condition, "icd10_code": d.icd10_code, "status": d.status,
-                "diagnosed_date": d.diagnosed_date, "diagnosed_by": d.diagnosed_by,
+                "condition": d.condition,
+                "icd10_code": d.icd10_code,
+                "status": d.status,
+                "diagnosed_date": d.diagnosed_date,
+                "diagnosed_by": d.diagnosed_by,
             }
             for d in diagnoses
         ],
         "emergency_contacts": [
             {
-                "contact_name": c.contact_name, "phone": c.phone,
-                "relation": c.relation, "is_primary": c.is_primary,
+                "contact_name": c.contact_name,
+                "phone": c.phone,
+                "relation": c.relation,
+                "is_primary": c.is_primary,
             }
             for c in contacts
         ],
         "care_plans": [
             {
-                "title": cp.title, "description": cp.description,
-                "status": cp.status, "review_date": cp.review_date,
+                "title": cp.title,
+                "description": cp.description,
+                "status": cp.status,
+                "review_date": cp.review_date,
             }
             for cp in care_plans
         ],
@@ -1250,12 +1258,7 @@ async def list_diagnoses(
 ):
     """List a patient's diagnoses (clinician view)."""
     _verify_patient_access(db, patient_id, current_user.id)
-    rows = (
-        db.query(Diagnosis)
-        .filter(Diagnosis.patient_id == patient_id)
-        .order_by(desc(Diagnosis.created_at))
-        .all()
-    )
+    rows = db.query(Diagnosis).filter(Diagnosis.patient_id == patient_id).order_by(desc(Diagnosis.created_at)).all()
     return [_diagnosis_to_response(dx) for dx in rows]
 
 
@@ -1376,12 +1379,7 @@ async def list_patient_medications(
 ):
     """List a patient's medications (clinician view)."""
     _verify_patient_access(db, patient_id, current_user.id)
-    meds = (
-        db.query(Medication)
-        .filter(Medication.patient_id == patient_id)
-        .order_by(desc(Medication.created_at))
-        .all()
-    )
+    meds = db.query(Medication).filter(Medication.patient_id == patient_id).order_by(desc(Medication.created_at)).all()
     return [_medication_to_response(m) for m in meds]
 
 
@@ -1491,7 +1489,9 @@ async def update_patient_medication(
 
     db.commit()
     db.refresh(med)
-    log_audit(db, current_user.id, "medication_updated_by_clinician", resource_type="medication", resource_id=medication_id)
+    log_audit(
+        db, current_user.id, "medication_updated_by_clinician", resource_type="medication", resource_id=medication_id
+    )
 
     return _medication_to_response(med)
 
@@ -1513,7 +1513,13 @@ async def deactivate_patient_medication(
 
     med.is_active = False
     db.commit()
-    log_audit(db, current_user.id, "medication_deactivated_by_clinician", resource_type="medication", resource_id=medication_id)
+    log_audit(
+        db,
+        current_user.id,
+        "medication_deactivated_by_clinician",
+        resource_type="medication",
+        resource_id=medication_id,
+    )
 
     return {"status": "deactivated", "medication_id": medication_id}
 
@@ -1640,7 +1646,12 @@ async def assign_patient_screening_schedule(
     db.add(schedule)
 
     # Notify the patient
-    freq_label = {"weekly": "weekly", "biweekly": "every two weeks", "monthly": "monthly", "custom": f"every {body.custom_days} days"}.get(body.frequency, body.frequency)
+    freq_label = {
+        "weekly": "weekly",
+        "biweekly": "every two weeks",
+        "monthly": "monthly",
+        "custom": f"every {body.custom_days} days",
+    }.get(body.frequency, body.frequency)
     db.add(
         Notification(
             user_id=patient_id,

@@ -103,11 +103,7 @@ async def resend_webhook(
         logger.info(f"Resend webhook {event_type} has no email_id, ignoring")
         return {"status": "ignored", "reason": "missing_email_id"}
 
-    row = (
-        db.query(EmailDelivery)
-        .filter(EmailDelivery.resend_email_id == resend_email_id)
-        .first()
-    )
+    row = db.query(EmailDelivery).filter(EmailDelivery.resend_email_id == resend_email_id).first()
     if not row:
         # Not a crime — could be an email sent outside this app against the same Resend account.
         logger.info(f"Resend webhook for unknown email {resend_email_id} ({event_type})")
@@ -115,18 +111,20 @@ async def resend_webhook(
 
     # Append to event trail (JSON column)
     events = list(row.events or [])
-    events.append({
-        "type": event_type,
-        "at": datetime.utcnow().isoformat(),
-        "raw": {
-            # Keep only the fields we actually want to retain — avoid storing PII
-            # we don't need. The `to` and subject are already on the row.
-            "bounce_type": (data.get("bounce") or {}).get("type"),
-            "bounce_subtype": (data.get("bounce") or {}).get("subType"),
-            "click_link": (data.get("click") or {}).get("link"),
-            "open_user_agent": (data.get("open") or {}).get("userAgent"),
-        },
-    })
+    events.append(
+        {
+            "type": event_type,
+            "at": datetime.utcnow().isoformat(),
+            "raw": {
+                # Keep only the fields we actually want to retain — avoid storing PII
+                # we don't need. The `to` and subject are already on the row.
+                "bounce_type": (data.get("bounce") or {}).get("type"),
+                "bounce_subtype": (data.get("bounce") or {}).get("subType"),
+                "click_link": (data.get("click") or {}).get("link"),
+                "open_user_agent": (data.get("open") or {}).get("userAgent"),
+            },
+        }
+    )
     row.events = events
     row.last_event_at = datetime.utcnow()
 

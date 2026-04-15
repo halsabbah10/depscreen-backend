@@ -502,10 +502,11 @@ def init_db():
     import logging
     from pathlib import Path
 
-    from alembic import command
     from alembic.config import Config
     from alembic.runtime.migration import MigrationContext
     from sqlalchemy import text
+
+    from alembic import command
 
     log = logging.getLogger(__name__)
 

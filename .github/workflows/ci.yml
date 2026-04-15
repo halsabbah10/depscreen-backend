@@ -83,10 +83,15 @@ jobs:
 
       - name: Audit backend requirements
         # --desc: show a one-line description of each CVE
-        # --ignore-vuln: reserved hook for temporary pinned-but-flagged deps
-        # We target requirements.txt directly so transitive deps are also
-        # resolved and scanned, not just what happens to be installed in CI.
-        run: pip-audit --requirement requirements.txt --desc --strict
+        # --ignore-vuln: deliberately ignored CVEs with justification:
+        #   CVE-2026-1839 (transformers) — affects Trainer._load_rng_state,
+        #     only reachable when loading malicious rng_state.pth checkpoints
+        #     during training. We do inference-only, never Trainer, never
+        #     deserialize external .pth files. Fix is in 5.0.0rc3 (pre-release);
+        #     re-evaluate when 5.0.0 ships stable.
+        run: |
+          pip-audit --requirement requirements.txt --desc --strict \
+            --ignore-vuln CVE-2026-1839
 
   docker-build:
     name: Docker Build

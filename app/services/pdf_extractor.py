@@ -77,9 +77,7 @@ def _ocr_sync(data: bytes) -> bytes:
         import ocrmypdf
     except ImportError as e:
         logger.warning(f"ocrmypdf not installed, cannot OCR: {e}")
-        raise PDFExtractionError(
-            "This PDF appears to be a scan and OCR is not available in this environment."
-        ) from e
+        raise PDFExtractionError("This PDF appears to be a scan and OCR is not available in this environment.") from e
 
     in_buf = io.BytesIO(data)
     out_buf = io.BytesIO()
@@ -116,7 +114,7 @@ async def _ocr_with_timeout(data: bytes) -> bytes:
             asyncio.to_thread(_ocr_sync, data),
             timeout=OCR_TIMEOUT_SECONDS,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         raise PDFExtractionError(
             f"OCR took longer than {OCR_TIMEOUT_SECONDS}s. For large scans, "
             "please split into smaller PDFs or paste the content as text."
@@ -156,8 +154,6 @@ async def extract_text_from_pdf_bytes(data: bytes) -> str:
         # Preserve any partial direct-extract text we may have had
         if text:
             return text
-        raise PDFExtractionError(
-            "No text was found in this PDF, even after OCR. Please type the content manually."
-        )
+        raise PDFExtractionError("No text was found in this PDF, even after OCR. Please type the content manually.")
 
     return text

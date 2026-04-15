@@ -6,7 +6,6 @@ symptom trends, data export, emergency contacts, medications,
 allergies, diagnoses, screening schedules, and onboarding.
 """
 
-import base64
 import logging
 from datetime import date, datetime, timedelta
 from typing import Optional
@@ -352,10 +351,7 @@ async def upload_my_document_file(
     content_type = (file.content_type or "").lower()
 
     is_pdf = filename.endswith(".pdf") or content_type == "application/pdf"
-    is_text = (
-        filename.endswith(".txt")
-        or content_type.startswith("text/")
-    )
+    is_text = filename.endswith(".txt") or content_type.startswith("text/")
 
     if is_pdf:
         try:
@@ -1312,10 +1308,7 @@ async def export_my_data_pdf(
     from app.services.reports import build_patient_export_pdf
 
     screenings = (
-        db.query(Screening)
-        .filter(Screening.patient_id == current_user.id)
-        .order_by(desc(Screening.created_at))
-        .all()
+        db.query(Screening).filter(Screening.patient_id == current_user.id).order_by(desc(Screening.created_at)).all()
     )
     documents = db.query(PatientDocument).filter(PatientDocument.patient_id == current_user.id).all()
     contacts = db.query(EmergencyContact).filter(EmergencyContact.patient_id == current_user.id).all()
@@ -1350,44 +1343,53 @@ async def export_my_data_pdf(
         ],
         "medications": [
             {
-                "name": m.name, "dosage": m.dosage, "frequency": m.frequency,
-                "start_date": m.start_date, "prescribed_by": m.prescribed_by,
+                "name": m.name,
+                "dosage": m.dosage,
+                "frequency": m.frequency,
+                "start_date": m.start_date,
+                "prescribed_by": m.prescribed_by,
                 "is_active": m.is_active,
             }
             for m in medications
         ],
         "allergies": [
             {
-                "allergen": a.allergen, "allergy_type": a.allergy_type,
-                "severity": a.severity, "reaction": a.reaction,
+                "allergen": a.allergen,
+                "allergy_type": a.allergy_type,
+                "severity": a.severity,
+                "reaction": a.reaction,
             }
             for a in allergies
         ],
         "diagnoses": [
             {
-                "condition": d.condition, "icd10_code": d.icd10_code, "status": d.status,
-                "diagnosed_date": d.diagnosed_date, "diagnosed_by": d.diagnosed_by,
+                "condition": d.condition,
+                "icd10_code": d.icd10_code,
+                "status": d.status,
+                "diagnosed_date": d.diagnosed_date,
+                "diagnosed_by": d.diagnosed_by,
             }
             for d in diagnoses
         ],
         "emergency_contacts": [
             {
-                "contact_name": c.contact_name, "phone": c.phone,
-                "relation": c.relation, "is_primary": c.is_primary,
+                "contact_name": c.contact_name,
+                "phone": c.phone,
+                "relation": c.relation,
+                "is_primary": c.is_primary,
             }
             for c in contacts
         ],
         "care_plans": [
             {
-                "title": cp.title, "description": cp.description,
-                "status": cp.status, "review_date": cp.review_date,
+                "title": cp.title,
+                "description": cp.description,
+                "status": cp.status,
+                "review_date": cp.review_date,
             }
             for cp in care_plans
         ],
-        "documents": [
-            {"title": d.title, "doc_type": d.doc_type, "created_at": d.created_at}
-            for d in documents
-        ],
+        "documents": [{"title": d.title, "doc_type": d.doc_type, "created_at": d.created_at} for d in documents],
     }
 
     buf = build_patient_export_pdf(patient_dict, export_dict)
@@ -1497,6 +1499,7 @@ async def mark_notification_read(
 
 
 # ── Profile Picture Upload ───────────────────────────────────────────────────
+
 
 @router.post("/profile/picture")
 @limiter.limit("10/minute")

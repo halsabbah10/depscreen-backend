@@ -61,7 +61,7 @@ def _before_send(event: dict, hint: dict) -> dict | None:
     # Drop 4xx HTTPExceptions: those are expected validation failures
     exc_info = hint.get("exc_info")
     if exc_info:
-        exc_type, exc_value, _ = exc_info
+        _exc_type, exc_value, _tb = exc_info
         try:
             from fastapi import HTTPException
 
@@ -69,8 +69,10 @@ def _before_send(event: dict, hint: dict) -> dict | None:
                 status = getattr(exc_value, "status_code", 500)
                 if 400 <= status < 500:
                     return None
-        except Exception:
-            pass
+        except Exception as filter_err:
+            # Filtering isn't worth failing an error report over — log
+            # the filter-side failure so we notice if this path breaks.
+            logger.debug(f"HTTPException filter skipped: {filter_err}")
 
     # Scrub the event payload
     _scrub_mapping(event)

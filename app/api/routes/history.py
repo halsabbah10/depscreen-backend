@@ -14,7 +14,6 @@ from sqlalchemy.orm import Session
 
 from app.middleware.rate_limiter import limiter
 from app.models.db import Screening, User, get_db
-from app.services.reports import build_screening_pdf
 from app.schemas.analysis import (
     Evidence,
     ExplanationReport,
@@ -25,6 +24,7 @@ from app.schemas.analysis import (
     VerificationReport,
 )
 from app.services.auth import get_current_user
+from app.services.reports import build_screening_pdf
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -192,8 +192,7 @@ async def download_screening_pdf(
         "severity_label": screening.severity_level or "none",
         "severity_score": symptom_data.get("total_sentences_analyzed"),
         "symptoms": [
-            {"criterion": sym.get("dsm5_criterion", sym.get("criterion", "")),
-             "confidence": sym.get("confidence", 0)}
+            {"criterion": sym.get("dsm5_criterion", sym.get("criterion", "")), "confidence": sym.get("confidence", 0)}
             for sym in symptom_data.get("symptoms_detected", [])
         ],
         "detected_sentences": [

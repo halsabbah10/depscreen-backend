@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
 
 from app.middleware.rate_limiter import limiter
 from app.models.db import User

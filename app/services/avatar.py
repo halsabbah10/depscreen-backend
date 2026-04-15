@@ -154,9 +154,7 @@ class AvatarService:
             raise RuntimeError("Avatar storage is not configured on this server.")
 
         if content_type and content_type.lower() not in ALLOWED_MIME_TYPES:
-            raise AvatarError(
-                "Only JPG, PNG, WebP, and HEIC images are supported."
-            )
+            raise AvatarError("Only JPG, PNG, WebP, and HEIC images are supported.")
 
         webp_bytes = _normalize_to_webp(raw_bytes)
 
@@ -179,9 +177,7 @@ class AvatarService:
             )
         except Exception as e:
             logger.error(f"Supabase upload failed for user {user_id}: {e}")
-            raise RuntimeError(
-                "We couldn't save your picture. Please try again in a moment."
-            ) from e
+            raise RuntimeError("We couldn't save your picture. Please try again in a moment.") from e
 
         # Public URL from the bucket. Supabase returns {"publicUrl": "..."}.
         url_resp: Any = self._client.storage.from_(self.bucket).get_public_url(key)
@@ -193,6 +189,7 @@ class AvatarService:
         # Append a version query-string driven by upload time so the browser
         # reliably pulls the new file.
         import time
+
         return f"{public_url}?v={int(time.time())}"
 
     def delete(self, user_id: str) -> None:

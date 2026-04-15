@@ -31,6 +31,10 @@ ignore = [
 [lint.per-file-ignores]
 "ml/scripts/**" = ["S", "E", "F841", "B905", "F401"]  # ML scripts are less strict
 "ml/scripts/deprecated/**" = ["ALL"]  # Deprecated scripts, not worth linting
+# Alembic autogenerates migration files with a fixed template; linting
+# the template breaks autogenerate. `alembic revision --autogenerate`
+# produces code we don't hand-edit unless fixing a diff.
+"alembic/versions/*.py" = ["ALL"]
 
 [format]
 quote-style = "double"

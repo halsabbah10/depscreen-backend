@@ -26,13 +26,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-
-_BACKEND_CSP = (
-    "default-src 'none'; "
-    "frame-ancestors 'none'; "
-    "base-uri 'none'; "
-    "form-action 'none'"
-)
+_BACKEND_CSP = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):

@@ -25,7 +25,6 @@ from reportlab.lib.units import cm
 from reportlab.platypus import (
     HRFlowable,
     KeepTogether,
-    PageBreak,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
@@ -205,20 +204,24 @@ def _kv_table(rows: list[tuple[str, str]], s: dict[str, ParagraphStyle]) -> Tabl
     data = []
     for k, v in rows:
         val = v if v not in (None, "") else "—"
-        data.append([
-            Paragraph(f"<font color='#5A6170'>{k}</font>", s["meta"]),
-            Paragraph(str(val), s["body"]),
-        ])
+        data.append(
+            [
+                Paragraph(f"<font color='#5A6170'>{k}</font>", s["meta"]),
+                Paragraph(str(val), s["body"]),
+            ]
+        )
     t = Table(data, colWidths=[4.5 * cm, None])
     t.setStyle(
-        TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-            ("TOPPADDING", (0, 0), (-1, -1), 3),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-            ("LINEBELOW", (0, 0), (-1, -2), 0.25, BORDER),
-        ])
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ("LINEBELOW", (0, 0), (-1, -2), 0.25, BORDER),
+            ]
+        )
     )
     return t
 
@@ -334,16 +337,18 @@ def build_screening_pdf(screening: dict, patient: dict) -> BytesIO:
             data.append([sym.get("criterion", "—").replace("_", " ").title(), conf_str])
         t = Table(data, colWidths=[9 * cm, 4 * cm])
         t.setStyle(
-            TableStyle([
-                ("BACKGROUND", (0, 0), (-1, 0), CREAM_DARK),
-                ("TEXTCOLOR", (0, 0), (-1, 0), INK),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("FONTSIZE", (0, 0), (-1, -1), 9),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-                ("TOPPADDING", (0, 0), (-1, -1), 6),
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("LINEBELOW", (0, 0), (-1, -1), 0.25, BORDER),
-            ])
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), CREAM_DARK),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), INK),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 9),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                    ("TOPPADDING", (0, 0), (-1, -1), 6),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("LINEBELOW", (0, 0), (-1, -1), 0.25, BORDER),
+                ]
+            )
         )
         story.append(t)
 
@@ -444,13 +449,15 @@ def build_patient_export_pdf(patient: dict, export: dict) -> BytesIO:
     else:
         data = [["Name", "Dosage", "Frequency", "Prescribed by", "Started"]]
         for m in meds:
-            data.append([
-                _safe(m.get("name")),
-                _safe(m.get("dosage")),
-                _safe(m.get("frequency")),
-                _safe(m.get("prescribed_by")),
-                _format_date(m.get("start_date")),
-            ])
+            data.append(
+                [
+                    _safe(m.get("name")),
+                    _safe(m.get("dosage")),
+                    _safe(m.get("frequency")),
+                    _safe(m.get("prescribed_by")),
+                    _format_date(m.get("start_date")),
+                ]
+            )
         story.append(_grid(data, s))
 
     # ── Allergies ────────
@@ -461,12 +468,14 @@ def build_patient_export_pdf(patient: dict, export: dict) -> BytesIO:
     else:
         data = [["Allergen", "Type", "Severity", "Reaction"]]
         for a in allergies:
-            data.append([
-                _safe(a.get("allergen")),
-                _safe(a.get("allergy_type")),
-                _safe(a.get("severity")),
-                _safe(a.get("reaction")),
-            ])
+            data.append(
+                [
+                    _safe(a.get("allergen")),
+                    _safe(a.get("allergy_type")),
+                    _safe(a.get("severity")),
+                    _safe(a.get("reaction")),
+                ]
+            )
         story.append(_grid(data, s))
 
     # ── Diagnoses ────────
@@ -477,13 +486,15 @@ def build_patient_export_pdf(patient: dict, export: dict) -> BytesIO:
     else:
         data = [["Condition", "ICD-10", "Status", "Diagnosed", "By"]]
         for d in dxs:
-            data.append([
-                _safe(d.get("condition")),
-                _safe(d.get("icd10_code")),
-                _safe(d.get("status")),
-                _format_date(d.get("diagnosed_date")),
-                _safe(d.get("diagnosed_by")),
-            ])
+            data.append(
+                [
+                    _safe(d.get("condition")),
+                    _safe(d.get("icd10_code")),
+                    _safe(d.get("status")),
+                    _format_date(d.get("diagnosed_date")),
+                    _safe(d.get("diagnosed_by")),
+                ]
+            )
         story.append(_grid(data, s))
 
     # ── Emergency contacts ────────
@@ -494,12 +505,14 @@ def build_patient_export_pdf(patient: dict, export: dict) -> BytesIO:
     else:
         data = [["Name", "Phone", "Relation", "Primary"]]
         for c in contacts:
-            data.append([
-                _safe(c.get("contact_name")),
-                _safe(c.get("phone")),
-                _safe(c.get("relation")),
-                "Yes" if c.get("is_primary") else "—",
-            ])
+            data.append(
+                [
+                    _safe(c.get("contact_name")),
+                    _safe(c.get("phone")),
+                    _safe(c.get("relation")),
+                    "Yes" if c.get("is_primary") else "—",
+                ]
+            )
         story.append(_grid(data, s))
 
     # ── Screenings ────────
@@ -510,12 +523,14 @@ def build_patient_export_pdf(patient: dict, export: dict) -> BytesIO:
     else:
         data = [["Date", "Severity", "Score", "Flagged"]]
         for sc in screenings:
-            data.append([
-                _format_date(sc.get("created_at")),
-                _safe(sc.get("severity_label")).title(),
-                _safe(sc.get("severity_score")),
-                "Yes" if sc.get("flagged_for_review") else "—",
-            ])
+            data.append(
+                [
+                    _format_date(sc.get("created_at")),
+                    _safe(sc.get("severity_label")).title(),
+                    _safe(sc.get("severity_score")),
+                    "Yes" if sc.get("flagged_for_review") else "—",
+                ]
+            )
         story.append(_grid(data, s))
 
     # ── Documents ────────
@@ -564,7 +579,8 @@ def build_patient_summary_pdf(patient: dict, export: dict, clinician_name: str |
     active_meds = [m for m in (export.get("medications") or []) if m.get("is_active") is not False]
     active_dxs = [d for d in (export.get("diagnoses") or []) if d.get("status") == "active"]
     life_threatening = [
-        a for a in (export.get("allergies") or [])
+        a
+        for a in (export.get("allergies") or [])
         if (a.get("severity") or "").lower() in {"life_threatening", "life-threatening", "severe"}
     ]
     latest_screenings = (export.get("screenings") or [])[:5]
@@ -607,12 +623,14 @@ def build_patient_summary_pdf(patient: dict, export: dict, clinician_name: str |
         data = [["Allergen", "Severity", "Reaction", "Notes"]]
         sort_key = {"life_threatening": 0, "life-threatening": 0, "severe": 1, "moderate": 2, "mild": 3}
         for a in sorted(allergies, key=lambda x: sort_key.get((x.get("severity") or "").lower(), 99)):
-            data.append([
-                _safe(a.get("allergen")),
-                _safe(a.get("severity")),
-                _safe(a.get("reaction")),
-                _safe(a.get("notes")),
-            ])
+            data.append(
+                [
+                    _safe(a.get("allergen")),
+                    _safe(a.get("severity")),
+                    _safe(a.get("reaction")),
+                    _safe(a.get("notes")),
+                ]
+            )
         story.append(_grid(data, s))
 
     # ── Medications ────────
@@ -620,13 +638,15 @@ def build_patient_summary_pdf(patient: dict, export: dict, clinician_name: str |
         story.append(Paragraph("Active medications", s["h2"]))
         data = [["Name", "Dosage", "Frequency", "Started", "Prescribed by"]]
         for m in active_meds:
-            data.append([
-                _safe(m.get("name")),
-                _safe(m.get("dosage")),
-                _safe(m.get("frequency")),
-                _format_date(m.get("start_date")),
-                _safe(m.get("prescribed_by")),
-            ])
+            data.append(
+                [
+                    _safe(m.get("name")),
+                    _safe(m.get("dosage")),
+                    _safe(m.get("frequency")),
+                    _format_date(m.get("start_date")),
+                    _safe(m.get("prescribed_by")),
+                ]
+            )
         story.append(_grid(data, s))
 
     # ── Diagnoses ────────
@@ -634,12 +654,14 @@ def build_patient_summary_pdf(patient: dict, export: dict, clinician_name: str |
         story.append(Paragraph("Active diagnoses", s["h2"]))
         data = [["Condition", "ICD-10", "Diagnosed", "By"]]
         for d in active_dxs:
-            data.append([
-                _safe(d.get("condition")),
-                _safe(d.get("icd10_code")),
-                _format_date(d.get("diagnosed_date")),
-                _safe(d.get("diagnosed_by")),
-            ])
+            data.append(
+                [
+                    _safe(d.get("condition")),
+                    _safe(d.get("icd10_code")),
+                    _format_date(d.get("diagnosed_date")),
+                    _safe(d.get("diagnosed_by")),
+                ]
+            )
         story.append(_grid(data, s))
 
     # ── Screening trajectory ────────
@@ -647,13 +669,15 @@ def build_patient_summary_pdf(patient: dict, export: dict, clinician_name: str |
         story.append(Paragraph("Recent screenings", s["h2"]))
         data = [["Date", "Severity", "Score", "Flagged", "Notes"]]
         for sc in latest_screenings:
-            data.append([
-                _format_date(sc.get("created_at")),
-                _safe(sc.get("severity_label")).title(),
-                _safe(sc.get("severity_score")),
-                "Yes" if sc.get("flagged_for_review") else "—",
-                _safe((sc.get("clinician_notes") or "")[:80]),
-            ])
+            data.append(
+                [
+                    _format_date(sc.get("created_at")),
+                    _safe(sc.get("severity_label")).title(),
+                    _safe(sc.get("severity_score")),
+                    "Yes" if sc.get("flagged_for_review") else "—",
+                    _safe((sc.get("clinician_notes") or "")[:80]),
+                ]
+            )
         story.append(_grid(data, s))
 
     # ── Care plan ────────
@@ -662,15 +686,18 @@ def build_patient_summary_pdf(patient: dict, export: dict, clinician_name: str |
     if active_cps:
         story.append(Paragraph("Care plan", s["h2"]))
         for cp in active_cps[:2]:
-            story.append(KeepTogether([
-                Paragraph(f"<b>{_safe(cp.get('title'))}</b>", s["h3"]),
-                Paragraph(
-                    f"Status: <b>{_safe(cp.get('status'))}</b> · "
-                    f"Review: {_format_date(cp.get('review_date'))}",
-                    s["meta"],
-                ),
-                Paragraph(_safe(cp.get("description")), s["body"]),
-            ]))
+            story.append(
+                KeepTogether(
+                    [
+                        Paragraph(f"<b>{_safe(cp.get('title'))}</b>", s["h3"]),
+                        Paragraph(
+                            f"Status: <b>{_safe(cp.get('status'))}</b> · Review: {_format_date(cp.get('review_date'))}",
+                            s["meta"],
+                        ),
+                        Paragraph(_safe(cp.get("description")), s["body"]),
+                    ]
+                )
+            )
 
     # ── Emergency contact ────────
     contacts = export.get("emergency_contacts") or []
@@ -714,15 +741,17 @@ def _grid(data: list[list[str]], s: dict[str, ParagraphStyle]) -> Table:
 
     t = Table(wrapped, colWidths=col_widths, repeatRows=1)
     t.setStyle(
-        TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), CREAM_DARK),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-            ("TOPPADDING", (0, 0), (-1, -1), 5),
-            ("LEFTPADDING", (0, 0), (-1, -1), 6),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("LINEBELOW", (0, 0), (-1, -1), 0.25, BORDER),
-        ])
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), CREAM_DARK),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                ("TOPPADDING", (0, 0), (-1, -1), 5),
+                ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LINEBELOW", (0, 0), (-1, -1), 0.25, BORDER),
+            ]
+        )
     )
     return t
 

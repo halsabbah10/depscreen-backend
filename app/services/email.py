@@ -316,7 +316,9 @@ class EmailService:
         else:
             subject = "Your check-in is ready"
             headline = "A quiet reminder"
-            detail = "A check-in is waiting for you today. Just a few minutes of reflection can be surprisingly helpful."
+            detail = (
+                "A check-in is waiting for you today. Just a few minutes of reflection can be surprisingly helpful."
+            )
         body = f"""
             <h2>{headline}</h2>
             <p>Hello {patient_name},</p>
