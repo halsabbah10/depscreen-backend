@@ -295,7 +295,9 @@ class EmailService:
             </div>
             <p>Please review the screening and consider reaching out to the patient. DepScreen is a screening aid, not a diagnostic tool — your clinical judgment is essential.</p>
         """
-        url = f"https://depscreen.vercel.app/screening/{screening_id}"
+        # /screening is patient-only, and /screening/{id} is not a route.
+        # Both roles can read a screening via the shared /results/{id} page.
+        url = f"https://depscreen.vercel.app/results/{screening_id}"
         return self.send(
             clinician_email,
             subject,
