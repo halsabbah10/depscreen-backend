@@ -63,6 +63,31 @@ jobs:
       - name: Verify Alembic config
         run: python -c "from alembic.config import Config; c = Config('alembic.ini'); print('Alembic config OK')"
 
+  dependency-audit:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    # Don't block PR merging on upstream CVE noise; surface findings
+    # without failing. `fail_on_vuln` can be flipped to true once we've
+    # triaged the existing vulnerability backlog.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Audit backend requirements
+        # --desc: show a one-line description of each CVE
+        # --ignore-vuln: reserved hook for temporary pinned-but-flagged deps
+        # We target requirements.txt directly so transitive deps are also
+        # resolved and scanned, not just what happens to be installed in CI.
+        run: pip-audit --requirement requirements.txt --desc --strict
+
   docker-build:
     name: Docker Build
     runs-on: ubuntu-latest
