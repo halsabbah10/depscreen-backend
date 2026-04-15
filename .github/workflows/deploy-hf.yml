@@ -18,6 +18,17 @@ jobs:
           fetch-depth: 0
           lfs: true
 
+      - name: Inject HF Space config into README
+        # HF Spaces reads configuration (sdk, port, title, emoji) from YAML
+        # frontmatter at the top of README.md. GitHub renders that frontmatter
+        # as an ugly table, so the canonical README.md has none — we prepend
+        # it here, only on the commit that gets pushed to the Space.
+        run: |
+          cat .hf-space-header.md README.md > README.md.with-header
+          mv README.md.with-header README.md
+          git -c user.email="ci@example.com" -c user.name="CI" \
+              commit -am "ci: inject HF Space frontmatter"
+
       - name: Push to HuggingFace Spaces
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
