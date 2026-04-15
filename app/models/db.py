@@ -486,11 +486,62 @@ def get_db():
 
 
 def init_db():
-    """Initialize database tables. Enables pgvector extension for PostgreSQL."""
+    """Initialize database: enable pgvector, then sync schema via Alembic.
+
+    Two-path startup:
+      1. If the database already carries an alembic_version row, run
+         `alembic upgrade head` — every pending migration applies forward.
+      2. If not (fresh environment, or an existing DB adopting Alembic for
+         the first time), we Base.metadata.create_all() for raw bootstrap,
+         then stamp the DB at head so subsequent boots use the upgrade path.
+
+    This lets a freshly-provisioned Postgres stand up from empty AND lets
+    the already-live Supabase database adopt Alembic cleanly without
+    trying to re-create tables it already has.
+    """
+    import logging
+    from pathlib import Path
+
+    from alembic import command
+    from alembic.config import Config
+    from alembic.runtime.migration import MigrationContext
     from sqlalchemy import text
 
+    log = logging.getLogger(__name__)
+
+    # pgvector is a Supabase extension; on SQLite this is a no-op.
     if not settings.database_url.startswith("sqlite"):
         with engine.connect() as conn:
             conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
             conn.commit()
-    Base.metadata.create_all(bind=engine)
+
+    # Locate alembic.ini in the project root (one level up from this module)
+    backend_root = Path(__file__).resolve().parents[2]
+    alembic_ini = backend_root / "alembic.ini"
+
+    if not alembic_ini.exists():
+        # Alembic not configured on this checkout — fall back to bare create_all
+        log.warning("alembic.ini missing; falling back to Base.metadata.create_all()")
+        Base.metadata.create_all(bind=engine)
+        return
+
+    alembic_cfg = Config(str(alembic_ini))
+
+    # alembic/env.py reads DATABASE_URL directly via get_settings() and
+    # bypasses configparser — that's the right pattern for URLs containing
+    # url-encoded secrets (configparser chokes on `%` interpolation).
+    # So we do NOT call set_main_option("sqlalchemy.url", ...) here.
+
+    with engine.connect() as conn:
+        ctx = MigrationContext.configure(conn)
+        current_rev = ctx.get_current_revision()
+
+    if current_rev is None:
+        # First-time adoption: create tables directly and stamp at head.
+        log.info("alembic_version table absent — bootstrapping from Base.metadata and stamping at head")
+        Base.metadata.create_all(bind=engine)
+        command.stamp(alembic_cfg, "head")
+    else:
+        # Standard path: apply any pending migrations.
+        log.info(f"alembic_version at {current_rev} — running `alembic upgrade head`")
+        command.upgrade(alembic_cfg, "head")

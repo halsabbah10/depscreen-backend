@@ -1,1 +1,47 @@
-Generic single-database configuration.
+DepScreen — Alembic migrations
+================================
+
+Single-database configuration (Supabase Postgres in production, SQLite in
+local dev). Runs automatically on backend startup via `init_db()`.
+
+Workflow for a schema change
+----------------------------
+
+1. Edit models in `app/models/db.py`.
+2. Generate a migration from the diff between code and the current DB:
+
+       alembic revision --autogenerate -m "describe the change"
+
+   This writes a new file under `alembic/versions/`.
+
+3. Open the generated file and review. Autogenerate catches additions and
+   most type changes but can miss server defaults, ENUM renames, or
+   anything involving pgvector columns. Tweak by hand if needed.
+
+4. Apply locally to sanity-check:
+
+       alembic upgrade head
+
+5. Commit the migration file. Deploy. On startup the backend will run
+   `alembic upgrade head` automatically — pending migrations apply before
+   the first request is served.
+
+Startup behaviour (init_db in app/models/db.py)
+-----------------------------------------------
+
+Two-path logic so both fresh databases and already-populated ones
+adopt Alembic cleanly:
+
+  - If `alembic_version` table is missing: `Base.metadata.create_all()`
+    then `alembic stamp head`. Covers fresh dev environments and the
+    first-ever Alembic run against the existing production DB.
+
+  - If `alembic_version` exists: `alembic upgrade head`. Standard path
+    for every boot thereafter.
+
+URL handling
+------------
+
+`alembic/env.py` reads DATABASE_URL from `app.core.config.get_settings()`
+directly rather than through `alembic.ini`, because configparser can't
+handle URL-encoded `%` in Supabase connection strings.
