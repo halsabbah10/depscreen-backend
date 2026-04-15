@@ -46,6 +46,39 @@ jobs:
       - name: Verify imports resolve
         run: python -c "from app.core.config import get_settings; from app.models.db import Base; print('All imports OK')"
 
+  tests:
+    name: Pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run pytest with coverage
+        env:
+          DATABASE_URL: "sqlite:///:memory:"
+          JWT_SECRET: "ci-secret-placeholder-not-used-in-production-012345678901"
+          ENVIRONMENT: test
+          LLM_API_KEY: test-key
+          CORS_ORIGINS: '["http://testserver"]'
+        run: pytest tests/ --cov=app --cov-report=xml --cov-report=term
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-coverage
+          path: coverage.xml
+          retention-days: 14
+
   migration-check:
     name: Database Migration Check
     runs-on: ubuntu-latest
@@ -96,7 +129,7 @@ jobs:
   docker-build:
     name: Docker Build
     runs-on: ubuntu-latest
-    needs: [lint, type-check]
+    needs: [lint, type-check, tests]
     steps:
       - uses: actions/checkout@v5
         with:

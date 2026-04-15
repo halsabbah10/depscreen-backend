@@ -1,0 +1,53 @@
+# Project-level configuration for tooling. The runtime app itself is still
+# driven by requirements.txt — this file exists so pytest/ruff/coverage pick
+# up a consistent config.
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+# Quiet the deprecation noise from dependencies we don't own (passlib's
+# crypt removal in Py3.13, pydantic v1 shims, etc.) so real test signal
+# stands out.
+filterwarnings = [
+    "ignore::DeprecationWarning:passlib.*",
+    "ignore::DeprecationWarning:pydantic.*",
+]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--tb=short",
+]
+markers = [
+    "slow: marks tests that take >1s (deselect with '-m \"not slow\"')",
+    "integration: marks tests that require a real external dependency",
+]
+
+[tool.coverage.run]
+source = ["app"]
+omit = [
+    "app/services/scheduler.py",  # background jobs, tested via integration
+    "app/middleware/request_logging.py",  # logging plumbing
+    "*/migrations/*",
+    "alembic/*",
+]
+branch = true
+
+[tool.coverage.report]
+precision = 1
+show_missing = true
+skip_covered = false
+# Target: 35% global coverage. This is deliberately modest — the heavy
+# service layers (LLM, RAG, inference, reports, PDF, email) are mocked at
+# the route level and exercised end-to-end via Playwright. Chasing a
+# higher gate here would mean writing mock-validation theater that
+# doesn't catch real bugs.
+fail_under = 35
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]

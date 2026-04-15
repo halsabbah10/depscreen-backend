@@ -35,6 +35,9 @@ ignore = [
 # the template breaks autogenerate. `alembic revision --autogenerate`
 # produces code we don't hand-edit unless fixing a diff.
 "alembic/versions/*.py" = ["ALL"]
+# Tests use fake passwords + internal imports by design — bandit S-rules
+# and top-of-file-import rules give no real signal here.
+"tests/**" = ["S", "E402"]
 
 [format]
 quote-style = "double"
