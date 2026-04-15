@@ -57,8 +57,11 @@ ruff>=0.4.0
 
 # Utilities
 python-dotenv==1.0.0
-pydantic==2.5.0
-pydantic-settings==2.1.0
+# pydantic >=2.11 required by svix>=1.20 (ModelWrapValidatorHandler import)
+# and by fastapi>=0.120. Removing the hard pin lets the resolver pick a
+# version compatible with both upstreams.
+pydantic>=2.11,<3
+pydantic-settings>=2.1.0
 aiofiles==23.2.1
 httpx==0.26.0
 
