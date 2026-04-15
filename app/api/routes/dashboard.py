@@ -66,10 +66,16 @@ async def get_dashboard_stats(
     current_user: User = Depends(require_clinician()),
     db: Session = Depends(get_db),
 ):
-    """Get aggregate statistics for the clinician's dashboard."""
-    # Get all patients assigned to this clinician
-    patient_ids = [p.id for p in db.query(User).filter(User.clinician_id == current_user.id).all()]
+    """Get aggregate statistics for the clinician's dashboard.
 
+    Single aggregation query over the screenings table instead of four
+    separate counts + a group-by. Drops this endpoint from 5 queries to
+    2 on every dashboard load.
+    """
+    from sqlalchemy import case
+
+    # 1. Patient IDs assigned to this clinician
+    patient_ids = [p.id for p in db.query(User).filter(User.clinician_id == current_user.id).all()]
     total_patients = len(patient_ids)
 
     if not patient_ids:
@@ -81,38 +87,37 @@ async def get_dashboard_stats(
             screenings_this_week=0,
         )
 
-    # Count screenings
-    total_screenings = db.query(Screening).filter(Screening.patient_id.in_(patient_ids)).count()
-
-    # Flagged count
-    flagged_count = (
-        db.query(Screening).filter(Screening.patient_id.in_(patient_ids), Screening.flagged_for_review == True).count()
-    )
-
-    # Severity distribution
-    severity_rows = (
-        db.query(Screening.severity_level, func.count())
-        .filter(Screening.patient_id.in_(patient_ids))
-        .group_by(Screening.severity_level)
-        .all()
-    )
-    severity_dist = {"none": 0, "mild": 0, "moderate": 0, "severe": 0}
-    for level, count in severity_rows:
-        if level in severity_dist:
-            severity_dist[level] = count
-
-    # Screenings this week
+    # 2. All five metrics from one aggregation row. `func.sum(case(...))`
+    # counts rows matching a predicate — same semantics as `COUNT(*) WHERE
+    # predicate` but in a single pass over the screenings table.
     week_ago = datetime.utcnow() - timedelta(days=7)
-    screenings_this_week = (
-        db.query(Screening).filter(Screening.patient_id.in_(patient_ids), Screening.created_at >= week_ago).count()
+    agg = (
+        db.query(
+            func.count(Screening.id).label("total"),
+            func.coalesce(func.sum(case((Screening.flagged_for_review == True, 1), else_=0)), 0).label("flagged"),
+            func.coalesce(func.sum(case((Screening.created_at >= week_ago, 1), else_=0)), 0).label("this_week"),
+            func.coalesce(func.sum(case((Screening.severity_level == "severe", 1), else_=0)), 0).label("sev_severe"),
+            func.coalesce(func.sum(case((Screening.severity_level == "moderate", 1), else_=0)), 0).label(
+                "sev_moderate"
+            ),
+            func.coalesce(func.sum(case((Screening.severity_level == "mild", 1), else_=0)), 0).label("sev_mild"),
+            func.coalesce(func.sum(case((Screening.severity_level == "none", 1), else_=0)), 0).label("sev_none"),
+        )
+        .filter(Screening.patient_id.in_(patient_ids))
+        .one()
     )
 
     return DashboardStats(
         total_patients=total_patients,
-        total_screenings=total_screenings,
-        flagged_count=flagged_count,
-        severity_distribution=severity_dist,
-        screenings_this_week=screenings_this_week,
+        total_screenings=int(agg.total or 0),
+        flagged_count=int(agg.flagged or 0),
+        severity_distribution={
+            "none": int(agg.sev_none or 0),
+            "mild": int(agg.sev_mild or 0),
+            "moderate": int(agg.sev_moderate or 0),
+            "severe": int(agg.sev_severe or 0),
+        },
+        screenings_this_week=int(agg.this_week or 0),
     )
 
 
@@ -121,18 +126,59 @@ async def get_patients(
     current_user: User = Depends(require_clinician()),
     db: Session = Depends(get_db),
 ):
-    """Get all patients assigned to this clinician with their latest screening info."""
+    """Get all patients assigned to this clinician with their latest screening info.
+
+    Was O(1 + 2N) queries (one per patient for latest + count). Now O(3):
+    one query for patients, one group-by for counts, one subquery-joined
+    query for each patient's latest screening row. Scales flat regardless
+    of how many patients the clinician has.
+    """
+    from sqlalchemy import and_
+
     patients = db.query(User).filter(User.clinician_id == current_user.id).all()
+    if not patients:
+        return []
+
+    patient_ids = [p.id for p in patients]
+
+    # Screening counts per patient — single GROUP BY.
+    count_rows = (
+        db.query(Screening.patient_id, func.count(Screening.id))
+        .filter(Screening.patient_id.in_(patient_ids))
+        .group_by(Screening.patient_id)
+        .all()
+    )
+    counts_by_patient = dict(count_rows)
+
+    # Latest screening per patient — cross-dialect pattern via a
+    # max(created_at) subquery joined back to the base table. Avoids
+    # fetching every historical screening just to filter in memory.
+    # (DISTINCT ON would be faster on Postgres but isn't portable.)
+    latest_subq = (
+        db.query(
+            Screening.patient_id.label("pid"),
+            func.max(Screening.created_at).label("latest_at"),
+        )
+        .filter(Screening.patient_id.in_(patient_ids))
+        .group_by(Screening.patient_id)
+        .subquery()
+    )
+    latest_rows = (
+        db.query(Screening)
+        .join(
+            latest_subq,
+            and_(
+                Screening.patient_id == latest_subq.c.pid,
+                Screening.created_at == latest_subq.c.latest_at,
+            ),
+        )
+        .all()
+    )
+    latest_by_patient = {s.patient_id: s for s in latest_rows}
 
     summaries = []
     for patient in patients:
-        # Get latest screening
-        latest = (
-            db.query(Screening).filter(Screening.patient_id == patient.id).order_by(desc(Screening.created_at)).first()
-        )
-
-        total = db.query(Screening).filter(Screening.patient_id == patient.id).count()
-
+        latest = latest_by_patient.get(patient.id)
         summaries.append(
             PatientSummary(
                 id=patient.id,
@@ -141,7 +187,7 @@ async def get_patients(
                 last_screening_date=latest.created_at if latest else None,
                 last_severity=latest.severity_level if latest else None,
                 last_symptom_count=latest.symptom_count if latest else None,
-                total_screenings=total,
+                total_screenings=counts_by_patient.get(patient.id, 0),
             )
         )
 
