@@ -14,6 +14,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 
@@ -129,7 +130,12 @@ def create_app() -> FastAPI:
     # 2. Security headers — cheap, defensive, attaches to every response
     app.add_middleware(SecurityHeadersMiddleware)
 
-    # 3. Request logging
+    # 3. Response compression. Gzip payloads >=1KB — covers every list/
+    # full-profile response. Roughly 4-6x shrink on typical JSON; saves
+    # 150-300ms on mobile/high-latency connections per response.
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+    # 4. Request logging
     app.add_middleware(RequestLoggingMiddleware)
 
     # 3. CORS

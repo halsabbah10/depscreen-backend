@@ -41,10 +41,17 @@ if settings.database_url.startswith("sqlite"):
 pool_config = {}
 if not settings.database_url.startswith("sqlite"):
     pool_config = {
-        "pool_size": 10,
-        "max_overflow": 20,
-        "pool_recycle": 3600,  # Recycle connections after 1 hour
-        "pool_pre_ping": True,  # Verify connection is alive before using
+        # Bumped from 10 → 20 after dashboard load profiling: on a moderately
+        # active clinician session (dashboard + patient detail + screenings)
+        # we'd saturate the old pool and spend 50–200 ms per request in
+        # queue. 20 + 40 overflow comfortably covers concurrent loads without
+        # overwhelming Supabase's session pooler.
+        "pool_size": 20,
+        "max_overflow": 40,
+        # 30 min is safer than the default 1 h for long-lived session-pooler
+        # connections which can go stale without warning.
+        "pool_recycle": 1800,
+        "pool_pre_ping": True,  # keep — Supabase pooler needs it
     }
 
 engine = create_engine(settings.database_url, connect_args=connect_args, **pool_config)
@@ -542,7 +549,19 @@ def init_db():
         log.info("alembic_version table absent — bootstrapping from Base.metadata and stamping at head")
         Base.metadata.create_all(bind=engine)
         command.stamp(alembic_cfg, "head")
-    else:
-        # Standard path: apply any pending migrations.
-        log.info(f"alembic_version at {current_rev} — running `alembic upgrade head`")
-        command.upgrade(alembic_cfg, "head")
+        return
+
+    # Check if there's anything to do before invoking `alembic upgrade`,
+    # which otherwise spends 2–5s re-validating every revision even when
+    # the DB is already at head.
+    from alembic.script import ScriptDirectory
+
+    script = ScriptDirectory.from_config(alembic_cfg)
+    head_rev = script.get_current_head()
+
+    if current_rev == head_rev:
+        log.info(f"alembic_version at {current_rev} (== head) — nothing to migrate")
+        return
+
+    log.info(f"alembic_version at {current_rev} (head={head_rev}) — running `alembic upgrade head`")
+    command.upgrade(alembic_cfg, "head")
