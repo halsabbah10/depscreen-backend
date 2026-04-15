@@ -42,6 +42,12 @@ class Settings(BaseSettings):
     email_from: str = "DepScreen <onboarding@resend.dev>"
     email_enabled: bool = True  # master switch — emails silently skip if resend_api_key is empty
 
+    # ── Supabase Storage (profile pictures) ────────────────────────────────
+    # Uses the service role key; never expose to the frontend.
+    supabase_url: str = ""
+    supabase_service_role_key: str = ""
+    supabase_avatar_bucket: str = "depscreen-avatars"
+
     # ── Database ───────────────────────────────────────────────────────────
     database_url: str = "sqlite:///./app.db"
 

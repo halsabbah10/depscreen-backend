@@ -70,3 +70,7 @@ ocrmypdf>=16.0.0
 
 # PDF generation (screening result reports, patient export, clinical summary)
 reportlab>=4.0.0
+
+# Supabase Storage (avatar uploads) + image normalisation
+supabase>=2.0.0
+Pillow>=10.0.0

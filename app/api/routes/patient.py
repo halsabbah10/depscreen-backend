@@ -1498,50 +1498,71 @@ async def mark_notification_read(
 
 # ── Profile Picture Upload ───────────────────────────────────────────────────
 
-ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
-MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5 MB
-
-
 @router.post("/profile/picture")
-@limiter.limit("30/minute")
+@limiter.limit("10/minute")
 async def upload_profile_picture(
     request: Request,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
     db: Session = Depends(get_db),
 ):
-    """Upload a profile picture (JPG, PNG, or WebP, max 5 MB).
+    """Upload a profile picture.
 
-    Stores the image as a base64 data URI in the user's profile_picture_url
-    field. This is a temporary approach before Supabase Storage migration.
+    The image is normalised server-side (EXIF rotation applied, metadata
+    stripped for privacy, centre-cropped square, resized to 512×512, and
+    re-encoded as WebP) then pushed to Supabase Storage. The returned
+    public URL is saved on the user record and echoed back to the client.
     """
-    # Validate content type
-    if file.content_type not in ALLOWED_IMAGE_TYPES:
+    from app.services.avatar import AvatarError, get_avatar_service
+
+    avatar_svc = get_avatar_service(settings)
+    if not avatar_svc.enabled:
         raise HTTPException(
-            status_code=400,
-            detail=f"Invalid file type '{file.content_type}'. Must be one of: {', '.join(sorted(ALLOWED_IMAGE_TYPES))}",
+            status_code=503,
+            detail="Profile pictures aren't available on this environment. Please try again later.",
         )
 
-    # Read and validate size
-    contents = await file.read()
-    if len(contents) > MAX_IMAGE_SIZE:
-        raise HTTPException(
-            status_code=400,
-            detail=f"File too large ({len(contents)} bytes). Maximum allowed size is {MAX_IMAGE_SIZE} bytes (5 MB).",
-        )
+    raw = await file.read()
+    try:
+        public_url = avatar_svc.upload(current_user.id, raw, file.content_type)
+    except AvatarError as e:
+        # User-facing input problem: surface the message verbatim
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        logger.error(f"Profile picture upload failed for user {current_user.id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-    # Convert to base64 data URI
-    b64 = base64.b64encode(contents).decode("utf-8")
-    data_uri = f"data:{file.content_type};base64,{b64}"
-
-    # Store in user record
-    current_user.profile_picture_url = data_uri
+    current_user.profile_picture_url = public_url
     db.commit()
     log_audit(db, current_user.id, "profile_picture_uploaded", resource_type="user")
 
-    logger.info(f"Profile picture uploaded for user {current_user.id} ({len(contents)} bytes, {file.content_type})")
+    return {"status": "uploaded", "url": public_url}
 
-    return {"status": "uploaded", "url": data_uri[:50] + "..."}
+
+@router.delete("/profile/picture")
+@limiter.limit("10/minute")
+async def delete_profile_picture(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+    db: Session = Depends(get_db),
+):
+    """Remove the user's profile picture.
+
+    Clears the URL on the user row and deletes the object from storage.
+    Idempotent — callable even if the user has no avatar set.
+    """
+    from app.services.avatar import get_avatar_service
+
+    avatar_svc = get_avatar_service(settings)
+    avatar_svc.delete(current_user.id)
+
+    current_user.profile_picture_url = None
+    db.commit()
+    log_audit(db, current_user.id, "profile_picture_deleted", resource_type="user")
+
+    return {"status": "deleted"}
 
 
 # ── Patient-Facing Appointments ───────────────────────────────────────────────
