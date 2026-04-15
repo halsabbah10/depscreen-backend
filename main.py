@@ -36,6 +36,7 @@ from app.core.config import get_settings
 from app.middleware.error_handler import ErrorHandlerMiddleware
 from app.middleware.rate_limiter import limiter
 from app.middleware.request_logging import RequestLoggingMiddleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.models.db import init_db
 
 logging.basicConfig(
@@ -113,7 +114,10 @@ def create_app() -> FastAPI:
     # 1. Error handler (outermost — catches everything)
     app.add_middleware(ErrorHandlerMiddleware)
 
-    # 2. Request logging
+    # 2. Security headers — cheap, defensive, attaches to every response
+    app.add_middleware(SecurityHeadersMiddleware)
+
+    # 3. Request logging
     app.add_middleware(RequestLoggingMiddleware)
 
     # 3. CORS
