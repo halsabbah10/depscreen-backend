@@ -12,7 +12,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
@@ -237,7 +237,16 @@ def create_app() -> FastAPI:
 
     @app.get("/health/llm-test", tags=["Health"])
     async def llm_test():
-        """Debug: test LLM call directly."""
+        """Debug: test LLM call directly.
+
+        Disabled in production — the error path returns `model` and
+        `base_url` in the JSON response, which leak provider config
+        without adding value to a live deployment. Useful only during
+        local dev / staging to spot an auth / DNS / firewall issue fast.
+        """
+        if settings.is_production:
+            raise HTTPException(status_code=404, detail="Not found")
+
         try:
             from openai import AsyncOpenAI
 

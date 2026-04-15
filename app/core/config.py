@@ -96,12 +96,23 @@ class Settings(BaseSettings):
     log_format: str = "json"  # json or text
 
     def get_cors_origins(self) -> list[str]:
-        """Parse CORS origins from string."""
+        """Parse CORS origins from the configured JSON string.
+
+        In production we never fall back to the localhost defaults — a
+        malformed `CORS_ORIGINS` should fail loudly rather than silently
+        expose the API to localhost from anywhere. In dev the fallback
+        keeps `npm run dev` on :3000 / :5173 working without extra env.
+        """
         import json
 
         try:
-            return json.loads(self.cors_origins)
-        except json.JSONDecodeError:
+            origins = json.loads(self.cors_origins)
+            if not isinstance(origins, list):
+                raise ValueError("CORS_ORIGINS must be a JSON array")
+            return origins
+        except (json.JSONDecodeError, ValueError) as e:
+            if self.is_production:
+                raise RuntimeError(f"CORS_ORIGINS must be a valid JSON array in production: {e}") from e
             return ["http://localhost:3000", "http://localhost:5173"]
 
     @property

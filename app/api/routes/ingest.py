@@ -256,7 +256,7 @@ async def analyze_reddit_profile(
     if not posts:
         raise HTTPException(
             status_code=404,
-            detail=f"No relevant posts found for u/{request.username}.",
+            detail=f"No relevant posts found for u/{body.username}.",
         )
 
     # Screen each post individually (DL only — verification on aggregate)
@@ -330,7 +330,7 @@ async def analyze_x_profile(
     if not tweets:
         raise HTTPException(
             status_code=404,
-            detail=f"No relevant posts found for @{request.username}.",
+            detail=f"No relevant posts found for @{body.username}.",
         )
 
     # Screen each tweet (DL only)
