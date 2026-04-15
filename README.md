@@ -2,7 +2,7 @@
 
 FastAPI service for the DepScreen depression-screening platform. Runs the DSM-5 sentence classifier, LLM verification, RAG retrieval, chat, auth, and the clinician dashboard API. Deployed to HuggingFace Spaces (Docker SDK); this README doubles as the Space's homepage, which is why it carries the YAML frontmatter above.
 
-Frontend lives in a sibling repo; the full product architecture is in the root [`README.md`](../README.md).
+Frontend (React + Vite): [halsabbah10/depscreen-frontend](https://github.com/halsabbah10/depscreen-frontend).
 
 ---
 
