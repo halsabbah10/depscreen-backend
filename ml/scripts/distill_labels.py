@@ -524,12 +524,12 @@ async def main():
 
         # Stratified sample: pick proportionally from each class
         pilot_indices = []
-        for label, group in train_df.groupby("label"):
+        for _label, group in train_df.groupby("label"):
             k = max(1, int(n * len(group) / len(train_df)))
             pilot_indices.extend(group.sample(n=k, random_state=42).index.tolist())
         pilot_df = train_df.loc[pilot_indices].head(n).reset_index(drop=True)
 
-        logger.info(f"Pilot class distribution:")
+        logger.info("Pilot class distribution:")
         for label, count in pilot_df["label"].value_counts().sort_index().items():
             logger.info(f"  {label}: {count}")
 

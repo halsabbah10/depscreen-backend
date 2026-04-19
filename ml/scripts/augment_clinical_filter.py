@@ -153,7 +153,7 @@ async def validate_sentence(client, sentence: str, symptom: str, model: str) -> 
     config = SYMPTOM_CONFIGS[symptom]
     prompt = config["validate_prompt"].format(sentence=sentence)
 
-    for attempt in range(2):
+    for _attempt in range(2):
         try:
             response = await client.chat.completions.create(
                 model=model,
@@ -235,17 +235,17 @@ async def main():
         validated = []
         done = 0
 
-        async def validate_one(sentence: str):
+        async def validate_one(sentence: str, *, _semaphore=semaphore, _symptom=symptom, _candidates=candidates):
             nonlocal done
-            async with semaphore:
-                result = await validate_sentence(client, sentence, symptom, args.val_model)
+            async with _semaphore:
+                result = await validate_sentence(client, sentence, _symptom, args.val_model)
                 await asyncio.sleep(0.5)
                 done += 1
-                pct = done / len(candidates) * 100
+                pct = done / len(_candidates) * 100
                 bar_len = 30
-                filled = int(bar_len * done / len(candidates))
+                filled = int(bar_len * done / len(_candidates))
                 bar = "█" * filled + "░" * (bar_len - filled)
-                print(f"\r  [{bar}] {done}/{len(candidates)} ({pct:.0f}%)", end="", flush=True)
+                print(f"\r  [{bar}] {done}/{len(_candidates)} ({pct:.0f}%)", end="", flush=True)
                 return sentence, result
 
         tasks = [validate_one(c) for c in candidates]

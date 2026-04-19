@@ -15,6 +15,7 @@ import asyncio
 import json
 import os
 import re
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -23,7 +24,6 @@ import torch.nn.functional as F
 from openai import AsyncOpenAI
 from transformers import AutoTokenizer
 
-import sys
 sys.path.insert(0, str(Path(__file__).parent))
 from train_redsm5_model import SymptomClassifier
 
@@ -60,7 +60,7 @@ async def generate_sentences(client, symptom, definition, count, model="gemini-3
         f"Return ONLY a JSON array of strings."
     )
     for _ in range(0, count, 25):
-        for attempt in range(3):
+        for _attempt in range(3):
             try:
                 r = await client.chat.completions.create(
                     model=model,
@@ -140,7 +140,7 @@ async def main():
         print(f"  Generated: {len(candidates)} unique")
 
         # DL-model validate
-        print(f"  Validating with DL model (top-3, min_prob=0.1)...")
+        print("  Validating with DL model (top-3, min_prob=0.1)...")
         passed = validate_with_model(candidates, config["label_id"], dl_model, tokenizer, device)
         print(f"  Passed: {len(passed)}/{len(candidates)} ({len(passed)/max(len(candidates),1)*100:.0f}%)")
 
@@ -176,7 +176,7 @@ async def main():
         combined.to_csv(aug_dir / "augmented_samples_final.csv", index=False)
 
     print(f"\n{'='*50}")
-    print(f"COMPLETE")
+    print("COMPLETE")
     print(f"New DL-validated: {len(new_df)}")
     for sym in TARGETS:
         count = len(combined[combined["label"] == sym])

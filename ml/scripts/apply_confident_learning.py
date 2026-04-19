@@ -16,8 +16,8 @@ Usage:
 """
 
 import json
-import re
 import logging
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -39,10 +39,7 @@ NEGATION_PATTERNS = [
 def is_negation(text: str) -> bool:
     """Check if text discusses a symptom in the negative/past tense."""
     text_lower = text.lower()
-    for pattern in NEGATION_PATTERNS:
-        if re.search(pattern, text_lower):
-            return True
-    return False
+    return any(re.search(pattern, text_lower) for pattern in NEGATION_PATTERNS)
 
 
 def main():
@@ -101,7 +98,7 @@ def main():
             # Low confidence — keep original label
             kept += 1
 
-    logger.info(f"\nActions:")
+    logger.info("\nActions:")
     logger.info(f"  Relabeled (conf >0.85, not negation): {relabeled}")
     logger.info(f"  Removed (negation or ambiguous 0.7-0.85): {removed}")
     logger.info(f"  Kept as-is (conf <0.7): {kept}")
@@ -160,12 +157,12 @@ def main():
     print(f"\n{'='*60}")
     print("CONFIDENT LEARNING APPLIED")
     print(f"{'='*60}")
-    print(f"Original cleaned: 1514")
+    print("Original cleaned: 1514")
     print(f"After CL:         {len(train)}")
     print(f"  Relabeled:      {relabeled}")
     print(f"  Removed:        {removed}")
     print(f"  Kept:           {kept}")
-    print(f"\nNew class distribution:")
+    print("\nNew class distribution:")
     for label, count in train["label"].value_counts().sort_values().items():
         print(f"  {label:<22} {count:>4}")
     print(f"\nSaved to: {output_dir}")

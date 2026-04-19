@@ -292,7 +292,7 @@ class ModelService:
         if thresholds_dict:
             label_names = sorted(label_map_raw.keys(), key=lambda x: label_map_raw[x])
             self.thresholds = np.array([float(thresholds_dict.get(n, 0.0)) for n in label_names])
-            logger.info(f"Loaded per-class thresholds")
+            logger.info("Loaded per-class thresholds")
 
         # Load each model
         for model_info in meta.get("models", []):
@@ -364,7 +364,7 @@ class ModelService:
             if self.is_ensemble and len(self.ensemble_models) > 1:
                 # Ensemble: average softmax probabilities across models
                 all_probs = []
-                for model, tok in zip(self.ensemble_models, self.ensemble_tokenizers):
+                for model, tok in zip(self.ensemble_models, self.ensemble_tokenizers, strict=False):
                     encoding = tok(
                         sentence, truncation=True, max_length=self.max_length,
                         return_tensors="pt", padding=True,

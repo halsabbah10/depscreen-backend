@@ -251,7 +251,7 @@ def main():
     print(f"Post-DAPT perplexity: {best_ppl:.2f}")
     print(f"Reduction:            {((pre_dapt_ppl - best_ppl) / pre_dapt_ppl) * 100:.1f}%")
     print(f"\nDAPT model saved to: {output_dir}")
-    print(f"Use this as base model for fine-tuning:")
+    print("Use this as base model for fine-tuning:")
     print(f"  python train_redsm5_model.py --model-name {output_dir}")
 
 

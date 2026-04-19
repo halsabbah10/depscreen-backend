@@ -235,7 +235,7 @@ def main():
     print(f"{'='*60}")
     print(f"Total posts: {len(all_texts)}")
     print(f"Total chars: {sum(len(t) for t in all_texts):,}")
-    print(f"\nPer subreddit:")
+    print("\nPer subreddit:")
     for sub, count in sorted(stats.items(), key=lambda x: -x[1]):
         print(f"  r/{sub}: {count}")
     print(f"\nSaved to: {corpus_file}")

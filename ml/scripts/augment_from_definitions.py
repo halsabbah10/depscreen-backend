@@ -84,7 +84,7 @@ async def generate_sentences(
     all_sentences = []
     batch_size = 15
 
-    for batch_start in range(0, count, batch_size):
+    for _batch_start in range(0, count, batch_size):
         remaining = min(batch_size, count - len(all_sentences))
 
         for attempt in range(3):
@@ -134,7 +134,7 @@ def filter_by_similarity(
     new_emb = model.encode(new_sentences, show_progress_bar=False)
 
     passed = []
-    for i, (sent, emb) in enumerate(zip(new_sentences, new_emb)):
+    for _i, (sent, emb) in enumerate(zip(new_sentences, new_emb)):
         sims = np.dot(exist_emb, emb) / (
             np.linalg.norm(exist_emb, axis=1) * np.linalg.norm(emb)
         )

@@ -121,7 +121,7 @@ async def generate_paraphrases(
         f"Generate {n} paraphrases as a JSON array of {n} strings."
     )
 
-    for attempt in range(max_retries):
+    for _attempt in range(max_retries):
         try:
             response = await client.chat.completions.create(
                 model=model,
@@ -164,7 +164,7 @@ async def generate_indirect_suicidal(
     all_examples = []
     batch_size = 10
 
-    for batch_start in range(0, n, batch_size):
+    for _batch_start in range(0, n, batch_size):
         remaining = min(batch_size, n - len(all_examples))
 
         user_prompt = (
@@ -172,7 +172,7 @@ async def generate_indirect_suicidal(
             f"as Reddit mental health post sentences. JSON array of strings only."
         )
 
-        for attempt in range(3):
+        for _attempt in range(3):
             try:
                 response = await client.chat.completions.create(
                     model=model,
@@ -226,7 +226,7 @@ def compute_similarity_filter(
     para_embeddings = model.encode(paraphrases, show_progress_bar=False)
 
     passed = []
-    for i, (para, para_emb) in enumerate(zip(paraphrases, para_embeddings)):
+    for _i, (para, para_emb) in enumerate(zip(paraphrases, para_embeddings)):
         # Find max similarity to any original
         sims = np.dot(orig_embeddings, para_emb) / (
             np.linalg.norm(orig_embeddings, axis=1) * np.linalg.norm(para_emb)
@@ -274,7 +274,7 @@ async def main():
         if count < args.target_per_class and cls in DSM5_DEFINITIONS
     }
 
-    logger.info(f"\nAugmentation targets:")
+    logger.info("\nAugmentation targets:")
     for cls, needed in sorted(target_classes.items(), key=lambda x: x[1], reverse=True):
         current = class_counts[cls]
         logger.info(f"  {cls}: {current} → {args.target_per_class} (need {needed} more)")
@@ -331,19 +331,19 @@ async def main():
         done = 0
         total = len(class_sentences)
 
-        async def gen_one(sentence: str):
+        async def gen_one(sentence: str, *, _semaphore=semaphore, _cls=cls, _n_per=n_per, _total=total):
             nonlocal done
-            async with semaphore:
+            async with _semaphore:
                 result = await generate_paraphrases(
-                    client, sentence, cls, n=n_per, model=args.model,
+                    client, sentence, _cls, n=_n_per, model=args.model,
                 )
                 await asyncio.sleep(args.delay)
                 done += 1
-                pct = done / total * 100
+                pct = done / _total * 100
                 bar_len = 30
-                filled = int(bar_len * done / total)
+                filled = int(bar_len * done / _total)
                 bar = "█" * filled + "░" * (bar_len - filled)
-                print(f"\r  [{bar}] {done}/{total} ({pct:.0f}%)", end="", flush=True)
+                print(f"\r  [{bar}] {done}/{_total} ({pct:.0f}%)", end="", flush=True)
                 return result
 
         tasks = [gen_one(s) for s in class_sentences]
@@ -530,7 +530,7 @@ async def main():
     print(f"Original training samples: {len(train_df)}")
     print(f"Augmented samples added:   {len(aug_df)}")
     print(f"Combined training set:     {len(combined)}")
-    print(f"\nPer-class breakdown:")
+    print("\nPer-class breakdown:")
     for cls in sorted(meta["per_class"].keys()):
         info = meta["per_class"][cls]
         print(f"  {cls}: {info['original']} → {info['combined']} (+{info['augmented']})")

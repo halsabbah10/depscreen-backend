@@ -98,7 +98,7 @@ def resolve_conflicts(df: pd.DataFrame) -> pd.DataFrame:
 
     df_clean = df.drop(indices_to_drop)
     logger.info(f"  Resolved {resolved_count} conflicts → removed {rows_removed} conflicting rows")
-    logger.info(f"  Primary label chosen by clinical salience hierarchy")
+    logger.info("  Primary label chosen by clinical salience hierarchy")
 
     return df_clean.reset_index(drop=True)
 
@@ -247,10 +247,10 @@ def main():
     print(f"\n{'='*60}")
     print("CLEANING COMPLETE")
     print(f"{'='*60}")
-    print(f"Original training samples: 1591")
+    print("Original training samples: 1591")
     print(f"After cleaning:            {len(train)}")
     print(f"Removed:                   {1591 - len(train)}")
-    print(f"\nCleaned class distribution:")
+    print("\nCleaned class distribution:")
     for label, count in train["label"].value_counts().sort_values().items():
         orig_count = pd.read_csv(data_dir / "train.csv")["label"].value_counts().get(label, 0)
         delta = count - orig_count

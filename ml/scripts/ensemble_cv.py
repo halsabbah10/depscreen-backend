@@ -26,8 +26,8 @@ from tqdm import tqdm
 from transformers import AutoTokenizer, get_linear_schedule_with_warmup
 
 sys.path.insert(0, str(Path(__file__).parent))
-from train_redsm5_model import SymptomClassifier, SymptomDataset, collate_fn
 from preprocess_redsm5 import SYMPTOM_LABELS
+from train_redsm5_model import SymptomClassifier, SymptomDataset, collate_fn
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -263,7 +263,7 @@ def main():
     print(f"Ensemble Macro-F1: {np.mean(ens_macros):.4f} ± {np.std(ens_macros):.4f}  [{', '.join(f'{v:.3f}' for v in ens_macros)}]")
 
     # Per-model comparison
-    print(f"\nPer-model averages:")
+    print("\nPer-model averages:")
     for model_cfg in ENSEMBLE_MODELS:
         label = model_cfg["label"]
         micros = [f["individual"][label]["micro_f1"] for f in fold_results]
@@ -271,7 +271,7 @@ def main():
         print(f"  {label:<20} micro={np.mean(micros):.4f}±{np.std(micros):.4f}  macro={np.mean(macros):.4f}±{np.std(macros):.4f}")
 
     # Per-class ensemble results
-    print(f"\nEnsemble Per-Class F1:")
+    print("\nEnsemble Per-Class F1:")
     print(f"{'Symptom':<25} {'F1 Mean':>8} {'± Std':>8}")
     print("-" * 45)
     for cls in label_names:
@@ -307,10 +307,10 @@ def main():
     tuned_metrics = evaluate_predictions(all_labels_flat, tuned_preds, num_classes, label_names)
 
     print(f"\nThresholds: {dict(zip(label_names, [f'{t:.2f}' for t in best_thresholds]))}")
-    print(f"\nWith threshold tuning:")
+    print("\nWith threshold tuning:")
     print(f"  Micro-F1: {tuned_metrics['micro_f1']:.4f}")
     print(f"  Macro-F1: {tuned_metrics['macro_f1']:.4f}")
-    print(f"\nPer-class (tuned):")
+    print("\nPer-class (tuned):")
     for cls in label_names:
         m = tuned_metrics["per_class"][cls]
         print(f"  {cls:<25} F1={m['f1']:.4f}  P={m['precision']:.4f}  R={m['recall']:.4f}")

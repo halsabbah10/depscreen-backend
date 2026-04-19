@@ -28,8 +28,8 @@ from tqdm import tqdm
 from transformers import AutoTokenizer, get_linear_schedule_with_warmup
 
 sys.path.insert(0, str(Path(__file__).parent))
-from train_redsm5_model import SymptomClassifier, SymptomDataset, collate_fn
 from preprocess_redsm5 import SYMPTOM_LABELS, SYMPTOM_READABLE
+from train_redsm5_model import SymptomClassifier, SymptomDataset, collate_fn
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -156,7 +156,7 @@ def main():
 
     full_data = full_data.sample(frac=1, random_state=42).reset_index(drop=True)
     logger.info(f"Training on {len(full_data)} samples (train + val + augmented)")
-    logger.info(f"Class distribution:")
+    logger.info("Class distribution:")
     for label, count in full_data["label"].value_counts().sort_values().items():
         logger.info(f"  {label}: {count}")
 
@@ -231,7 +231,7 @@ def main():
     print(f"Models: {', '.join(m['label'] for m in MODELS)}")
     print(f"Training samples: {len(full_data)}")
     print(f"Thresholds saved: {bool(thresholds)}")
-    print(f"\nFiles:")
+    print("\nFiles:")
     for m in MODELS:
         d = output_dir / m["label"]
         print(f"  {d}/model.pt")

@@ -188,8 +188,9 @@ def load_soft_labels_for_df(
     Returns:
         List of soft label vectors (one per row in train_df), or None if not available.
     """
-    import pandas as pd
     from pathlib import Path
+
+    import pandas as pd
 
     path = Path(distilled_path)
     if not path.exists():

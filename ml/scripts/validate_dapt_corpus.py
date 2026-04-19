@@ -64,10 +64,7 @@ def detect_bot_spam(text: str) -> bool:
         r"free trial",
         r"www\.\S+\.(com|org|net)",
     ]
-    for pattern in promo_patterns:
-        if re.search(pattern, text, re.IGNORECASE):
-            return True
-    return False
+    return any(re.search(pattern, text, re.IGNORECASE) for pattern in promo_patterns)
 
 
 def detect_non_english(text: str) -> bool:
@@ -140,7 +137,7 @@ def main():
         if len(leaked) > 5:
             print(f"    ... and {len(leaked) - 5} more")
     else:
-        print(f"  NO LEAKAGE — zero overlap with ReDSM5 labeled data")
+        print("  NO LEAKAGE — zero overlap with ReDSM5 labeled data")
 
     # ── CHECK 2: Exact Deduplication ───────────────────────────────────────
     print("\n── CHECK 2: Deduplication ──")
@@ -245,7 +242,7 @@ def main():
         else:
             buckets["1000+"] += 1
 
-    print(f"\n  Length distribution:")
+    print("\n  Length distribution:")
     for bucket in ["<100", "100-300", "300-500", "500-1000", "1000+"]:
         count = buckets.get(bucket, 0)
         pct = count / len(quality_chunks) * 100

@@ -38,8 +38,6 @@ from transformers import AutoTokenizer, get_linear_schedule_with_warmup
 
 # Reuse existing model/dataset/collate from training script
 sys.path.insert(0, str(Path(__file__).parent))
-from train_redsm5_model import SymptomClassifier, SymptomDataset, collate_fn
-
 # Reuse preprocessing functions
 from preprocess_redsm5 import (
     SYMPTOM_LABELS,
@@ -49,6 +47,7 @@ from preprocess_redsm5 import (
     create_positive_samples,
     load_data,
 )
+from train_redsm5_model import SymptomClassifier, SymptomDataset, collate_fn
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -229,7 +228,7 @@ def train_one_fold(
         from distillation_utils import build_llrd_param_groups
         param_groups = build_llrd_param_groups(model, lr=lr, decay_factor=0.8, weight_decay=0.01)
         optimizer = AdamW(param_groups)
-        logger.info(f"  Using LLRD (decay=0.8, wd=0.01)")
+        logger.info("  Using LLRD (decay=0.8, wd=0.01)")
     else:
         optimizer = AdamW(model.parameters(), lr=lr)
 
@@ -368,9 +367,9 @@ def train_one_fold(
 
         if swa_micro >= best_val_f1:
             best_state = avg_state
-            logger.info(f"  SWA model selected (better than best checkpoint)")
+            logger.info("  SWA model selected (better than best checkpoint)")
         else:
-            logger.info(f"  Best checkpoint kept (better than SWA)")
+            logger.info("  Best checkpoint kept (better than SWA)")
 
     # Load best model and compute final metrics on this fold's val set
     model.load_state_dict(best_state)
@@ -520,7 +519,7 @@ def print_cv_report(aggregated: dict, fold_results: list[dict]):
             f"{m['support']['mean']:>12.1f}"
         )
 
-    print(f"\nSamples per fold:")
+    print("\nSamples per fold:")
     for f in fold_results:
         print(f"  Fold {f['fold']}: train={f['train_samples']}, val={f['val_samples']}")
 
