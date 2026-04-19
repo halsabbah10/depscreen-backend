@@ -124,7 +124,10 @@ async def generate_sentences(client, symptom: str, count: int, model: str) -> li
                 response = await client.chat.completions.create(
                     model=model,
                     messages=[
-                        {"role": "system", "content": "You are an expert in mental health text. Return ONLY valid JSON."},
+                        {
+                            "role": "system",
+                            "content": "You are an expert in mental health text. Return ONLY valid JSON.",
+                        },
                         {"role": "user", "content": prompt},
                     ],
                     max_tokens=4096,
@@ -140,7 +143,7 @@ async def generate_sentences(client, symptom: str, count: int, model: str) -> li
                         all_sentences.extend([s for s in sentences if isinstance(s, str) and len(s) > 20])
                         break
             except Exception as e:
-                logger.warning(f"  Gen attempt {attempt+1} failed: {e}")
+                logger.warning(f"  Gen attempt {attempt + 1} failed: {e}")
                 await asyncio.sleep(2)
 
         await asyncio.sleep(0.5)
@@ -179,13 +182,16 @@ async def validate_sentence(client, sentence: str, symptom: str, model: str) -> 
 
 async def main():
     parser = argparse.ArgumentParser(description="High-quality augmentation with clinical filtering")
-    parser.add_argument("--gen-model", type=str, default="gemini-3-flash-preview",
-                        help="Model for generation (needs creativity)")
-    parser.add_argument("--val-model", type=str, default="gemini-3-flash-preview",
-                        help="Model for validation (clinical reasoning)")
+    parser.add_argument(
+        "--gen-model", type=str, default="gemini-3-flash-preview", help="Model for generation (needs creativity)"
+    )
+    parser.add_argument(
+        "--val-model", type=str, default="gemini-3-flash-preview", help="Model for validation (clinical reasoning)"
+    )
     parser.add_argument("--count", type=int, default=80, help="Sentences to generate per class")
-    parser.add_argument("--min-confidence", type=float, default=0.8,
-                        help="Minimum clinical validity confidence (default: 0.8)")
+    parser.add_argument(
+        "--min-confidence", type=float, default=0.8, help="Minimum clinical validity confidence (default: 0.8)"
+    )
     parser.add_argument("--concurrency", type=int, default=5)
     parser.add_argument("--data-dir", type=str, default=None)
     parser.add_argument("--output-dir", type=str, default=None)
@@ -216,7 +222,7 @@ async def main():
 
     for symptom, config in SYMPTOM_CONFIGS.items():
         current_count = len(train[train["label"] == symptom])
-        logger.info(f"\n{'='*60}")
+        logger.info(f"\n{'=' * 60}")
         logger.info(f"{symptom}: {current_count} existing samples")
         logger.info(f"Generating {args.count} candidates with {args.gen_model}")
 
@@ -254,31 +260,37 @@ async def main():
 
         for sentence, validation in results:
             if validation and validation.get("valid") and float(validation.get("confidence", 0)) >= args.min_confidence:
-                validated.append({
-                    "sentence": sentence,
-                    "confidence": float(validation["confidence"]),
-                    "reason": validation.get("reason", ""),
-                })
+                validated.append(
+                    {
+                        "sentence": sentence,
+                        "confidence": float(validation["confidence"]),
+                        "reason": validation.get("reason", ""),
+                    }
+                )
 
-        logger.info(f"  Clinically validated: {len(validated)}/{len(candidates)} ({len(validated)/max(len(candidates),1)*100:.0f}%)")
+        logger.info(
+            f"  Clinically validated: {len(validated)}/{len(candidates)} ({len(validated) / max(len(candidates), 1) * 100:.0f}%)"
+        )
 
         # Show some examples
         for v in validated[:3]:
-            logger.info(f"    ✓ conf={v['confidence']:.2f} \"{v['sentence'][:70]}...\"")
+            logger.info(f'    ✓ conf={v["confidence"]:.2f} "{v["sentence"][:70]}..."')
 
         # Add to results
         label_id = config["label_id"]
         for v in validated:
-            all_new.append({
-                "post_id": f"clin_{symptom.lower()}_{len(all_new)}",
-                "sentence_id": f"clin_s_{symptom.lower()}_{len(all_new)}",
-                "sentence_text": v["sentence"],
-                "clean_text": v["sentence"],
-                "label": symptom,
-                "label_id": label_id,
-                "source": "clinical_validated",
-                "similarity_score": v["confidence"],
-            })
+            all_new.append(
+                {
+                    "post_id": f"clin_{symptom.lower()}_{len(all_new)}",
+                    "sentence_id": f"clin_s_{symptom.lower()}_{len(all_new)}",
+                    "sentence_text": v["sentence"],
+                    "clean_text": v["sentence"],
+                    "label": symptom,
+                    "label_id": label_id,
+                    "source": "clinical_validated",
+                    "similarity_score": v["confidence"],
+                }
+            )
 
     new_df = pd.DataFrame(all_new)
 
@@ -296,9 +308,9 @@ async def main():
         combined_aug = new_df
 
     # Report
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("CLINICAL-FILTERED AUGMENTATION COMPLETE")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"New clinically validated samples: {len(new_df)}")
     for symptom in SYMPTOM_CONFIGS:
         count = len(new_df[new_df["label"] == symptom])

@@ -72,20 +72,127 @@ def detect_non_english(text: str) -> bool:
     Uses a small set of the most common English words as a proxy.
     """
     common_words = {
-        "the", "be", "to", "of", "and", "a", "in", "that", "have", "i",
-        "it", "for", "not", "on", "with", "he", "as", "you", "do", "at",
-        "this", "but", "his", "by", "from", "they", "we", "say", "her",
-        "she", "or", "an", "will", "my", "one", "all", "would", "there",
-        "their", "what", "so", "up", "out", "if", "about", "who", "get",
-        "which", "go", "me", "when", "make", "can", "like", "time", "no",
-        "just", "him", "know", "take", "people", "into", "year", "your",
-        "good", "some", "could", "them", "see", "other", "than", "then",
-        "now", "look", "only", "come", "its", "over", "think", "also",
-        "back", "after", "use", "two", "how", "our", "work", "first",
-        "well", "way", "even", "new", "want", "because", "any", "these",
-        "give", "day", "most", "us", "am", "been", "was", "is", "are",
-        "don", "feel", "really", "life", "much", "very", "still", "never",
-        "going", "help", "being", "too", "need", "had", "did", "has",
+        "the",
+        "be",
+        "to",
+        "of",
+        "and",
+        "a",
+        "in",
+        "that",
+        "have",
+        "i",
+        "it",
+        "for",
+        "not",
+        "on",
+        "with",
+        "he",
+        "as",
+        "you",
+        "do",
+        "at",
+        "this",
+        "but",
+        "his",
+        "by",
+        "from",
+        "they",
+        "we",
+        "say",
+        "her",
+        "she",
+        "or",
+        "an",
+        "will",
+        "my",
+        "one",
+        "all",
+        "would",
+        "there",
+        "their",
+        "what",
+        "so",
+        "up",
+        "out",
+        "if",
+        "about",
+        "who",
+        "get",
+        "which",
+        "go",
+        "me",
+        "when",
+        "make",
+        "can",
+        "like",
+        "time",
+        "no",
+        "just",
+        "him",
+        "know",
+        "take",
+        "people",
+        "into",
+        "year",
+        "your",
+        "good",
+        "some",
+        "could",
+        "them",
+        "see",
+        "other",
+        "than",
+        "then",
+        "now",
+        "look",
+        "only",
+        "come",
+        "its",
+        "over",
+        "think",
+        "also",
+        "back",
+        "after",
+        "use",
+        "two",
+        "how",
+        "our",
+        "work",
+        "first",
+        "well",
+        "way",
+        "even",
+        "new",
+        "want",
+        "because",
+        "any",
+        "these",
+        "give",
+        "day",
+        "most",
+        "us",
+        "am",
+        "been",
+        "was",
+        "is",
+        "are",
+        "don",
+        "feel",
+        "really",
+        "life",
+        "much",
+        "very",
+        "still",
+        "never",
+        "going",
+        "help",
+        "being",
+        "too",
+        "need",
+        "had",
+        "did",
+        "has",
     }
     words = text.lower().split()
     if len(words) < 5:
@@ -225,7 +332,7 @@ def main():
     print(f"  Estimated tokens (~0.75 words/token): {int(total_words / 0.75):,}")
     print(f"  Avg chars/chunk: {total_chars / len(quality_chunks):.0f}")
     print(f"  Avg words/chunk: {total_words / len(quality_chunks):.0f}")
-    print(f"  Median chars: {sorted(lengths)[len(lengths)//2]}")
+    print(f"  Median chars: {sorted(lengths)[len(lengths) // 2]}")
     print(f"  Min chars: {min(lengths)}, Max chars: {max(lengths)}")
 
     # Length distribution buckets
@@ -280,13 +387,15 @@ def main():
     print(f"  Validation report: {corpus_dir / 'validation_report.json'}")
 
     # ── VERDICT ────────────────────────────────────────────────────────────
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     if len(leaked) > 0:
         print("VERDICT: FAIL — Data leakage detected. Must remove leaked chunks before DAPT.")
     else:
         removed = len(chunks) - len(quality_chunks)
-        print(f"VERDICT: PASS — No leakage. Removed {removed} chunks ({removed/len(chunks)*100:.1f}%) for quality.")
-        print(f"Cleaned corpus: {len(quality_chunks)} chunks, {total_words:,} words, ~{int(total_words/0.75):,} tokens")
+        print(f"VERDICT: PASS — No leakage. Removed {removed} chunks ({removed / len(chunks) * 100:.1f}%) for quality.")
+        print(
+            f"Cleaned corpus: {len(quality_chunks)} chunks, {total_words:,} words, ~{int(total_words / 0.75):,} tokens"
+        )
     print("=" * 60)
 
 

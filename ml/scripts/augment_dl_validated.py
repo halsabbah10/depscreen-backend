@@ -115,7 +115,9 @@ async def main():
     label_map = meta["label_map"]
 
     dl_model = SymptomClassifier(num_classes=11, model_name=str(base_dir / "models" / "v2_dapt_base"))
-    dl_model.load_state_dict(torch.load(base_dir / "models" / "baseline_v1" / "symptom_classifier.pt", map_location=device))
+    dl_model.load_state_dict(
+        torch.load(base_dir / "models" / "baseline_v1" / "symptom_classifier.pt", map_location=device)
+    )
     dl_model.to(device)
     tokenizer = AutoTokenizer.from_pretrained(str(base_dir / "models" / "v2_dapt_base"))
 
@@ -131,7 +133,7 @@ async def main():
     all_new = []
 
     for symptom, config in TARGETS.items():
-        print(f"\n{'='*50}")
+        print(f"\n{'=' * 50}")
         print(f"{symptom} (label_id={config['label_id']})")
 
         # Generate
@@ -142,22 +144,24 @@ async def main():
         # DL-model validate
         print("  Validating with DL model (top-3, min_prob=0.1)...")
         passed = validate_with_model(candidates, config["label_id"], dl_model, tokenizer, device)
-        print(f"  Passed: {len(passed)}/{len(candidates)} ({len(passed)/max(len(candidates),1)*100:.0f}%)")
+        print(f"  Passed: {len(passed)}/{len(candidates)} ({len(passed) / max(len(candidates), 1) * 100:.0f}%)")
 
         for s, p in passed[:5]:
-            print(f"    prob={p:.3f} \"{s[:70]}\"")
+            print(f'    prob={p:.3f} "{s[:70]}"')
 
         for sent, prob in passed:
-            all_new.append({
-                "post_id": f"dlval_{symptom.lower()}_{len(all_new)}",
-                "sentence_id": f"dlval_s_{symptom.lower()}_{len(all_new)}",
-                "sentence_text": sent,
-                "clean_text": sent,
-                "label": symptom,
-                "label_id": config["label_id"],
-                "source": "dl_validated",
-                "similarity_score": prob,
-            })
+            all_new.append(
+                {
+                    "post_id": f"dlval_{symptom.lower()}_{len(all_new)}",
+                    "sentence_id": f"dlval_s_{symptom.lower()}_{len(all_new)}",
+                    "sentence_text": sent,
+                    "clean_text": sent,
+                    "label": symptom,
+                    "label_id": config["label_id"],
+                    "source": "dl_validated",
+                    "similarity_score": prob,
+                }
+            )
 
     new_df = pd.DataFrame(all_new)
 
@@ -175,7 +179,7 @@ async def main():
         combined = new_df
         combined.to_csv(aug_dir / "augmented_samples_final.csv", index=False)
 
-    print(f"\n{'='*50}")
+    print(f"\n{'=' * 50}")
     print("COMPLETE")
     print(f"New DL-validated: {len(new_df)}")
     for sym in TARGETS:

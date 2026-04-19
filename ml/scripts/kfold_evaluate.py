@@ -160,12 +160,17 @@ def train_one_fold(
 
     num_workers = 0 if device.type == "mps" else 2
     train_loader = DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True,
-        collate_fn=train_collate, num_workers=num_workers,
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        collate_fn=train_collate,
+        num_workers=num_workers,
     )
     val_loader = DataLoader(
-        val_dataset, batch_size=batch_size,
-        collate_fn=collate_fn, num_workers=num_workers,
+        val_dataset,
+        batch_size=batch_size,
+        collate_fn=collate_fn,
+        num_workers=num_workers,
     )
 
     # Model (fresh for each fold)
@@ -177,6 +182,7 @@ def train_one_fold(
     # Class weights for this fold's training data
     if loss_type == "effective_num" or loss_type == "focal":
         from distillation_utils import compute_effective_number_weights
+
         class_counts = train_df["label_id"].value_counts().to_dict()
         weight_tensor = compute_effective_number_weights(class_counts, num_classes, effective_num_beta)
         weight_tensor = weight_tensor.to(device)
@@ -192,6 +198,7 @@ def train_one_fold(
     if loss_type == "focal":
         if soft_labels is not None:
             from distillation_utils import FocalDistillationLoss
+
             criterion = FocalDistillationLoss(
                 alpha=distill_alpha,
                 temperature=distill_temperature,
@@ -199,13 +206,17 @@ def train_one_fold(
                 class_weights=weight_tensor,
                 label_smoothing=label_smoothing,
             )
-            logger.info(f"  Using focal+distillation loss (γ={focal_gamma}, α={distill_alpha}, T={distill_temperature}, ls={label_smoothing})")
+            logger.info(
+                f"  Using focal+distillation loss (γ={focal_gamma}, α={distill_alpha}, T={distill_temperature}, ls={label_smoothing})"
+            )
         else:
             from distillation_utils import FocalLoss
+
             criterion = FocalLoss(gamma=focal_gamma, class_weights=weight_tensor, label_smoothing=label_smoothing)
             logger.info(f"  Using focal loss (γ={focal_gamma}, ls={label_smoothing})")
     elif soft_labels is not None:
         from distillation_utils import DistillationLoss
+
         per_class_alpha = None
         if hard_label_classes:
             per_class_alpha = {cls_id: 1.0 for cls_id in hard_label_classes}
@@ -218,7 +229,9 @@ def train_one_fold(
         )
         if label_smoothing > 0:
             criterion.ce_loss = nn.CrossEntropyLoss(weight=weight_tensor, label_smoothing=label_smoothing)
-        logger.info(f"  Using {loss_type}+distillation loss (α={distill_alpha}, T={distill_temperature}, ls={label_smoothing})")
+        logger.info(
+            f"  Using {loss_type}+distillation loss (α={distill_alpha}, T={distill_temperature}, ls={label_smoothing})"
+        )
     else:
         criterion = nn.CrossEntropyLoss(weight=weight_tensor, label_smoothing=label_smoothing)
         logger.info(f"  Using CE loss (ls={label_smoothing})")
@@ -226,6 +239,7 @@ def train_one_fold(
     # Optimizer — LLRD or standard AdamW
     if use_llrd:
         from distillation_utils import build_llrd_param_groups
+
         param_groups = build_llrd_param_groups(model, lr=lr, decay_factor=0.8, weight_decay=0.01)
         optimizer = AdamW(param_groups)
         logger.info("  Using LLRD (decay=0.8, wd=0.01)")
@@ -243,11 +257,13 @@ def train_one_fold(
     fgm = None
     if use_fgm:
         from distillation_utils import FGM
+
         fgm = FGM(model, epsilon=fgm_epsilon)
         logger.info(f"  Using FGM adversarial training (ε={fgm_epsilon})")
 
     if use_rdrop:
         from distillation_utils import compute_rdrop_loss
+
         logger.info(f"  Using R-Drop regularization (α={rdrop_alpha})")
 
     # SWA: accumulate weights from good epochs
@@ -255,7 +271,7 @@ def train_one_fold(
     swa_start_epoch = max(2, epochs // 2)  # Start averaging from halfway
     swa_states = []
     if use_swa:
-        logger.info(f"  Using SWA (averaging from epoch {swa_start_epoch+1})")
+        logger.info(f"  Using SWA (averaging from epoch {swa_start_epoch + 1})")
 
     # Threshold tuning
     use_threshold_tuning = kwargs.get("threshold_tuning", False)
@@ -268,7 +284,7 @@ def train_one_fold(
         # Train
         model.train()
         total_loss = 0
-        for batch in tqdm(train_loader, desc=f"Fold {fold_idx+1} Epoch {epoch+1}", leave=False):
+        for batch in tqdm(train_loader, desc=f"Fold {fold_idx + 1} Epoch {epoch + 1}", leave=False):
             input_ids = batch["input_ids"].to(device)
             attention_mask = batch["attention_mask"].to(device)
             labels = batch["label"].to(device)
@@ -330,8 +346,8 @@ def train_one_fold(
         _, _, macro_f1, _ = precision_recall_fscore_support(all_labels, all_preds, average="macro")
 
         logger.info(
-            f"  Fold {fold_idx+1} Epoch {epoch+1}: "
-            f"loss={total_loss/len(train_loader):.4f} "
+            f"  Fold {fold_idx + 1} Epoch {epoch + 1}: "
+            f"loss={total_loss / len(train_loader):.4f} "
             f"micro_f1={micro_f1:.4f} macro_f1={macro_f1:.4f}"
         )
 
@@ -422,7 +438,11 @@ def train_one_fold(
     macro_p, macro_r, macro_f1, _ = precision_recall_fscore_support(all_labels, all_preds, average="macro")
 
     per_class_p, per_class_r, per_class_f1, per_class_support = precision_recall_fscore_support(
-        all_labels, all_preds, average=None, labels=list(range(num_classes)), zero_division=0,
+        all_labels,
+        all_preds,
+        average=None,
+        labels=list(range(num_classes)),
+        zero_division=0,
     )
 
     per_class = {}
@@ -462,9 +482,13 @@ def aggregate_cv_results(fold_results: list[dict]) -> dict:
     """Aggregate per-fold metrics into mean ± std."""
 
     scalar_keys = [
-        "accuracy", "micro_f1", "macro_f1",
-        "micro_precision", "micro_recall",
-        "macro_precision", "macro_recall",
+        "accuracy",
+        "micro_f1",
+        "macro_f1",
+        "micro_precision",
+        "micro_recall",
+        "macro_precision",
+        "macro_recall",
     ]
 
     aggregated = {}
@@ -535,29 +559,54 @@ def main():
     parser.add_argument("--max-negatives", type=int, default=400)
     parser.add_argument("--output-dir", type=str, default=None)
     parser.add_argument("--redsm5-dir", type=str, default=None)
-    parser.add_argument("--data-dir", type=str, default=None,
-                        help="Path to pre-split cleaned data dir (with train.csv, val.csv, metadata.json)")
-    parser.add_argument("--distill", type=str, default=None,
-                        help="Path to train_distilled.csv for knowledge distillation")
-    parser.add_argument("--distill-alpha", type=float, default=0.5,
-                        help="Weight for hard labels in distillation (default: 0.5)")
-    parser.add_argument("--distill-temperature", type=float, default=3.0,
-                        help="Temperature for softening distributions (default: 3.0)")
-    parser.add_argument("--loss-type", type=str, default="ce",
-                        choices=["ce", "effective_num", "focal"],
-                        help="Loss type: ce (inverse-freq), effective_num (Cui et al.), focal (Lin et al.)")
-    parser.add_argument("--label-smoothing", type=float, default=0.0,
-                        help="Label smoothing epsilon (default: 0.0, recommended: 0.1)")
-    parser.add_argument("--focal-gamma", type=float, default=2.0,
-                        help="Focal loss gamma (default: 2.0)")
-    parser.add_argument("--effective-num-beta", type=float, default=0.999,
-                        help="Effective number beta (default: 0.999)")
-    parser.add_argument("--augmented", type=str, default=None,
-                        help="Path to augmented_samples.csv (added to training only, never validation)")
-    parser.add_argument("--hard-label-classes", type=str, default=None,
-                        help="Comma-separated class IDs to use hard labels only (e.g. '4,7,9' for PSYCHOMOTOR,COGNITIVE,SPECIAL)")
-    parser.add_argument("--pooling", type=str, default="mean", choices=["cls", "mean", "cls_mean"],
-                        help="Pooling strategy: cls, mean (default), or cls_mean (concatenated)")
+    parser.add_argument(
+        "--data-dir",
+        type=str,
+        default=None,
+        help="Path to pre-split cleaned data dir (with train.csv, val.csv, metadata.json)",
+    )
+    parser.add_argument(
+        "--distill", type=str, default=None, help="Path to train_distilled.csv for knowledge distillation"
+    )
+    parser.add_argument(
+        "--distill-alpha", type=float, default=0.5, help="Weight for hard labels in distillation (default: 0.5)"
+    )
+    parser.add_argument(
+        "--distill-temperature", type=float, default=3.0, help="Temperature for softening distributions (default: 3.0)"
+    )
+    parser.add_argument(
+        "--loss-type",
+        type=str,
+        default="ce",
+        choices=["ce", "effective_num", "focal"],
+        help="Loss type: ce (inverse-freq), effective_num (Cui et al.), focal (Lin et al.)",
+    )
+    parser.add_argument(
+        "--label-smoothing", type=float, default=0.0, help="Label smoothing epsilon (default: 0.0, recommended: 0.1)"
+    )
+    parser.add_argument("--focal-gamma", type=float, default=2.0, help="Focal loss gamma (default: 2.0)")
+    parser.add_argument(
+        "--effective-num-beta", type=float, default=0.999, help="Effective number beta (default: 0.999)"
+    )
+    parser.add_argument(
+        "--augmented",
+        type=str,
+        default=None,
+        help="Path to augmented_samples.csv (added to training only, never validation)",
+    )
+    parser.add_argument(
+        "--hard-label-classes",
+        type=str,
+        default=None,
+        help="Comma-separated class IDs to use hard labels only (e.g. '4,7,9' for PSYCHOMOTOR,COGNITIVE,SPECIAL)",
+    )
+    parser.add_argument(
+        "--pooling",
+        type=str,
+        default="mean",
+        choices=["cls", "mean", "cls_mean"],
+        help="Pooling strategy: cls, mean (default), or cls_mean (concatenated)",
+    )
     parser.add_argument("--llrd", action="store_true", help="Enable layer-wise learning rate decay")
     parser.add_argument("--fgm", action="store_true", help="Enable FGM adversarial training")
     parser.add_argument("--fgm-epsilon", type=float, default=0.5, help="FGM perturbation epsilon")
@@ -629,6 +678,7 @@ def main():
     distill_lookup = None
     if args.distill:
         from distillation_utils import load_soft_labels_for_df
+
         logger.info(f"Distillation enabled: loading soft labels from {args.distill}")
         # We load the full distilled CSV once, then subset per fold
         distilled_df = pd.read_csv(args.distill)
@@ -648,9 +698,9 @@ def main():
     fold_results = []
 
     for fold_idx, (train_post_idx, val_post_idx) in enumerate(mskf.split(post_df["post_id"], label_matrix)):
-        logger.info(f"\n{'='*60}")
+        logger.info(f"\n{'=' * 60}")
         logger.info(f"FOLD {fold_idx + 1}/{args.k}")
-        logger.info(f"{'='*60}")
+        logger.info(f"{'=' * 60}")
 
         # Map post indices back to sentence-level data
         train_post_ids = set(post_df.iloc[train_post_idx]["post_id"])
@@ -664,7 +714,9 @@ def main():
 
         # Add augmented data to training only (never validation)
         if augmented_df is not None:
-            aug_with_cols = augmented_df[["post_id", "sentence_id", "sentence_text", "clean_text", "label", "label_id"]].copy()
+            aug_with_cols = augmented_df[
+                ["post_id", "sentence_id", "sentence_text", "clean_text", "label", "label_id"]
+            ].copy()
             train_df = pd.concat([train_df, aug_with_cols], ignore_index=True)
             train_df = train_df.sample(frac=1, random_state=42 + fold_idx).reset_index(drop=True)
 
@@ -713,7 +765,9 @@ def main():
             label_smoothing=args.label_smoothing,
             focal_gamma=args.focal_gamma,
             effective_num_beta=args.effective_num_beta,
-            hard_label_classes=[int(x) for x in args.hard_label_classes.split(",")] if args.hard_label_classes else None,
+            hard_label_classes=[int(x) for x in args.hard_label_classes.split(",")]
+            if args.hard_label_classes
+            else None,
             pooling=args.pooling,
             swa=args.swa,
             threshold_tuning=args.threshold_tuning,
@@ -727,7 +781,7 @@ def main():
         fold_results.append(fold_metrics)
 
         logger.info(
-            f"  Fold {fold_idx+1} DONE: "
+            f"  Fold {fold_idx + 1} DONE: "
             f"micro_f1={fold_metrics['micro_f1']:.4f}, "
             f"macro_f1={fold_metrics['macro_f1']:.4f}"
         )
@@ -769,8 +823,10 @@ def main():
     # Summary line for quick reference
     micro = aggregated["micro_f1"]
     macro = aggregated["macro_f1"]
-    print(f"\nFINAL: Micro-F1 = {micro['mean']:.4f} ± {micro['std']:.4f}, "
-          f"Macro-F1 = {macro['mean']:.4f} ± {macro['std']:.4f}")
+    print(
+        f"\nFINAL: Micro-F1 = {micro['mean']:.4f} ± {micro['std']:.4f}, "
+        f"Macro-F1 = {macro['mean']:.4f} ± {macro['std']:.4f}"
+    )
 
 
 if __name__ == "__main__":

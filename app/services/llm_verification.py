@@ -76,9 +76,9 @@ class VerificationService:
             },
         )
         # Per-task model assignment
-        self.model_evidence = settings.llm_model_flash      # Structured task
-        self.model_adversarial = settings.llm_model_pro      # Reasoning-heavy, security
-        self.model_confidence = settings.llm_model_flash     # Pattern matching
+        self.model_evidence = settings.llm_model_flash  # Structured task
+        self.model_adversarial = settings.llm_model_pro  # Reasoning-heavy, security
+        self.model_confidence = settings.llm_model_flash  # Pattern matching
         # Fallback for any code that references self.model directly
         self.model = settings.llm_model_flash
 

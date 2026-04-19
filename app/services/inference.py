@@ -319,6 +319,7 @@ class ModelService:
                 logger.info(f"Loaded ensemble model: {model_label} from {sub_dir}")
             except Exception as e:
                 import traceback
+
                 logger.error(f"Failed to load ensemble model {model_label}: {e}")
                 logger.error(traceback.format_exc())
 
@@ -366,8 +367,11 @@ class ModelService:
                 all_probs = []
                 for model, tok in zip(self.ensemble_models, self.ensemble_tokenizers, strict=False):
                     encoding = tok(
-                        sentence, truncation=True, max_length=self.max_length,
-                        return_tensors="pt", padding=True,
+                        sentence,
+                        truncation=True,
+                        max_length=self.max_length,
+                        return_tensors="pt",
+                        padding=True,
                     )
                     input_ids = encoding["input_ids"].to(self.device)
                     attention_mask = encoding["attention_mask"].to(self.device)
@@ -397,8 +401,11 @@ class ModelService:
             else:
                 # Single model
                 encoding = self.tokenizer(
-                    sentence, truncation=True, max_length=self.max_length,
-                    return_tensors="pt", padding=True,
+                    sentence,
+                    truncation=True,
+                    max_length=self.max_length,
+                    return_tensors="pt",
+                    padding=True,
                 )
                 input_ids = encoding["input_ids"].to(self.device)
                 attention_mask = encoding["attention_mask"].to(self.device)

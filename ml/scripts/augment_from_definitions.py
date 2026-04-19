@@ -112,7 +112,7 @@ async def generate_sentences(
                         all_sentences.extend([s for s in sentences if isinstance(s, str) and len(s) > 20])
                         break
             except Exception as e:
-                logger.warning(f"  Attempt {attempt+1} failed: {e}")
+                logger.warning(f"  Attempt {attempt + 1} failed: {e}")
                 await asyncio.sleep(2)
 
         await asyncio.sleep(1)
@@ -135,9 +135,7 @@ def filter_by_similarity(
 
     passed = []
     for _i, (sent, emb) in enumerate(zip(new_sentences, new_emb)):
-        sims = np.dot(exist_emb, emb) / (
-            np.linalg.norm(exist_emb, axis=1) * np.linalg.norm(emb)
-        )
+        sims = np.dot(exist_emb, emb) / (np.linalg.norm(exist_emb, axis=1) * np.linalg.norm(emb))
         max_sim_score = float(np.max(sims))
 
         if min_sim <= max_sim_score <= max_sim:
@@ -183,7 +181,7 @@ async def main():
     for symptom, config in GENERATION_PROMPTS.items():
         # PSYCHOMOTOR gets 2x volume because paraphrasing barely works for this class
         count = args.count * 2 if symptom == "PSYCHOMOTOR" else args.count
-        logger.info(f"\n{'='*50}")
+        logger.info(f"\n{'=' * 50}")
         logger.info(f"Generating {count} new {symptom} sentences from definition")
 
         # Generate
@@ -200,22 +198,26 @@ async def main():
         logger.info(f"  Filtering [{args.min_similarity}, {args.max_similarity}]...")
 
         passed = filter_by_similarity(
-            sentences, existing,
-            min_sim=args.min_similarity, max_sim=args.max_similarity,
+            sentences,
+            existing,
+            min_sim=args.min_similarity,
+            max_sim=args.max_similarity,
         )
-        logger.info(f"  Passed: {len(passed)}/{len(sentences)} ({len(passed)/max(len(sentences),1)*100:.0f}%)")
+        logger.info(f"  Passed: {len(passed)}/{len(sentences)} ({len(passed) / max(len(sentences), 1) * 100:.0f}%)")
 
         for sent, sim in passed:
-            all_new.append({
-                "post_id": f"defgen_{symptom.lower()}_{len(all_new)}",
-                "sentence_id": f"defgen_s_{symptom.lower()}_{len(all_new)}",
-                "sentence_text": sent,
-                "clean_text": sent,
-                "label": symptom,
-                "label_id": config["label_id"],
-                "source": "definition_generated",
-                "similarity_score": sim,
-            })
+            all_new.append(
+                {
+                    "post_id": f"defgen_{symptom.lower()}_{len(all_new)}",
+                    "sentence_id": f"defgen_s_{symptom.lower()}_{len(all_new)}",
+                    "sentence_text": sent,
+                    "clean_text": sent,
+                    "label": symptom,
+                    "label_id": config["label_id"],
+                    "source": "definition_generated",
+                    "similarity_score": sim,
+                }
+            )
 
     new_df = pd.DataFrame(all_new)
     new_df.to_csv(output_dir / "definition_generated.csv", index=False)
@@ -239,9 +241,9 @@ async def main():
     else:
         new_df.to_csv(output_dir / "augmented_samples_v2.csv", index=False)
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("DEFINITION-BASED GENERATION COMPLETE")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"New sentences generated: {len(new_df)}")
     for symptom in GENERATION_PROMPTS:
         count = len(new_df[new_df["label"] == symptom])

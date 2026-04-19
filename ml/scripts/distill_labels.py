@@ -167,9 +167,7 @@ def build_user_prompt(sentence: str) -> str:
 
 def build_system_prompt() -> str:
     """Build the full system prompt with DSM-5 definitions + few-shot examples."""
-    definitions = "\n".join(
-        f"- **{name}**: {desc}" for name, desc in CLASS_DEFINITIONS.items()
-    )
+    definitions = "\n".join(f"- **{name}**: {desc}" for name, desc in CLASS_DEFINITIONS.items())
     return SYSTEM_PROMPT + definitions + "\n" + FEW_SHOT_EXAMPLES
 
 
@@ -201,7 +199,7 @@ async def get_soft_label(
 
             content = response.choices[0].message.content
             if not content:
-                logger.warning(f"  Empty response (attempt {attempt+1})")
+                logger.warning(f"  Empty response (attempt {attempt + 1})")
                 continue
 
             # Robust JSON extraction — handles markdown fences, trailing text,
@@ -235,7 +233,7 @@ async def get_soft_label(
             if set(parsed.keys()) != expected_keys:
                 missing = expected_keys - set(parsed.keys())
                 extra = set(parsed.keys()) - expected_keys
-                logger.warning(f"  Key mismatch: missing={missing}, extra={extra} (attempt {attempt+1})")
+                logger.warning(f"  Key mismatch: missing={missing}, extra={extra} (attempt {attempt + 1})")
                 continue
 
             # Validate values are floats
@@ -246,21 +244,21 @@ async def get_soft_label(
             # Normalize to sum to 1.0 (Pro sometimes gives 0.99 or 1.01)
             total = sum(probs.values())
             if total <= 0:
-                logger.warning(f"  All-zero probabilities (attempt {attempt+1})")
+                logger.warning(f"  All-zero probabilities (attempt {attempt + 1})")
                 continue
             probs = {k: v / total for k, v in probs.items()}
 
             return probs
 
         except json.JSONDecodeError as e:
-            logger.warning(f"  JSON parse error: {e} (attempt {attempt+1})")
+            logger.warning(f"  JSON parse error: {e} (attempt {attempt + 1})")
         except Exception as e:
             if "429" in str(e):
                 wait = 30 * (attempt + 1)
                 logger.warning(f"  Rate limited, waiting {wait}s...")
                 await asyncio.sleep(wait)
             else:
-                logger.warning(f"  API error: {e} (attempt {attempt+1})")
+                logger.warning(f"  API error: {e} (attempt {attempt + 1})")
                 await asyncio.sleep(2)
 
     return None
@@ -388,15 +386,17 @@ def pilot_analysis(
         if pro_label == human_label:
             agreements.append(i)
         else:
-            disagreements.append({
-                "index": i,
-                "sentence": row["clean_text"][:100],
-                "human": human_label,
-                "pro_argmax": pro_label,
-                "pro_confidence": probs[pro_label],
-                "human_prob": probs[human_label],
-                "entropy": entropy,
-            })
+            disagreements.append(
+                {
+                    "index": i,
+                    "sentence": row["clean_text"][:100],
+                    "human": human_label,
+                    "pro_argmax": pro_label,
+                    "pro_confidence": probs[pro_label],
+                    "human_prob": probs[human_label],
+                    "entropy": entropy,
+                }
+            )
 
     # Cohen's Kappa
     kappa = cohen_kappa_score(human_labels, pro_labels)
@@ -468,7 +468,7 @@ def print_pilot_report(report: dict):
             )
 
     # Go/no-go
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     if kappa >= 0.60 and report["success_rate"] >= 0.90:
         print("VERDICT: GO — Soft labels are reliable. Proceed to full generation.")
     elif kappa >= 0.40 and report["success_rate"] >= 0.80:
@@ -540,7 +540,7 @@ async def main():
         start = time.time()
         soft_labels = await process_batch(client, sentences, args.model, args.concurrency)
         elapsed = time.time() - start
-        logger.info(f"Completed in {elapsed:.1f}s ({elapsed/n:.1f}s/sample)")
+        logger.info(f"Completed in {elapsed:.1f}s ({elapsed / n:.1f}s/sample)")
 
         # Analyze
         report = pilot_analysis(pilot_df, soft_labels, n)
@@ -606,7 +606,10 @@ async def main():
         logger.info(f"Calling {args.model} for {len(sentences)} sentences (delay={args.delay}s)...")
         start = time.time()
         soft_labels = await process_batch(
-            client, sentences, args.model, args.concurrency,
+            client,
+            sentences,
+            args.model,
+            args.concurrency,
             delay=args.delay,
             resume_from=resume_from,
             sentence_ids=sentence_ids,
@@ -616,7 +619,7 @@ async def main():
 
         # Count successes
         valid = sum(1 for s in soft_labels if s is not None)
-        logger.info(f"Completed in {elapsed:.1f}s. Valid: {valid}/{len(sentences)} ({valid/len(sentences):.1%})")
+        logger.info(f"Completed in {elapsed:.1f}s. Valid: {valid}/{len(sentences)} ({valid / len(sentences):.1%})")
 
         # Save soft labels alongside training data
         soft_label_rows = []

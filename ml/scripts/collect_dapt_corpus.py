@@ -25,21 +25,21 @@ logger = logging.getLogger(__name__)
 
 # Subreddits with high volume of depression/mental-health-related self-posts
 DAPT_SUBREDDITS = [
-    "depression",         # Core — highest relevance
-    "mentalhealth",       # Broad mental health discussion
-    "anxiety",            # Anxiety often co-occurs with depression
-    "SuicideWatch",       # Crisis/suicidal ideation content
-    "lonely",             # Isolation, social withdrawal
-    "offmychest",         # Personal venting, emotional expression
-    "TrueOffMyChest",     # Same
-    "selfharm",           # Self-harm discussion
-    "bipolar",            # Mood disorders
-    "ptsd",               # Trauma-related
-    "socialanxiety",      # Social withdrawal
-    "grief",              # Loss and bereavement
-    "insomnia",           # Sleep issues (DSM-5 criterion)
-    "chronicpain",        # Fatigue, psychomotor (DSM-5 criteria)
-    "decidingtobebetter", # Recovery language
+    "depression",  # Core — highest relevance
+    "mentalhealth",  # Broad mental health discussion
+    "anxiety",  # Anxiety often co-occurs with depression
+    "SuicideWatch",  # Crisis/suicidal ideation content
+    "lonely",  # Isolation, social withdrawal
+    "offmychest",  # Personal venting, emotional expression
+    "TrueOffMyChest",  # Same
+    "selfharm",  # Self-harm discussion
+    "bipolar",  # Mood disorders
+    "ptsd",  # Trauma-related
+    "socialanxiety",  # Social withdrawal
+    "grief",  # Loss and bereavement
+    "insomnia",  # Sleep issues (DSM-5 criterion)
+    "chronicpain",  # Fatigue, psychomotor (DSM-5 criteria)
+    "decidingtobebetter",  # Recovery language
 ]
 
 USER_AGENT = "DepScreen-DAPT/1.0 (Academic Research; Domain Pre-training Corpus Collection)"
@@ -173,13 +173,9 @@ def fetch_subreddit_posts(
 def main():
     parser = argparse.ArgumentParser(description="Collect DAPT corpus from Reddit")
     parser.add_argument("--output-dir", type=str, default=None)
+    parser.add_argument("--target-per-sub", type=int, default=5000, help="Target posts per subreddit (default: 5000)")
     parser.add_argument(
-        "--target-per-sub", type=int, default=5000,
-        help="Target posts per subreddit (default: 5000)"
-    )
-    parser.add_argument(
-        "--min-text-length", type=int, default=50,
-        help="Minimum text length in characters (default: 50)"
+        "--min-text-length", type=int, default=50, help="Minimum text length in characters (default: 50)"
     )
     args = parser.parse_args()
 
@@ -197,7 +193,7 @@ def main():
     stats = {}
 
     for i, subreddit in enumerate(DAPT_SUBREDDITS):
-        logger.info(f"\n[{i+1}/{len(DAPT_SUBREDDITS)}] Collecting r/{subreddit}...")
+        logger.info(f"\n[{i + 1}/{len(DAPT_SUBREDDITS)}] Collecting r/{subreddit}...")
 
         texts = fetch_subreddit_posts(
             subreddit=subreddit,
@@ -222,17 +218,21 @@ def main():
     # Save stats
     stats_file = output_dir / "collection_stats.json"
     with open(stats_file, "w") as f:
-        json.dump({
-            "total_posts": len(all_texts),
-            "total_chars": sum(len(t) for t in all_texts),
-            "avg_chars_per_post": sum(len(t) for t in all_texts) / max(len(all_texts), 1),
-            "per_subreddit": stats,
-            "min_text_length": args.min_text_length,
-        }, f, indent=2)
+        json.dump(
+            {
+                "total_posts": len(all_texts),
+                "total_chars": sum(len(t) for t in all_texts),
+                "avg_chars_per_post": sum(len(t) for t in all_texts) / max(len(all_texts), 1),
+                "per_subreddit": stats,
+                "min_text_length": args.min_text_length,
+            },
+            f,
+            indent=2,
+        )
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("COLLECTION COMPLETE")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"Total posts: {len(all_texts)}")
     print(f"Total chars: {sum(len(t) for t in all_texts):,}")
     print("\nPer subreddit:")

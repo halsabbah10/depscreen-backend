@@ -70,20 +70,23 @@ def train_model(train_df, model_name, label, epochs, batch_size, lr, max_length,
 
     # Effective-number weights
     from distillation_utils import compute_effective_number_weights
+
     class_counts = train_df["label_id"].value_counts().to_dict()
     weight_tensor = compute_effective_number_weights(class_counts, num_classes, 0.999).to(device)
     criterion = nn.CrossEntropyLoss(weight=weight_tensor, label_smoothing=0.1)
 
     optimizer = AdamW(model.parameters(), lr=lr)
     total_steps = len(loader) * epochs
-    scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=total_steps // 10, num_training_steps=total_steps)
+    scheduler = get_linear_schedule_with_warmup(
+        optimizer, num_warmup_steps=total_steps // 10, num_training_steps=total_steps
+    )
 
     # Train — no validation (full data, CV already gave performance estimate)
     for epoch in range(epochs):
         model.train()
         total_loss = 0
         all_preds, all_labels = [], []
-        for batch in tqdm(loader, desc=f"  {label} epoch {epoch+1}/{epochs}", leave=False):
+        for batch in tqdm(loader, desc=f"  {label} epoch {epoch + 1}/{epochs}", leave=False):
             input_ids = batch["input_ids"].to(device)
             attention_mask = batch["attention_mask"].to(device)
             labels_batch = batch["label"].to(device)
@@ -99,8 +102,9 @@ def train_model(train_df, model_name, label, epochs, batch_size, lr, max_length,
             all_labels.extend(labels_batch.cpu().numpy())
 
         from sklearn.metrics import accuracy_score
+
         train_acc = accuracy_score(all_labels, all_preds)
-        logger.info(f"  {label} epoch {epoch+1}: loss={total_loss/len(loader):.4f} train_acc={train_acc:.4f}")
+        logger.info(f"  {label} epoch {epoch + 1}: loss={total_loss / len(loader):.4f} train_acc={train_acc:.4f}")
 
     # Save model
     model_dir = output_dir / label
@@ -128,6 +132,7 @@ def train_model(train_df, model_name, label, epochs, batch_size, lr, max_length,
 
     del model
     import gc
+
     gc.collect()
     if device.type == "mps":
         torch.mps.empty_cache()
@@ -167,12 +172,17 @@ def main():
     # Train each model
     model_dirs = []
     for model_cfg in MODELS:
-        logger.info(f"\n{'='*50}")
+        logger.info(f"\n{'=' * 50}")
         logger.info(f"Training {model_cfg['label']} on full data")
         model_dir = train_model(
-            full_data, model_cfg["name"], model_cfg["label"],
-            epochs=7, batch_size=model_cfg["batch_size"],
-            lr=3e-5, max_length=128, device=device,
+            full_data,
+            model_cfg["name"],
+            model_cfg["label"],
+            epochs=7,
+            batch_size=model_cfg["batch_size"],
+            lr=3e-5,
+            max_length=128,
+            device=device,
             output_dir=output_dir,
         )
         model_dirs.append(model_dir)
@@ -188,10 +198,7 @@ def main():
 
     ensemble_meta = {
         "type": "soft_vote_ensemble",
-        "models": [
-            {"name": m["name"], "label": m["label"], "dir": str(output_dir / m["label"])}
-            for m in MODELS
-        ],
+        "models": [{"name": m["name"], "label": m["label"], "dir": str(output_dir / m["label"])} for m in MODELS],
         "label_map": SYMPTOM_LABELS,
         "label_readable": SYMPTOM_READABLE,
         "num_classes": len(SYMPTOM_LABELS),
@@ -224,9 +231,9 @@ def main():
     with open(output_dir / "ensemble_metadata.json", "w") as f:
         json.dump(ensemble_meta, f, indent=2)
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("PRODUCTION MODELS TRAINED")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"Output: {output_dir}")
     print(f"Models: {', '.join(m['label'] for m in MODELS)}")
     print(f"Training samples: {len(full_data)}")

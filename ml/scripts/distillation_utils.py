@@ -229,6 +229,7 @@ def load_soft_labels_for_df(
 
     if missing_count > 0:
         import logging
+
         logging.getLogger(__name__).warning(
             f"  {missing_count}/{len(train_df)} samples missing soft labels — using one-hot fallback"
         )
@@ -257,7 +258,7 @@ def compute_effective_number_weights(
     weights = torch.zeros(num_classes)
     for label_id in range(num_classes):
         n = class_counts.get(label_id, 1)
-        effective_n = 1.0 - (beta ** n)
+        effective_n = 1.0 - (beta**n)
         weights[label_id] = (1.0 - beta) / effective_n
 
     # Normalize so weights sum to num_classes (same scale as inverse-freq)
@@ -417,7 +418,7 @@ def build_llrd_param_groups(
             param_groups.append({"params": no_decay_params, "lr": layer_lr, "weight_decay": 0.0})
 
     # Embeddings (lowest lr)
-    emb_lr = lr * (decay_factor ** num_layers)
+    emb_lr = lr * (decay_factor**num_layers)
     emb_decay = []
     emb_no_decay = []
     for name, param in model.named_parameters():

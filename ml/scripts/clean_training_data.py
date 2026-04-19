@@ -31,17 +31,17 @@ logger = logging.getLogger(__name__)
 # 2. More specific (APPETITE_CHANGE > DEPRESSED_MOOD)
 # 3. Rarer in the dataset (helps balance)
 SALIENCE_PRIORITY = {
-    "SUICIDAL_THOUGHTS": 10,   # Always prioritize — safety critical
-    "PSYCHOMOTOR": 9,          # Rare + specific observable behavior
-    "APPETITE_CHANGE": 8,      # Rare + specific physical symptom
-    "COGNITIVE_ISSUES": 7,     # Rare + specific cognitive symptom
-    "SLEEP_ISSUES": 6,         # Specific physical symptom
-    "FATIGUE": 5,              # Specific but overlaps with many
-    "ANHEDONIA": 4,            # Core DSM-5 criterion
-    "WORTHLESSNESS": 3,        # Common but specific
-    "SPECIAL_CASE": 2,         # Catch-all
-    "DEPRESSED_MOOD": 1,       # Most general — everything overlaps with this
-    "NO_SYMPTOM": 0,           # Lowest priority — if ANY symptom is present, it's not "no symptom"
+    "SUICIDAL_THOUGHTS": 10,  # Always prioritize — safety critical
+    "PSYCHOMOTOR": 9,  # Rare + specific observable behavior
+    "APPETITE_CHANGE": 8,  # Rare + specific physical symptom
+    "COGNITIVE_ISSUES": 7,  # Rare + specific cognitive symptom
+    "SLEEP_ISSUES": 6,  # Specific physical symptom
+    "FATIGUE": 5,  # Specific but overlaps with many
+    "ANHEDONIA": 4,  # Core DSM-5 criterion
+    "WORTHLESSNESS": 3,  # Common but specific
+    "SPECIAL_CASE": 2,  # Catch-all
+    "DEPRESSED_MOOD": 1,  # Most general — everything overlaps with this
+    "NO_SYMPTOM": 0,  # Lowest priority — if ANY symptom is present, it's not "no symptom"
 }
 
 # Sentences that are clearly mislabeled based on manual review.
@@ -120,10 +120,7 @@ def apply_manual_fixes(df: pd.DataFrame) -> pd.DataFrame:
     indices_to_drop = []
 
     for text_prefix, wrong_label, correct_label in MANUAL_FIXES:
-        mask = (
-            df["clean_text"].str.startswith(text_prefix, na=False)
-            & (df["label"] == wrong_label)
-        )
+        mask = df["clean_text"].str.startswith(text_prefix, na=False) & (df["label"] == wrong_label)
         matching = df[mask]
 
         if len(matching) == 0:
@@ -136,6 +133,7 @@ def apply_manual_fixes(df: pd.DataFrame) -> pd.DataFrame:
         else:
             # Fix the label
             from preprocess_redsm5 import SYMPTOM_LABELS
+
             df.loc[mask, "label"] = correct_label
             df.loc[mask, "label_id"] = SYMPTOM_LABELS[correct_label]
             fixed += len(matching)
@@ -152,11 +150,13 @@ def flag_suspicious_short(df: pd.DataFrame, min_length: int = 15) -> list[dict]:
     short = df[df["clean_text"].str.len() < min_length]
     flagged = []
     for _, row in short.iterrows():
-        flagged.append({
-            "text": row["clean_text"],
-            "label": row["label"],
-            "length": len(row["clean_text"]),
-        })
+        flagged.append(
+            {
+                "text": row["clean_text"],
+                "label": row["label"],
+                "length": len(row["clean_text"]),
+            }
+        )
     if flagged:
         logger.info(f"  Flagged {len(flagged)} very short sentences (<{min_length} chars) — kept but noted")
     return flagged
@@ -203,6 +203,7 @@ def main():
 
     # ── Recompute class weights ──
     from preprocess_redsm5 import SYMPTOM_LABELS, SYMPTOM_READABLE
+
     counts = train["label_id"].value_counts().sort_index()
     total = len(train)
     n_classes = len(SYMPTOM_LABELS)
@@ -244,9 +245,9 @@ def main():
         json.dump(flagged, f, indent=2)
 
     # ── Report ──
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("CLEANING COMPLETE")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print("Original training samples: 1591")
     print(f"After cleaning:            {len(train)}")
     print(f"Removed:                   {1591 - len(train)}")

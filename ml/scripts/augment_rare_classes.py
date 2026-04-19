@@ -228,9 +228,7 @@ def compute_similarity_filter(
     passed = []
     for _i, (para, para_emb) in enumerate(zip(paraphrases, para_embeddings)):
         # Find max similarity to any original
-        sims = np.dot(orig_embeddings, para_emb) / (
-            np.linalg.norm(orig_embeddings, axis=1) * np.linalg.norm(para_emb)
-        )
+        sims = np.dot(orig_embeddings, para_emb) / (np.linalg.norm(orig_embeddings, axis=1) * np.linalg.norm(para_emb))
         max_sim_score = float(np.max(sims))
 
         if min_sim <= max_sim_score <= max_sim:
@@ -249,10 +247,18 @@ async def main():
     parser.add_argument("--concurrency", type=int, default=4)
     parser.add_argument("--min-similarity", type=float, default=0.70)
     parser.add_argument("--max-similarity", type=float, default=0.95)
-    parser.add_argument("--psychomotor-min-sim", type=float, default=0.50,
-                        help="Lower similarity threshold for PSYCHOMOTOR (default: 0.50)")
-    parser.add_argument("--cognitive-min-sim", type=float, default=0.55,
-                        help="Lower similarity threshold for COGNITIVE_ISSUES (default: 0.55)")
+    parser.add_argument(
+        "--psychomotor-min-sim",
+        type=float,
+        default=0.50,
+        help="Lower similarity threshold for PSYCHOMOTOR (default: 0.50)",
+    )
+    parser.add_argument(
+        "--cognitive-min-sim",
+        type=float,
+        default=0.55,
+        help="Lower similarity threshold for COGNITIVE_ISSUES (default: 0.55)",
+    )
     parser.add_argument("--data-dir", type=str, default=None)
     parser.add_argument("--output-dir", type=str, default=None)
     args = parser.parse_args()
@@ -296,13 +302,13 @@ async def main():
 
     # ── Per-class similarity thresholds ──
     CLASS_MIN_SIM = {
-        "PSYCHOMOTOR": args.psychomotor_min_sim,      # 0.50 — physical symptoms are semantically diverse
-        "COGNITIVE_ISSUES": args.cognitive_min_sim,    # 0.55 — cognitive symptoms vary widely
+        "PSYCHOMOTOR": args.psychomotor_min_sim,  # 0.50 — physical symptoms are semantically diverse
+        "COGNITIVE_ISSUES": args.cognitive_min_sim,  # 0.55 — cognitive symptoms vary widely
     }
 
     # Per-class paraphrase multiplier (generate more for rarest classes)
     CLASS_VOLUME_MULTIPLIER = {
-        "PSYCHOMOTOR": 3,       # 27 sources → need 3x volume to overcome filter
+        "PSYCHOMOTOR": 3,  # 27 sources → need 3x volume to overcome filter
         "COGNITIVE_ISSUES": 2,  # 43 sources → need 2x
     }
 
@@ -311,7 +317,7 @@ async def main():
     semaphore = asyncio.Semaphore(args.concurrency)
 
     for cls, needed in target_classes.items():
-        logger.info(f"\n{'='*50}")
+        logger.info(f"\n{'=' * 50}")
         logger.info(f"Augmenting {cls} (need {needed} more)")
 
         # Get existing sentences for this class
@@ -335,7 +341,11 @@ async def main():
             nonlocal done
             async with _semaphore:
                 result = await generate_paraphrases(
-                    client, sentence, _cls, n=_n_per, model=args.model,
+                    client,
+                    sentence,
+                    _cls,
+                    n=_n_per,
+                    model=args.model,
                 )
                 await asyncio.sleep(args.delay)
                 done += 1
@@ -362,23 +372,29 @@ async def main():
         # Similarity filter with per-class threshold
         logger.info(f"  Filtering by similarity [{min_sim}, {args.max_similarity}]...")
         passed = compute_similarity_filter(
-            originals_for_filter, raw_paraphrases,
-            min_sim=min_sim, max_sim=args.max_similarity,
+            originals_for_filter,
+            raw_paraphrases,
+            min_sim=min_sim,
+            max_sim=args.max_similarity,
         )
-        logger.info(f"  Passed filter: {len(passed)}/{len(raw_paraphrases)} ({len(passed)/max(len(raw_paraphrases),1)*100:.0f}%)")
+        logger.info(
+            f"  Passed filter: {len(passed)}/{len(raw_paraphrases)} ({len(passed) / max(len(raw_paraphrases), 1) * 100:.0f}%)"
+        )
 
         # Take only what we need
         selected = passed[:needed]
         logger.info(f"  Selected: {len(selected)} (target was {needed})")
 
         for para, sim in selected:
-            all_augmented.append({
-                "clean_text": para,
-                "label": cls,
-                "label_id": train_df[train_df["label"] == cls]["label_id"].iloc[0],
-                "source": "augmented",
-                "similarity_score": sim,
-            })
+            all_augmented.append(
+                {
+                    "clean_text": para,
+                    "label": cls,
+                    "label_id": train_df[train_df["label"] == cls]["label_id"].iloc[0],
+                    "source": "augmented",
+                    "similarity_score": sim,
+                }
+            )
 
     # ── Definition-based generation for classes where paraphrasing underperforms ──
     DEFINITION_TARGETS = {
@@ -394,8 +410,10 @@ async def main():
         if still_needed <= 0:
             continue
 
-        logger.info(f"\n{'='*50}")
-        logger.info(f"Definition-based generation for {def_cls} (paraphrasing got {already}, still need {still_needed})")
+        logger.info(f"\n{'=' * 50}")
+        logger.info(
+            f"Definition-based generation for {def_cls} (paraphrasing got {already}, still need {still_needed})"
+        )
 
         definition = DSM5_DEFINITIONS.get(def_cls, "")
         gen_prompt = (
@@ -434,40 +452,47 @@ async def main():
                         cls_min_sim = CLASS_MIN_SIM.get(def_cls, args.min_similarity)
                         existing = train_df[train_df["label"] == def_cls]["clean_text"].tolist()
                         passed_def = compute_similarity_filter(
-                            existing, def_sentences,
-                            min_sim=cls_min_sim, max_sim=args.max_similarity,
+                            existing,
+                            def_sentences,
+                            min_sim=cls_min_sim,
+                            max_sim=args.max_similarity,
                         )
                         logger.info(f"  Generated {len(def_sentences)}, passed filter: {len(passed_def)}")
 
                         label_id = int(train_df[train_df["label"] == def_cls]["label_id"].iloc[0])
                         for para, sim in passed_def[:still_needed]:
-                            all_augmented.append({
-                                "clean_text": para,
-                                "label": def_cls,
-                                "label_id": label_id,
-                                "source": "definition_generated",
-                                "similarity_score": sim,
-                            })
+                            all_augmented.append(
+                                {
+                                    "clean_text": para,
+                                    "label": def_cls,
+                                    "label_id": label_id,
+                                    "source": "definition_generated",
+                                    "similarity_score": sim,
+                                }
+                            )
                         break
             except Exception as e:
-                logger.warning(f"  Definition generation attempt {attempt+1} failed: {e}")
+                logger.warning(f"  Definition generation attempt {attempt + 1} failed: {e}")
                 await asyncio.sleep(2)
 
         final_count = len([a for a in all_augmented if a["label"] == def_cls])
         logger.info(f"  {def_cls} total augmented: {final_count}")
 
     # ── Generate indirect suicidal ideation ──
-    logger.info(f"\n{'='*50}")
+    logger.info(f"\n{'=' * 50}")
     logger.info(f"Generating {args.indirect_suicidal_count} indirect suicidal ideation examples")
 
     indirect_examples = await generate_indirect_suicidal(
-        client, n=args.indirect_suicidal_count, model=args.model,
+        client,
+        n=args.indirect_suicidal_count,
+        model=args.model,
     )
 
     # Filter against existing suicidal_thoughts sentences
     existing_suicidal = train_df[train_df["label"] == "SUICIDAL_THOUGHTS"]["clean_text"].tolist()
     passed_indirect = compute_similarity_filter(
-        existing_suicidal, indirect_examples,
+        existing_suicidal,
+        indirect_examples,
         min_sim=0.50,  # Lower threshold for indirect (different phrasing by design)
         max_sim=0.95,
     )
@@ -475,13 +500,15 @@ async def main():
 
     suicidal_label_id = int(train_df[train_df["label"] == "SUICIDAL_THOUGHTS"]["label_id"].iloc[0])
     for para, sim in passed_indirect:
-        all_augmented.append({
-            "clean_text": para,
-            "label": "SUICIDAL_THOUGHTS",
-            "label_id": suicidal_label_id,
-            "source": "augmented_indirect",
-            "similarity_score": sim,
-        })
+        all_augmented.append(
+            {
+                "clean_text": para,
+                "label": "SUICIDAL_THOUGHTS",
+                "label_id": suicidal_label_id,
+                "source": "augmented_indirect",
+                "similarity_score": sim,
+            }
+        )
 
     # ── Save augmented data ──
     aug_df = pd.DataFrame(all_augmented)
@@ -524,9 +551,9 @@ async def main():
         json.dump(meta, f, indent=2)
 
     # Report
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("AUGMENTATION COMPLETE")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"Original training samples: {len(train_df)}")
     print(f"Augmented samples added:   {len(aug_df)}")
     print(f"Combined training set:     {len(combined)}")

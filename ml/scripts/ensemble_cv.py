@@ -56,11 +56,15 @@ def train_single_model(train_df, val_df, model_name, epochs, batch_size, lr, max
 
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-    train_dataset = SymptomDataset(train_df["clean_text"].tolist(), train_df["label_id"].tolist(), tokenizer, max_length)
+    train_dataset = SymptomDataset(
+        train_df["clean_text"].tolist(), train_df["label_id"].tolist(), tokenizer, max_length
+    )
     val_dataset = SymptomDataset(val_df["clean_text"].tolist(), val_df["label_id"].tolist(), tokenizer, max_length)
 
     num_workers = 0 if device.type == "mps" else 2
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn, num_workers=num_workers)
+    train_loader = DataLoader(
+        train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn, num_workers=num_workers
+    )
     val_loader = DataLoader(val_dataset, batch_size=batch_size, collate_fn=collate_fn, num_workers=num_workers)
 
     model = SymptomClassifier(num_classes=num_classes, model_name=model_name, pooling="mean")
@@ -68,20 +72,23 @@ def train_single_model(train_df, val_df, model_name, epochs, batch_size, lr, max
 
     # Effective-number weights
     from distillation_utils import compute_effective_number_weights
+
     class_counts = train_df["label_id"].value_counts().to_dict()
     weight_tensor = compute_effective_number_weights(class_counts, num_classes, 0.999).to(device)
     criterion = nn.CrossEntropyLoss(weight=weight_tensor, label_smoothing=0.1)
 
     optimizer = AdamW(model.parameters(), lr=lr)
     total_steps = len(train_loader) * epochs
-    scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=total_steps // 10, num_training_steps=total_steps)
+    scheduler = get_linear_schedule_with_warmup(
+        optimizer, num_warmup_steps=total_steps // 10, num_training_steps=total_steps
+    )
 
     best_val_f1 = 0
     best_state = None
 
     for epoch in range(epochs):
         model.train()
-        for batch in tqdm(train_loader, desc=f"  {model_name.split('/')[-1]} E{epoch+1}", leave=False):
+        for batch in tqdm(train_loader, desc=f"  {model_name.split('/')[-1]} E{epoch + 1}", leave=False):
             input_ids = batch["input_ids"].to(device)
             attention_mask = batch["attention_mask"].to(device)
             labels = batch["label"].to(device)
@@ -122,6 +129,7 @@ def train_single_model(train_df, val_df, model_name, epochs, batch_size, lr, max
 
     del model, best_state
     import gc
+
     gc.collect()
     if device.type == "mps":
         torch.mps.empty_cache()
@@ -137,12 +145,17 @@ def evaluate_predictions(all_labels, all_preds, num_classes, label_names):
     micro_p, micro_r, micro_f1, _ = precision_recall_fscore_support(all_labels, all_preds, average="micro")
     macro_p, macro_r, macro_f1, _ = precision_recall_fscore_support(all_labels, all_preds, average="macro")
     per_class_p, per_class_r, per_class_f1, per_class_support = precision_recall_fscore_support(
-        all_labels, all_preds, average=None, labels=list(range(num_classes)), zero_division=0)
+        all_labels, all_preds, average=None, labels=list(range(num_classes)), zero_division=0
+    )
 
     per_class = {}
     for i, name in enumerate(label_names):
-        per_class[name] = {"f1": float(per_class_f1[i]), "precision": float(per_class_p[i]),
-                           "recall": float(per_class_r[i]), "support": int(per_class_support[i])}
+        per_class[name] = {
+            "f1": float(per_class_f1[i]),
+            "precision": float(per_class_p[i]),
+            "recall": float(per_class_r[i]),
+            "support": int(per_class_support[i]),
+        }
 
     return {"accuracy": accuracy, "micro_f1": micro_f1, "macro_f1": macro_f1, "per_class": per_class}
 
@@ -164,7 +177,9 @@ def main():
     # Load data
     train_full = pd.read_csv(data_dir / "train.csv")
     val_full = pd.read_csv(data_dir / "val.csv")
-    combined = pd.concat([train_full, val_full], ignore_index=True).sample(frac=1, random_state=42).reset_index(drop=True)
+    combined = (
+        pd.concat([train_full, val_full], ignore_index=True).sample(frac=1, random_state=42).reset_index(drop=True)
+    )
 
     # Load augmented
     augmented_df = None
@@ -185,9 +200,9 @@ def main():
     fold_results = []
 
     for fold_idx, (train_post_idx, val_post_idx) in enumerate(mskf.split(post_df["post_id"], label_matrix)):
-        logger.info(f"\n{'='*60}")
-        logger.info(f"FOLD {fold_idx+1}/{args.k}")
-        logger.info(f"{'='*60}")
+        logger.info(f"\n{'=' * 60}")
+        logger.info(f"FOLD {fold_idx + 1}/{args.k}")
+        logger.info(f"{'=' * 60}")
 
         train_post_ids = set(post_df.iloc[train_post_idx]["post_id"])
         val_post_ids = set(post_df.iloc[val_post_idx]["post_id"])
@@ -204,13 +219,14 @@ def main():
 
         # Train all 3 models and collect probabilities
         import gc
+
         model_probs = []
         for model_cfg in ENSEMBLE_MODELS:
             logger.info(f"  Training {model_cfg['label']}...")
             bs = model_cfg.get("batch_size", args.batch_size)
             probs, labels, best_f1 = train_single_model(
-                train_df, val_df, model_cfg["name"],
-                args.epochs, bs, args.lr, 128, device)
+                train_df, val_df, model_cfg["name"], args.epochs, bs, args.lr, 128, device
+            )
             model_probs.append(probs)
             logger.info(f"    Best val micro-F1: {best_f1:.4f}")
             # Aggressive memory cleanup between models
@@ -234,11 +250,13 @@ def main():
         ens_metrics = evaluate_predictions(labels, ensemble_preds, num_classes, label_names)
         logger.info(f"    ENSEMBLE: micro={ens_metrics['micro_f1']:.4f} macro={ens_metrics['macro_f1']:.4f}")
 
-        fold_results.append({
-            "fold": fold_idx + 1,
-            "individual": individual_metrics,
-            "ensemble": ens_metrics,
-        })
+        fold_results.append(
+            {
+                "fold": fold_idx + 1,
+                "individual": individual_metrics,
+                "ensemble": ens_metrics,
+            }
+        )
 
         # Collect for aggregated threshold tuning
         all_fold_probs.append(ensemble_probs)
@@ -247,20 +265,25 @@ def main():
         # Aggressive cleanup between folds
         del model_probs, ensemble_probs, ensemble_preds
         import gc
+
         gc.collect()
         if device.type == "mps":
             torch.mps.empty_cache()
 
     # Aggregate results
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("ENSEMBLE CV RESULTS (SOFT-VOTE)")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
 
     ens_micros = [f["ensemble"]["micro_f1"] for f in fold_results]
     ens_macros = [f["ensemble"]["macro_f1"] for f in fold_results]
 
-    print(f"\nEnsemble Micro-F1: {np.mean(ens_micros):.4f} ± {np.std(ens_micros):.4f}  [{', '.join(f'{v:.3f}' for v in ens_micros)}]")
-    print(f"Ensemble Macro-F1: {np.mean(ens_macros):.4f} ± {np.std(ens_macros):.4f}  [{', '.join(f'{v:.3f}' for v in ens_macros)}]")
+    print(
+        f"\nEnsemble Micro-F1: {np.mean(ens_micros):.4f} ± {np.std(ens_micros):.4f}  [{', '.join(f'{v:.3f}' for v in ens_micros)}]"
+    )
+    print(
+        f"Ensemble Macro-F1: {np.mean(ens_macros):.4f} ± {np.std(ens_macros):.4f}  [{', '.join(f'{v:.3f}' for v in ens_macros)}]"
+    )
 
     # Per-model comparison
     print("\nPer-model averages:")
@@ -268,7 +291,9 @@ def main():
         label = model_cfg["label"]
         micros = [f["individual"][label]["micro_f1"] for f in fold_results]
         macros = [f["individual"][label]["macro_f1"] for f in fold_results]
-        print(f"  {label:<20} micro={np.mean(micros):.4f}±{np.std(micros):.4f}  macro={np.mean(macros):.4f}±{np.std(macros):.4f}")
+        print(
+            f"  {label:<20} micro={np.mean(micros):.4f}±{np.std(micros):.4f}  macro={np.mean(macros):.4f}±{np.std(macros):.4f}"
+        )
 
     # Per-class ensemble results
     print("\nEnsemble Per-Class F1:")
@@ -279,9 +304,9 @@ def main():
         print(f"{cls:<25} {np.mean(f1s):>8.4f} {np.std(f1s):>8.4f}")
 
     # Aggregated threshold tuning
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("AGGREGATED THRESHOLD TUNING")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
 
     all_probs = np.concatenate(all_fold_probs, axis=0)
     all_labels_flat = np.concatenate(all_fold_labels, axis=0)

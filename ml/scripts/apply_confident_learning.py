@@ -117,6 +117,7 @@ def main():
 
     # Recompute class weights
     from preprocess_redsm5 import SYMPTOM_LABELS, SYMPTOM_READABLE
+
     counts = train["label_id"].value_counts().sort_index()
     total = len(train)
     n_classes = len(SYMPTOM_LABELS)
@@ -154,9 +155,9 @@ def main():
         json.dump(new_metadata, f, indent=2)
 
     # Report
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("CONFIDENT LEARNING APPLIED")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print("Original cleaned: 1514")
     print(f"After CL:         {len(train)}")
     print(f"  Relabeled:      {relabeled}")

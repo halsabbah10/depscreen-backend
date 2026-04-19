@@ -53,10 +53,12 @@ class TextDataset(Dataset):
                 max_length=max_length,
                 return_tensors="pt",
             )
-            self.encodings.append({
-                "input_ids": enc["input_ids"].squeeze(),
-                "attention_mask": enc["attention_mask"].squeeze(),
-            })
+            self.encodings.append(
+                {
+                    "input_ids": enc["input_ids"].squeeze(),
+                    "attention_mask": enc["attention_mask"].squeeze(),
+                }
+            )
 
     def __len__(self):
         return len(self.encodings)
@@ -157,12 +159,17 @@ def main():
 
     num_workers = 0 if device.type == "mps" else 2
     train_loader = DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=True,
-        collate_fn=data_collator, num_workers=num_workers,
+        train_dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+        collate_fn=data_collator,
+        num_workers=num_workers,
     )
     eval_loader = DataLoader(
-        eval_dataset, batch_size=args.batch_size,
-        collate_fn=data_collator, num_workers=num_workers,
+        eval_dataset,
+        batch_size=args.batch_size,
+        collate_fn=data_collator,
+        num_workers=num_workers,
     )
 
     # Optimizer + scheduler
@@ -188,7 +195,7 @@ def main():
         total_loss = 0
         n_batches = 0
 
-        for batch in tqdm(train_loader, desc=f"DAPT Epoch {epoch+1}/{args.epochs}"):
+        for batch in tqdm(train_loader, desc=f"DAPT Epoch {epoch + 1}/{args.epochs}"):
             input_ids = batch["input_ids"].to(device)
             attention_mask = batch["attention_mask"].to(device)
             labels = batch["labels"].to(device)
@@ -209,7 +216,7 @@ def main():
         eval_ppl = evaluate_perplexity(model, eval_loader, device)
 
         logger.info(
-            f"Epoch {epoch+1}: train_loss={avg_train_loss:.4f}, "
+            f"Epoch {epoch + 1}: train_loss={avg_train_loss:.4f}, "
             f"eval_perplexity={eval_ppl:.2f} "
             f"(pre-DAPT was {pre_dapt_ppl:.2f})"
         )
@@ -228,6 +235,7 @@ def main():
 
     # Save DAPT metadata
     import json
+
     dapt_meta = {
         "base_model": args.model_name,
         "epochs": args.epochs,
@@ -244,9 +252,9 @@ def main():
     with open(output_dir / "dapt_metadata.json", "w") as f:
         json.dump(dapt_meta, f, indent=2)
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("DAPT COMPLETE")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"Pre-DAPT perplexity:  {pre_dapt_ppl:.2f}")
     print(f"Post-DAPT perplexity: {best_ppl:.2f}")
     print(f"Reduction:            {((pre_dapt_ppl - best_ppl) / pre_dapt_ppl) * 100:.1f}%")

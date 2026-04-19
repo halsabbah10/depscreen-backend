@@ -28,9 +28,17 @@ logger = logging.getLogger(__name__)
 
 # Label order (must match training)
 LABEL_NAMES = [
-    "DEPRESSED_MOOD", "ANHEDONIA", "APPETITE_CHANGE", "SLEEP_ISSUES",
-    "PSYCHOMOTOR", "FATIGUE", "WORTHLESSNESS", "COGNITIVE_ISSUES",
-    "SUICIDAL_THOUGHTS", "SPECIAL_CASE", "NO_SYMPTOM",
+    "DEPRESSED_MOOD",
+    "ANHEDONIA",
+    "APPETITE_CHANGE",
+    "SLEEP_ISSUES",
+    "PSYCHOMOTOR",
+    "FATIGUE",
+    "WORTHLESSNESS",
+    "COGNITIVE_ISSUES",
+    "SUICIDAL_THOUGHTS",
+    "SPECIAL_CASE",
+    "NO_SYMPTOM",
 ]
 
 
@@ -61,9 +69,9 @@ def ensemble_from_cv_results(results_paths: list[Path]) -> dict:
     n_folds = len(all_results[0]["data"]["per_fold"])
     n_models = len(all_results)
 
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print(f"ENSEMBLE ANALYSIS — {n_models} Models × {n_folds} Folds")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
 
     # Per-fold comparison
     print(f"\n{'Fold':<6}", end="")
@@ -77,7 +85,7 @@ def ensemble_from_cv_results(results_paths: list[Path]) -> dict:
     print("\nMicro-F1:")
     fold_ensemble_micro = []
     for fold_idx in range(n_folds):
-        print(f"  F{fold_idx+1}  ", end="")
+        print(f"  F{fold_idx + 1}  ", end="")
         fold_micros = []
         for r in all_results:
             m = r["data"]["per_fold"][fold_idx]["micro_f1"]
@@ -91,7 +99,7 @@ def ensemble_from_cv_results(results_paths: list[Path]) -> dict:
     print("\nMacro-F1:")
     fold_ensemble_macro = []
     for fold_idx in range(n_folds):
-        print(f"  F{fold_idx+1}  ", end="")
+        print(f"  F{fold_idx + 1}  ", end="")
         fold_macros = []
         for r in all_results:
             m = r["data"]["per_fold"][fold_idx]["macro_f1"]
@@ -102,9 +110,9 @@ def ensemble_from_cv_results(results_paths: list[Path]) -> dict:
         print(f"  {avg:>15.4f}")
 
     # Summary
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("INDIVIDUAL MODEL SUMMARY")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     print(f"{'Model':<25} {'Micro-F1':>12} {'Macro-F1':>12}")
     print("-" * 50)
     for r in all_results:
@@ -121,16 +129,16 @@ def ensemble_from_cv_results(results_paths: list[Path]) -> dict:
     ens_macro_mean = np.mean(fold_ensemble_macro)
     ens_macro_std = np.std(fold_ensemble_macro)
 
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("ENSEMBLE ESTIMATE (metric averaging — conservative lower bound)")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     print(f"Micro-F1: {ens_micro_mean:.4f} ± {ens_micro_std:.4f}")
     print(f"Macro-F1: {ens_macro_mean:.4f} ± {ens_macro_std:.4f}")
 
     # Per-class analysis: which model wins per class
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("PER-CLASS BEST MODEL")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     print(f"{'Symptom':<25}", end="")
     for r in all_results:
         name = r["name"].split("/")[-1][:12]
@@ -156,9 +164,9 @@ def ensemble_from_cv_results(results_paths: list[Path]) -> dict:
         print(f"  {best_name:>12}")
 
     # Theoretical soft-vote ensemble: average the per-class F1s as upper bound
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("THEORETICAL ENSEMBLE PER-CLASS F1 (best-of-3 upper bound)")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     ensemble_per_class = {}
     for cls in LABEL_NAMES:
         cls_f1s = []
