@@ -32,8 +32,11 @@ class Settings(BaseSettings):
     # ── LLM ────────────────────────────────────────────────────────────────
     llm_api_key: str = ""
     llm_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
-    llm_model: str = "gemini-2.5-flash-lite"
-    llm_timeout_seconds: int = 60
+    llm_model: str = "gemini-3-flash-preview"  # Default / fallback
+    llm_model_pro: str = "gemini-3.1-pro-preview"  # Reasoning: adversarial, explanation, secondary symptoms
+    llm_model_flash: str = "gemini-3-flash-preview"  # Balanced: chat, evidence validation, confidence
+    llm_model_lite: str = "gemini-3.1-flash-lite-preview"  # Utility: auto-title, lightweight tasks
+    llm_timeout_seconds: int = 120  # Bumped for Pro reasoning latency
     llm_max_retries: int = 3
 
     # ── Email (Resend) ─────────────────────────────────────────────────────
@@ -56,7 +59,7 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./app.db"
 
     # ── Model Paths ────────────────────────────────────────────────────────
-    model_path: Path = Path("./ml/models")
+    model_path: Path = Path("./ml/models/v_production_ensemble")
     symptom_model_name: str = "symptom_classifier.pt"
     symptom_metadata_name: str = "redsm5_metadata.json"
 

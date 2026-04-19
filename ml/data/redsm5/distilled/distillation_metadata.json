@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-flash-preview",
+  "total_samples": 1591,
+  "valid_soft_labels": 1498,
+  "invalid_soft_labels": 93,
+  "success_rate": 0.9415461973601509,
+  "elapsed_seconds": 4095.118503808975,
+  "avg_seconds_per_sample": 2.5739274065424107
+}

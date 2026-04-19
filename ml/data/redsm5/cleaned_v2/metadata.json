@@ -1,0 +1,68 @@
+{
+  "label_map": {
+    "DEPRESSED_MOOD": 0,
+    "ANHEDONIA": 1,
+    "APPETITE_CHANGE": 2,
+    "SLEEP_ISSUES": 3,
+    "PSYCHOMOTOR": 4,
+    "FATIGUE": 5,
+    "WORTHLESSNESS": 6,
+    "COGNITIVE_ISSUES": 7,
+    "SUICIDAL_THOUGHTS": 8,
+    "SPECIAL_CASE": 9,
+    "NO_SYMPTOM": 10
+  },
+  "label_readable": {
+    "DEPRESSED_MOOD": "Depressed Mood",
+    "ANHEDONIA": "Loss of Interest / Pleasure",
+    "APPETITE_CHANGE": "Appetite / Weight Change",
+    "SLEEP_ISSUES": "Sleep Disturbance",
+    "PSYCHOMOTOR": "Psychomotor Changes",
+    "FATIGUE": "Fatigue / Loss of Energy",
+    "WORTHLESSNESS": "Worthlessness / Guilt",
+    "COGNITIVE_ISSUES": "Difficulty Concentrating",
+    "SUICIDAL_THOUGHTS": "Suicidal Ideation",
+    "SPECIAL_CASE": "Other Clinical Indicator",
+    "NO_SYMPTOM": "No Symptom Detected"
+  },
+  "class_weights": {
+    "0": 0.462039752362333,
+    "1": 1.2277056277056277,
+    "2": 3.1441241685144123,
+    "3": 1.4484167517875384,
+    "4": 4.774410774410774,
+    "5": 1.1307814992025518,
+    "6": 0.4603896103896104,
+    "7": 2.9978858350951376,
+    "8": 0.7957351290684624,
+    "9": 2.2225705329153604,
+    "10": 0.5859504132231405
+  },
+  "num_classes": 11,
+  "total_samples": 1765,
+  "train_samples": 1418,
+  "val_samples": 178,
+  "test_samples": 169,
+  "confident_learning": {
+    "relabeled": 66,
+    "removed": 96,
+    "kept": 163,
+    "threshold_high": 0.85,
+    "threshold_medium": 0.7
+  },
+  "label_distribution": {
+    "train": {
+      "WORTHLESSNESS": 280,
+      "DEPRESSED_MOOD": 279,
+      "NO_SYMPTOM": 220,
+      "SUICIDAL_THOUGHTS": 162,
+      "FATIGUE": 114,
+      "ANHEDONIA": 105,
+      "SLEEP_ISSUES": 89,
+      "SPECIAL_CASE": 58,
+      "COGNITIVE_ISSUES": 43,
+      "APPETITE_CHANGE": 41,
+      "PSYCHOMOTOR": 27
+    }
+  }
+}

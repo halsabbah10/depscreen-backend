@@ -2,6 +2,31 @@
 
 All notable changes to the DepScreen backend. Dates in DD/MM/YYYY (Asia/Bahrain).
 
+## [2026-04-19] — ML: Production ensemble + hybrid LLM tiers
+
+### ML — 3-Model Ensemble (0.813 Micro-F1)
+- **Production ensemble**: DAPT'd DistilBERT + RoBERTa-base + DeBERTa-base with soft-vote averaging of softmax probabilities. Trained on 100% cleaned data (1,792 samples).
+- **Data cleaning breakthrough** (+11.4%): Confident learning found 189/324 NO_SYMPTOM were mislabeled symptoms. Conflict resolution (53), dedup (20), confident learning (66 relabeled, 96 removed), manual fixes (9).
+- **Per-class threshold tuning**: Aggregated across 5 CV folds. SUICIDAL_THOUGHTS threshold lowered to 0.05 (safety-critical).
+- **Safety override**: If SUICIDAL_THOUGHTS raw probability >= 0.15, always predict it — thresholds cannot override. A screening tool must never down-rank suicidal ideation.
+- **Inference service** updated: loads 3 models, averages softmax probs, applies thresholds with safety override.
+- **Mean pooling** replaced CLS token pooling (+0.5% F1). DistilBERT CLS was not pre-trained with NSP.
+- **DAPT**: Domain-adaptive pre-training on 39K Reddit mental health posts (perplexity 16.90 -> 7.59).
+- **Knowledge distillation**: Gemini 3 Flash soft labels (Cohen's Kappa 0.66), alpha=0.6.
+- **MODEL_REGISTRY.md**: Complete version history from baseline (0.677) through ensemble (0.813).
+
+### LLM — Hybrid Tier Strategy
+- **Gemini 3.1 Pro** (`gemini-3.1-pro-preview`): adversarial detection, explanation generation.
+- **Gemini 3 Flash** (`gemini-3-flash-preview`): chat, evidence validation, confidence calibration.
+- **Gemini 3.1 Flash-Lite** (`gemini-3.1-flash-lite-preview`): auto-title, lightweight tasks.
+- Per-task model routing in `llm_verification.py` and `chat.py`.
+- Migrated from OpenRouter to Google AI Studio direct (paid tier, higher RPM).
+
+### Docs
+- All figures regenerated: architecture, baseline comparison, per-class F1, improvement journey, precision-recall, class distribution.
+- README.md updated with ensemble architecture, improvement journey table, safety override documentation.
+- Slidev presentation fully rewritten for ensemble results — model choice, training pipeline, results, per-class, safety slides all reflect production ensemble.
+
 ## [Unreleased] — 2026-04-16
 
 ### Security

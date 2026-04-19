@@ -1,0 +1,1585 @@
+{
+  "models": [
+    "./ml/models/v2_dapt_base",
+    "roberta-base",
+    "microsoft/deberta-base"
+  ],
+  "ensemble_micro": {
+    "mean": 0.8124706505836785,
+    "std": 0.010182417765697428
+  },
+  "ensemble_macro": {
+    "mean": 0.7698645182373955,
+    "std": 0.01684723718624721
+  },
+  "thresholds": {
+    "DEPRESSED_MOOD": 0.25,
+    "ANHEDONIA": 0.45,
+    "APPETITE_CHANGE": 0.5,
+    "SLEEP_ISSUES": 0.55,
+    "PSYCHOMOTOR": 0.5,
+    "FATIGUE": 0.6000000000000001,
+    "WORTHLESSNESS": 0.4,
+    "COGNITIVE_ISSUES": 0.15000000000000002,
+    "SUICIDAL_THOUGHTS": 0.4,
+    "SPECIAL_CASE": 0.55,
+    "NO_SYMPTOM": 0.15000000000000002
+  },
+  "tuned_micro": 0.8195488721804511,
+  "tuned_macro": 0.7920019784532493,
+  "tuned_per_class": {
+    "DEPRESSED_MOOD": {
+      "f1": 0.8744326777609682,
+      "precision": 0.8352601156069365,
+      "recall": 0.9174603174603174,
+      "support": 315
+    },
+    "ANHEDONIA": {
+      "f1": 0.8384279475982532,
+      "precision": 0.8205128205128205,
+      "recall": 0.8571428571428571,
+      "support": 112
+    },
+    "APPETITE_CHANGE": {
+      "f1": 0.8247422680412371,
+      "precision": 0.7547169811320755,
+      "recall": 0.9090909090909091,
+      "support": 44
+    },
+    "SLEEP_ISSUES": {
+      "f1": 0.8930232558139535,
+      "precision": 0.8495575221238938,
+      "recall": 0.9411764705882353,
+      "support": 102
+    },
+    "PSYCHOMOTOR": {
+      "f1": 0.7272727272727273,
+      "precision": 0.6857142857142857,
+      "recall": 0.7741935483870968,
+      "support": 31
+    },
+    "FATIGUE": {
+      "f1": 0.8906882591093117,
+      "precision": 0.9090909090909091,
+      "recall": 0.873015873015873,
+      "support": 126
+    },
+    "WORTHLESSNESS": {
+      "f1": 0.9168026101141925,
+      "precision": 0.9273927392739274,
+      "recall": 0.9064516129032258,
+      "support": 310
+    },
+    "COGNITIVE_ISSUES": {
+      "f1": 0.6917293233082706,
+      "precision": 0.5609756097560976,
+      "recall": 0.9019607843137255,
+      "support": 51
+    },
+    "SUICIDAL_THOUGHTS": {
+      "f1": 0.9781420765027322,
+      "precision": 0.9728260869565217,
+      "recall": 0.9835164835164835,
+      "support": 182
+    },
+    "SPECIAL_CASE": {
+      "f1": 0.5689655172413793,
+      "precision": 0.673469387755102,
+      "recall": 0.4925373134328358,
+      "support": 67
+    },
+    "NO_SYMPTOM": {
+      "f1": 0.5077951002227171,
+      "precision": 0.5906735751295337,
+      "recall": 0.4453125,
+      "support": 256
+    }
+  },
+  "per_fold": [
+    {
+      "fold": 1,
+      "individual": {
+        "DAPT-DistilBERT": {
+          "accuracy": 0.7696629213483146,
+          "micro_f1": 0.7696629213483146,
+          "macro_f1": 0.7673305587310967,
+          "per_class": {
+            "DEPRESSED_MOOD": {
+              "f1": 0.8201438848920863,
+              "precision": 0.76,
+              "recall": 0.890625,
+              "support": 64
+            },
+            "ANHEDONIA": {
+              "f1": 0.8846153846153846,
+              "precision": 0.8518518518518519,
+              "recall": 0.92,
+              "support": 25
+            },
+            "APPETITE_CHANGE": {
+              "f1": 0.631578947368421,
+              "precision": 0.6,
+              "recall": 0.6666666666666666,
+              "support": 9
+            },
+            "SLEEP_ISSUES": {
+              "f1": 0.9302325581395349,
+              "precision": 0.9090909090909091,
+              "recall": 0.9523809523809523,
+              "support": 21
+            },
+            "PSYCHOMOTOR": {
+              "f1": 0.8571428571428571,
+              "precision": 0.75,
+              "recall": 1.0,
+              "support": 6
+            },
+            "FATIGUE": {
+              "f1": 0.88,
+              "precision": 0.88,
+              "recall": 0.88,
+              "support": 25
+            },
+            "WORTHLESSNESS": {
+              "f1": 0.831858407079646,
+              "precision": 0.8392857142857143,
+              "recall": 0.8245614035087719,
+              "support": 57
+            },
+            "COGNITIVE_ISSUES": {
+              "f1": 0.6086956521739131,
+              "precision": 0.5833333333333334,
+              "recall": 0.6363636363636364,
+              "support": 11
+            },
+            "SUICIDAL_THOUGHTS": {
+              "f1": 0.9859154929577465,
+              "precision": 0.9722222222222222,
+              "recall": 1.0,
+              "support": 35
+            },
+            "SPECIAL_CASE": {
+              "f1": 0.43902439024390244,
+              "precision": 0.34615384615384615,
+              "recall": 0.6,
+              "support": 15
+            },
+            "NO_SYMPTOM": {
+              "f1": 0.5714285714285714,
+              "precision": 0.711864406779661,
+              "recall": 0.4772727272727273,
+              "support": 88
+            }
+          }
+        },
+        "RoBERTa": {
+          "accuracy": 0.7808988764044944,
+          "micro_f1": 0.7808988764044944,
+          "macro_f1": 0.7742722407493342,
+          "per_class": {
+            "DEPRESSED_MOOD": {
+              "f1": 0.8285714285714286,
+              "precision": 0.7631578947368421,
+              "recall": 0.90625,
+              "support": 64
+            },
+            "ANHEDONIA": {
+              "f1": 0.8064516129032258,
+              "precision": 0.6756756756756757,
+              "recall": 1.0,
+              "support": 25
+            },
+            "APPETITE_CHANGE": {
+              "f1": 0.8,
+              "precision": 0.7272727272727273,
+              "recall": 0.8888888888888888,
+              "support": 9
+            },
+            "SLEEP_ISSUES": {
+              "f1": 0.9230769230769231,
+              "precision": 1.0,
+              "recall": 0.8571428571428571,
+              "support": 21
+            },
+            "PSYCHOMOTOR": {
+              "f1": 0.7058823529411765,
+              "precision": 0.5454545454545454,
+              "recall": 1.0,
+              "support": 6
+            },
+            "FATIGUE": {
+              "f1": 0.8695652173913043,
+              "precision": 0.9523809523809523,
+              "recall": 0.8,
+              "support": 25
+            },
+            "WORTHLESSNESS": {
+              "f1": 0.8672566371681416,
+              "precision": 0.875,
+              "recall": 0.8596491228070176,
+              "support": 57
+            },
+            "COGNITIVE_ISSUES": {
+              "f1": 0.64,
+              "precision": 0.5714285714285714,
+              "recall": 0.7272727272727273,
+              "support": 11
+            },
+            "SUICIDAL_THOUGHTS": {
+              "f1": 0.9428571428571428,
+              "precision": 0.9428571428571428,
+              "recall": 0.9428571428571428,
+              "support": 35
+            },
+            "SPECIAL_CASE": {
+              "f1": 0.5333333333333333,
+              "precision": 0.5333333333333333,
+              "recall": 0.5333333333333333,
+              "support": 15
+            },
+            "NO_SYMPTOM": {
+              "f1": 0.6,
+              "precision": 0.7258064516129032,
+              "recall": 0.5113636363636364,
+              "support": 88
+            }
+          }
+        },
+        "DeBERTa": {
+          "accuracy": 0.8033707865168539,
+          "micro_f1": 0.8033707865168539,
+          "macro_f1": 0.7857836859736529,
+          "per_class": {
+            "DEPRESSED_MOOD": {
+              "f1": 0.7943262411347518,
+              "precision": 0.7272727272727273,
+              "recall": 0.875,
+              "support": 64
+            },
+            "ANHEDONIA": {
+              "f1": 0.8771929824561403,
+              "precision": 0.78125,
+              "recall": 1.0,
+              "support": 25
+            },
+            "APPETITE_CHANGE": {
+              "f1": 0.6666666666666666,
+              "precision": 0.6666666666666666,
+              "recall": 0.6666666666666666,
+              "support": 9
+            },
+            "SLEEP_ISSUES": {
+              "f1": 0.9545454545454546,
+              "precision": 0.9130434782608695,
+              "recall": 1.0,
+              "support": 21
+            },
+            "PSYCHOMOTOR": {
+              "f1": 0.7058823529411765,
+              "precision": 0.5454545454545454,
+              "recall": 1.0,
+              "support": 6
+            },
+            "FATIGUE": {
+              "f1": 0.8979591836734694,
+              "precision": 0.9166666666666666,
+              "recall": 0.88,
+              "support": 25
+            },
+            "WORTHLESSNESS": {
+              "f1": 0.8983050847457628,
+              "precision": 0.8688524590163934,
+              "recall": 0.9298245614035088,
+              "support": 57
+            },
+            "COGNITIVE_ISSUES": {
+              "f1": 0.7096774193548387,
+              "precision": 0.55,
+              "recall": 1.0,
+              "support": 11
+            },
+            "SUICIDAL_THOUGHTS": {
+              "f1": 0.9577464788732394,
+              "precision": 0.9444444444444444,
+              "recall": 0.9714285714285714,
+              "support": 35
+            },
+            "SPECIAL_CASE": {
+              "f1": 0.5384615384615384,
+              "precision": 0.6363636363636364,
+              "recall": 0.4666666666666667,
+              "support": 15
+            },
+            "NO_SYMPTOM": {
+              "f1": 0.6428571428571429,
+              "precision": 0.8653846153846154,
+              "recall": 0.5113636363636364,
+              "support": 88
+            }
+          }
+        }
+      },
+      "ensemble": {
+        "accuracy": 0.8033707865168539,
+        "micro_f1": 0.8033707865168539,
+        "macro_f1": 0.7902768318397115,
+        "per_class": {
+          "DEPRESSED_MOOD": {
+            "f1": 0.8226950354609929,
+            "precision": 0.7532467532467533,
+            "recall": 0.90625,
+            "support": 64
+          },
+          "ANHEDONIA": {
+            "f1": 0.8771929824561403,
+            "precision": 0.78125,
+            "recall": 1.0,
+            "support": 25
+          },
+          "APPETITE_CHANGE": {
+            "f1": 0.6666666666666666,
+            "precision": 0.6666666666666666,
+            "recall": 0.6666666666666666,
+            "support": 9
+          },
+          "SLEEP_ISSUES": {
+            "f1": 0.9545454545454546,
+            "precision": 0.9130434782608695,
+            "recall": 1.0,
+            "support": 21
+          },
+          "PSYCHOMOTOR": {
+            "f1": 0.8571428571428571,
+            "precision": 0.75,
+            "recall": 1.0,
+            "support": 6
+          },
+          "FATIGUE": {
+            "f1": 0.8979591836734694,
+            "precision": 0.9166666666666666,
+            "recall": 0.88,
+            "support": 25
+          },
+          "WORTHLESSNESS": {
+            "f1": 0.8620689655172413,
+            "precision": 0.847457627118644,
+            "recall": 0.8771929824561403,
+            "support": 57
+          },
+          "COGNITIVE_ISSUES": {
+            "f1": 0.6153846153846154,
+            "precision": 0.5333333333333333,
+            "recall": 0.7272727272727273,
+            "support": 11
+          },
+          "SUICIDAL_THOUGHTS": {
+            "f1": 0.9722222222222222,
+            "precision": 0.9459459459459459,
+            "recall": 1.0,
+            "support": 35
+          },
+          "SPECIAL_CASE": {
+            "f1": 0.5185185185185185,
+            "precision": 0.5833333333333334,
+            "recall": 0.4666666666666667,
+            "support": 15
+          },
+          "NO_SYMPTOM": {
+            "f1": 0.6486486486486487,
+            "precision": 0.8,
+            "recall": 0.5454545454545454,
+            "support": 88
+          }
+        }
+      }
+    },
+    {
+      "fold": 2,
+      "individual": {
+        "DAPT-DistilBERT": {
+          "accuracy": 0.7871621621621622,
+          "micro_f1": 0.7871621621621622,
+          "macro_f1": 0.7434668841494495,
+          "per_class": {
+            "DEPRESSED_MOOD": {
+              "f1": 0.85,
+              "precision": 0.85,
+              "recall": 0.85,
+              "support": 60
+            },
+            "ANHEDONIA": {
+              "f1": 0.75,
+              "precision": 0.7142857142857143,
+              "recall": 0.7894736842105263,
+              "support": 19
+            },
+            "APPETITE_CHANGE": {
+              "f1": 0.7368421052631579,
+              "precision": 0.6363636363636364,
+              "recall": 0.875,
+              "support": 8
+            },
+            "SLEEP_ISSUES": {
+              "f1": 0.8636363636363636,
+              "precision": 0.76,
+              "recall": 1.0,
+              "support": 19
+            },
+            "PSYCHOMOTOR": {
+              "f1": 0.7058823529411765,
+              "precision": 0.6,
+              "recall": 0.8571428571428571,
+              "support": 7
+            },
+            "FATIGUE": {
+              "f1": 0.92,
+              "precision": 0.8846153846153846,
+              "recall": 0.9583333333333334,
+              "support": 24
+            },
+            "WORTHLESSNESS": {
+              "f1": 0.8688524590163934,
+              "precision": 0.8688524590163934,
+              "recall": 0.8688524590163934,
+              "support": 61
+            },
+            "COGNITIVE_ISSUES": {
+              "f1": 0.7272727272727273,
+              "precision": 0.6153846153846154,
+              "recall": 0.8888888888888888,
+              "support": 9
+            },
+            "SUICIDAL_THOUGHTS": {
+              "f1": 0.9722222222222222,
+              "precision": 0.9722222222222222,
+              "recall": 0.9722222222222222,
+              "support": 36
+            },
+            "SPECIAL_CASE": {
+              "f1": 0.4444444444444444,
+              "precision": 0.42857142857142855,
+              "recall": 0.46153846153846156,
+              "support": 13
+            },
+            "NO_SYMPTOM": {
+              "f1": 0.3389830508474576,
+              "precision": 0.5263157894736842,
+              "recall": 0.25,
+              "support": 40
+            }
+          }
+        },
+        "RoBERTa": {
+          "accuracy": 0.8243243243243243,
+          "micro_f1": 0.8243243243243243,
+          "macro_f1": 0.7923122097506486,
+          "per_class": {
+            "DEPRESSED_MOOD": {
+              "f1": 0.8620689655172413,
+              "precision": 0.8928571428571429,
+              "recall": 0.8333333333333334,
+              "support": 60
+            },
+            "ANHEDONIA": {
+              "f1": 0.8292682926829268,
+              "precision": 0.7727272727272727,
+              "recall": 0.8947368421052632,
+              "support": 19
+            },
+            "APPETITE_CHANGE": {
+              "f1": 0.8421052631578947,
+              "precision": 0.7272727272727273,
+              "recall": 1.0,
+              "support": 8
+            },
+            "SLEEP_ISSUES": {
+              "f1": 0.8837209302325582,
+              "precision": 0.7916666666666666,
+              "recall": 1.0,
+              "support": 19
+            },
+            "PSYCHOMOTOR": {
+              "f1": 0.75,
+              "precision": 0.6666666666666666,
+              "recall": 0.8571428571428571,
+              "support": 7
+            },
+            "FATIGUE": {
+              "f1": 0.92,
+              "precision": 0.8846153846153846,
+              "recall": 0.9583333333333334,
+              "support": 24
+            },
+            "WORTHLESSNESS": {
+              "f1": 0.9322033898305084,
+              "precision": 0.9649122807017544,
+              "recall": 0.9016393442622951,
+              "support": 61
+            },
+            "COGNITIVE_ISSUES": {
+              "f1": 0.7272727272727273,
+              "precision": 0.6153846153846154,
+              "recall": 0.8888888888888888,
+              "support": 9
+            },
+            "SUICIDAL_THOUGHTS": {
+              "f1": 0.9863013698630136,
+              "precision": 0.972972972972973,
+              "recall": 1.0,
+              "support": 36
+            },
+            "SPECIAL_CASE": {
+              "f1": 0.5517241379310345,
+              "precision": 0.5,
+              "recall": 0.6153846153846154,
+              "support": 13
+            },
+            "NO_SYMPTOM": {
+              "f1": 0.4307692307692308,
+              "precision": 0.56,
+              "recall": 0.35,
+              "support": 40
+            }
+          }
+        },
+        "DeBERTa": {
+          "accuracy": 0.8141891891891891,
+          "micro_f1": 0.8141891891891891,
+          "macro_f1": 0.769070235271203,
+          "per_class": {
+            "DEPRESSED_MOOD": {
+              "f1": 0.8524590163934426,
+              "precision": 0.8387096774193549,
+              "recall": 0.8666666666666667,
+              "support": 60
+            },
+            "ANHEDONIA": {
+              "f1": 0.7692307692307693,
+              "precision": 0.75,
+              "recall": 0.7894736842105263,
+              "support": 19
+            },
+            "APPETITE_CHANGE": {
+              "f1": 0.7,
+              "precision": 0.5833333333333334,
+              "recall": 0.875,
+              "support": 8
+            },
+            "SLEEP_ISSUES": {
+              "f1": 0.8260869565217391,
+              "precision": 0.7037037037037037,
+              "recall": 1.0,
+              "support": 19
+            },
+            "PSYCHOMOTOR": {
+              "f1": 0.8571428571428571,
+              "precision": 0.8571428571428571,
+              "recall": 0.8571428571428571,
+              "support": 7
+            },
+            "FATIGUE": {
+              "f1": 0.9411764705882353,
+              "precision": 0.8888888888888888,
+              "recall": 1.0,
+              "support": 24
+            },
+            "WORTHLESSNESS": {
+              "f1": 0.9354838709677419,
+              "precision": 0.9206349206349206,
+              "recall": 0.9508196721311475,
+              "support": 61
+            },
+            "COGNITIVE_ISSUES": {
+              "f1": 0.6956521739130435,
+              "precision": 0.5714285714285714,
+              "recall": 0.8888888888888888,
+              "support": 9
+            },
+            "SUICIDAL_THOUGHTS": {
+              "f1": 0.958904109589041,
+              "precision": 0.9459459459459459,
+              "recall": 0.9722222222222222,
+              "support": 36
+            },
+            "SPECIAL_CASE": {
+              "f1": 0.56,
+              "precision": 0.5833333333333334,
+              "recall": 0.5384615384615384,
+              "support": 13
+            },
+            "NO_SYMPTOM": {
+              "f1": 0.36363636363636365,
+              "precision": 0.6666666666666666,
+              "recall": 0.25,
+              "support": 40
+            }
+          }
+        }
+      },
+      "ensemble": {
+        "accuracy": 0.8277027027027027,
+        "micro_f1": 0.8277027027027027,
+        "macro_f1": 0.7854558474251117,
+        "per_class": {
+          "DEPRESSED_MOOD": {
+            "f1": 0.8717948717948718,
+            "precision": 0.8947368421052632,
+            "recall": 0.85,
+            "support": 60
+          },
+          "ANHEDONIA": {
+            "f1": 0.8717948717948718,
+            "precision": 0.85,
+            "recall": 0.8947368421052632,
+            "support": 19
+          },
+          "APPETITE_CHANGE": {
+            "f1": 0.8421052631578947,
+            "precision": 0.7272727272727273,
+            "recall": 1.0,
+            "support": 8
+          },
+          "SLEEP_ISSUES": {
+            "f1": 0.8636363636363636,
+            "precision": 0.76,
+            "recall": 1.0,
+            "support": 19
+          },
+          "PSYCHOMOTOR": {
+            "f1": 0.75,
+            "precision": 0.6666666666666666,
+            "recall": 0.8571428571428571,
+            "support": 7
+          },
+          "FATIGUE": {
+            "f1": 0.96,
+            "precision": 0.9230769230769231,
+            "recall": 1.0,
+            "support": 24
+          },
+          "WORTHLESSNESS": {
+            "f1": 0.943089430894309,
+            "precision": 0.9354838709677419,
+            "recall": 0.9508196721311475,
+            "support": 61
+          },
+          "COGNITIVE_ISSUES": {
+            "f1": 0.6956521739130435,
+            "precision": 0.5714285714285714,
+            "recall": 0.8888888888888888,
+            "support": 9
+          },
+          "SUICIDAL_THOUGHTS": {
+            "f1": 0.9863013698630136,
+            "precision": 0.972972972972973,
+            "recall": 1.0,
+            "support": 36
+          },
+          "SPECIAL_CASE": {
+            "f1": 0.4827586206896552,
+            "precision": 0.4375,
+            "recall": 0.5384615384615384,
+            "support": 13
+          },
+          "NO_SYMPTOM": {
+            "f1": 0.3728813559322034,
+            "precision": 0.5789473684210527,
+            "recall": 0.275,
+            "support": 40
+          }
+        }
+      }
+    },
+    {
+      "fold": 3,
+      "individual": {
+        "DAPT-DistilBERT": {
+          "accuracy": 0.7955974842767296,
+          "micro_f1": 0.7955974842767296,
+          "macro_f1": 0.7478230627438743,
+          "per_class": {
+            "DEPRESSED_MOOD": {
+              "f1": 0.8688524590163934,
+              "precision": 0.8412698412698413,
+              "recall": 0.8983050847457628,
+              "support": 59
+            },
+            "ANHEDONIA": {
+              "f1": 0.7346938775510204,
+              "precision": 0.6666666666666666,
+              "recall": 0.8181818181818182,
+              "support": 22
+            },
+            "APPETITE_CHANGE": {
+              "f1": 0.8181818181818182,
+              "precision": 0.75,
+              "recall": 0.9,
+              "support": 10
+            },
+            "SLEEP_ISSUES": {
+              "f1": 0.8936170212765957,
+              "precision": 0.8076923076923077,
+              "recall": 1.0,
+              "support": 21
+            },
+            "PSYCHOMOTOR": {
+              "f1": 0.6666666666666666,
+              "precision": 0.5555555555555556,
+              "recall": 0.8333333333333334,
+              "support": 6
+            },
+            "FATIGUE": {
+              "f1": 0.8620689655172413,
+              "precision": 0.8333333333333334,
+              "recall": 0.8928571428571429,
+              "support": 28
+            },
+            "WORTHLESSNESS": {
+              "f1": 0.8939393939393939,
+              "precision": 0.8805970149253731,
+              "recall": 0.9076923076923077,
+              "support": 65
+            },
+            "COGNITIVE_ISSUES": {
+              "f1": 0.8148148148148148,
+              "precision": 0.6875,
+              "recall": 1.0,
+              "support": 11
+            },
+            "SUICIDAL_THOUGHTS": {
+              "f1": 0.9459459459459459,
+              "precision": 0.8974358974358975,
+              "recall": 1.0,
+              "support": 35
+            },
+            "SPECIAL_CASE": {
+              "f1": 0.3333333333333333,
+              "precision": 0.4,
+              "recall": 0.2857142857142857,
+              "support": 14
+            },
+            "NO_SYMPTOM": {
+              "f1": 0.3939393939393939,
+              "precision": 0.6842105263157895,
+              "recall": 0.2765957446808511,
+              "support": 47
+            }
+          }
+        },
+        "RoBERTa": {
+          "accuracy": 0.8144654088050315,
+          "micro_f1": 0.8144654088050315,
+          "macro_f1": 0.7922769713740454,
+          "per_class": {
+            "DEPRESSED_MOOD": {
+              "f1": 0.8852459016393442,
+              "precision": 0.8571428571428571,
+              "recall": 0.9152542372881356,
+              "support": 59
+            },
+            "ANHEDONIA": {
+              "f1": 0.7906976744186046,
+              "precision": 0.8095238095238095,
+              "recall": 0.7727272727272727,
+              "support": 22
+            },
+            "APPETITE_CHANGE": {
+              "f1": 0.9523809523809523,
+              "precision": 0.9090909090909091,
+              "recall": 1.0,
+              "support": 10
+            },
+            "SLEEP_ISSUES": {
+              "f1": 0.9090909090909091,
+              "precision": 0.8695652173913043,
+              "recall": 0.9523809523809523,
+              "support": 21
+            },
+            "PSYCHOMOTOR": {
+              "f1": 0.7142857142857143,
+              "precision": 0.625,
+              "recall": 0.8333333333333334,
+              "support": 6
+            },
+            "FATIGUE": {
+              "f1": 0.8813559322033898,
+              "precision": 0.8387096774193549,
+              "recall": 0.9285714285714286,
+              "support": 28
+            },
+            "WORTHLESSNESS": {
+              "f1": 0.8872180451127819,
+              "precision": 0.8676470588235294,
+              "recall": 0.9076923076923077,
+              "support": 65
+            },
+            "COGNITIVE_ISSUES": {
+              "f1": 0.8148148148148148,
+              "precision": 0.6875,
+              "recall": 1.0,
+              "support": 11
+            },
+            "SUICIDAL_THOUGHTS": {
+              "f1": 0.958904109589041,
+              "precision": 0.9210526315789473,
+              "recall": 1.0,
+              "support": 35
+            },
+            "SPECIAL_CASE": {
+              "f1": 0.5,
+              "precision": 0.6,
+              "recall": 0.42857142857142855,
+              "support": 14
+            },
+            "NO_SYMPTOM": {
+              "f1": 0.42105263157894735,
+              "precision": 0.5517241379310345,
+              "recall": 0.3404255319148936,
+              "support": 47
+            }
+          }
+        },
+        "DeBERTa": {
+          "accuracy": 0.8018867924528302,
+          "micro_f1": 0.8018867924528302,
+          "macro_f1": 0.7701348242205068,
+          "per_class": {
+            "DEPRESSED_MOOD": {
+              "f1": 0.8661417322834646,
+              "precision": 0.8088235294117647,
+              "recall": 0.9322033898305084,
+              "support": 59
+            },
+            "ANHEDONIA": {
+              "f1": 0.6976744186046512,
+              "precision": 0.7142857142857143,
+              "recall": 0.6818181818181818,
+              "support": 22
+            },
+            "APPETITE_CHANGE": {
+              "f1": 0.8181818181818182,
+              "precision": 0.75,
+              "recall": 0.9,
+              "support": 10
+            },
+            "SLEEP_ISSUES": {
+              "f1": 0.8888888888888888,
+              "precision": 0.8333333333333334,
+              "recall": 0.9523809523809523,
+              "support": 21
+            },
+            "PSYCHOMOTOR": {
+              "f1": 0.7692307692307693,
+              "precision": 0.7142857142857143,
+              "recall": 0.8333333333333334,
+              "support": 6
+            },
+            "FATIGUE": {
+              "f1": 0.847457627118644,
+              "precision": 0.8064516129032258,
+              "recall": 0.8928571428571429,
+              "support": 28
+            },
+            "WORTHLESSNESS": {
+              "f1": 0.8905109489051095,
+              "precision": 0.8472222222222222,
+              "recall": 0.9384615384615385,
+              "support": 65
+            },
+            "COGNITIVE_ISSUES": {
+              "f1": 0.72,
+              "precision": 0.6428571428571429,
+              "recall": 0.8181818181818182,
+              "support": 11
+            },
+            "SUICIDAL_THOUGHTS": {
+              "f1": 0.958904109589041,
+              "precision": 0.9210526315789473,
+              "recall": 1.0,
+              "support": 35
+            },
+            "SPECIAL_CASE": {
+              "f1": 0.6086956521739131,
+              "precision": 0.7777777777777778,
+              "recall": 0.5,
+              "support": 14
+            },
+            "NO_SYMPTOM": {
+              "f1": 0.4057971014492754,
+              "precision": 0.6363636363636364,
+              "recall": 0.2978723404255319,
+              "support": 47
+            }
+          }
+        }
+      },
+      "ensemble": {
+        "accuracy": 0.8018867924528302,
+        "micro_f1": 0.8018867924528302,
+        "macro_f1": 0.7606228703829903,
+        "per_class": {
+          "DEPRESSED_MOOD": {
+            "f1": 0.8888888888888888,
+            "precision": 0.835820895522388,
+            "recall": 0.9491525423728814,
+            "support": 59
+          },
+          "ANHEDONIA": {
+            "f1": 0.7111111111111111,
+            "precision": 0.6956521739130435,
+            "recall": 0.7272727272727273,
+            "support": 22
+          },
+          "APPETITE_CHANGE": {
+            "f1": 0.8695652173913043,
+            "precision": 0.7692307692307693,
+            "recall": 1.0,
+            "support": 10
+          },
+          "SLEEP_ISSUES": {
+            "f1": 0.8888888888888888,
+            "precision": 0.8333333333333334,
+            "recall": 0.9523809523809523,
+            "support": 21
+          },
+          "PSYCHOMOTOR": {
+            "f1": 0.6666666666666666,
+            "precision": 0.5555555555555556,
+            "recall": 0.8333333333333334,
+            "support": 6
+          },
+          "FATIGUE": {
+            "f1": 0.8620689655172413,
+            "precision": 0.8333333333333334,
+            "recall": 0.8928571428571429,
+            "support": 28
+          },
+          "WORTHLESSNESS": {
+            "f1": 0.8888888888888888,
+            "precision": 0.8571428571428571,
+            "recall": 0.9230769230769231,
+            "support": 65
+          },
+          "COGNITIVE_ISSUES": {
+            "f1": 0.72,
+            "precision": 0.6428571428571429,
+            "recall": 0.8181818181818182,
+            "support": 11
+          },
+          "SUICIDAL_THOUGHTS": {
+            "f1": 0.9722222222222222,
+            "precision": 0.9459459459459459,
+            "recall": 1.0,
+            "support": 35
+          },
+          "SPECIAL_CASE": {
+            "f1": 0.5217391304347826,
+            "precision": 0.6666666666666666,
+            "recall": 0.42857142857142855,
+            "support": 14
+          },
+          "NO_SYMPTOM": {
+            "f1": 0.37681159420289856,
+            "precision": 0.5909090909090909,
+            "recall": 0.2765957446808511,
+            "support": 47
+          }
+        }
+      }
+    },
+    {
+      "fold": 4,
+      "individual": {
+        "DAPT-DistilBERT": {
+          "accuracy": 0.7763578274760383,
+          "micro_f1": 0.7763578274760383,
+          "macro_f1": 0.7037978096500594,
+          "per_class": {
+            "DEPRESSED_MOOD": {
+              "f1": 0.8484848484848485,
+              "precision": 0.8615384615384616,
+              "recall": 0.835820895522388,
+              "support": 67
+            },
+            "ANHEDONIA": {
+              "f1": 0.8,
+              "precision": 0.75,
+              "recall": 0.8571428571428571,
+              "support": 21
+            },
+            "APPETITE_CHANGE": {
+              "f1": 0.782608695652174,
+              "precision": 0.6428571428571429,
+              "recall": 1.0,
+              "support": 9
+            },
+            "SLEEP_ISSUES": {
+              "f1": 0.88,
+              "precision": 0.8148148148148148,
+              "recall": 0.9565217391304348,
+              "support": 23
+            },
+            "PSYCHOMOTOR": {
+              "f1": 0.42857142857142855,
+              "precision": 0.375,
+              "recall": 0.5,
+              "support": 6
+            },
+            "FATIGUE": {
+              "f1": 0.8333333333333334,
+              "precision": 0.7352941176470589,
+              "recall": 0.9615384615384616,
+              "support": 26
+            },
+            "WORTHLESSNESS": {
+              "f1": 0.907563025210084,
+              "precision": 0.9473684210526315,
+              "recall": 0.8709677419354839,
+              "support": 62
+            },
+            "COGNITIVE_ISSUES": {
+              "f1": 0.56,
+              "precision": 0.4375,
+              "recall": 0.7777777777777778,
+              "support": 9
+            },
+            "SUICIDAL_THOUGHTS": {
+              "f1": 0.9473684210526315,
+              "precision": 0.9230769230769231,
+              "recall": 0.972972972972973,
+              "support": 37
+            },
+            "SPECIAL_CASE": {
+              "f1": 0.6,
+              "precision": 0.5294117647058824,
+              "recall": 0.6923076923076923,
+              "support": 13
+            },
+            "NO_SYMPTOM": {
+              "f1": 0.15384615384615385,
+              "precision": 0.3333333333333333,
+              "recall": 0.1,
+              "support": 40
+            }
+          }
+        },
+        "RoBERTa": {
+          "accuracy": 0.8146964856230032,
+          "micro_f1": 0.8146964856230032,
+          "macro_f1": 0.733835471693247,
+          "per_class": {
+            "DEPRESSED_MOOD": {
+              "f1": 0.9264705882352942,
+              "precision": 0.9130434782608695,
+              "recall": 0.9402985074626866,
+              "support": 67
+            },
+            "ANHEDONIA": {
+              "f1": 0.8163265306122449,
+              "precision": 0.7142857142857143,
+              "recall": 0.9523809523809523,
+              "support": 21
+            },
+            "APPETITE_CHANGE": {
+              "f1": 0.8181818181818182,
+              "precision": 0.6923076923076923,
+              "recall": 1.0,
+              "support": 9
+            },
+            "SLEEP_ISSUES": {
+              "f1": 0.8571428571428571,
+              "precision": 0.8076923076923077,
+              "recall": 0.9130434782608695,
+              "support": 23
+            },
+            "PSYCHOMOTOR": {
+              "f1": 0.3333333333333333,
+              "precision": 0.3333333333333333,
+              "recall": 0.3333333333333333,
+              "support": 6
+            },
+            "FATIGUE": {
+              "f1": 0.8771929824561403,
+              "precision": 0.8064516129032258,
+              "recall": 0.9615384615384616,
+              "support": 26
+            },
+            "WORTHLESSNESS": {
+              "f1": 0.9105691056910569,
+              "precision": 0.9180327868852459,
+              "recall": 0.9032258064516129,
+              "support": 62
+            },
+            "COGNITIVE_ISSUES": {
+              "f1": 0.6666666666666666,
+              "precision": 0.5333333333333333,
+              "recall": 0.8888888888888888,
+              "support": 9
+            },
+            "SUICIDAL_THOUGHTS": {
+              "f1": 0.972972972972973,
+              "precision": 0.972972972972973,
+              "recall": 0.972972972972973,
+              "support": 37
+            },
+            "SPECIAL_CASE": {
+              "f1": 0.7333333333333333,
+              "precision": 0.6470588235294118,
+              "recall": 0.8461538461538461,
+              "support": 13
+            },
+            "NO_SYMPTOM": {
+              "f1": 0.16,
+              "precision": 0.4,
+              "recall": 0.1,
+              "support": 40
+            }
+          }
+        },
+        "DeBERTa": {
+          "accuracy": 0.8019169329073482,
+          "micro_f1": 0.8019169329073482,
+          "macro_f1": 0.7277182356010108,
+          "per_class": {
+            "DEPRESSED_MOOD": {
+              "f1": 0.9037037037037037,
+              "precision": 0.8970588235294118,
+              "recall": 0.9104477611940298,
+              "support": 67
+            },
+            "ANHEDONIA": {
+              "f1": 0.7916666666666666,
+              "precision": 0.7037037037037037,
+              "recall": 0.9047619047619048,
+              "support": 21
+            },
+            "APPETITE_CHANGE": {
+              "f1": 0.8181818181818182,
+              "precision": 0.6923076923076923,
+              "recall": 1.0,
+              "support": 9
+            },
+            "SLEEP_ISSUES": {
+              "f1": 0.8888888888888888,
+              "precision": 0.9090909090909091,
+              "recall": 0.8695652173913043,
+              "support": 23
+            },
+            "PSYCHOMOTOR": {
+              "f1": 0.46153846153846156,
+              "precision": 0.42857142857142855,
+              "recall": 0.5,
+              "support": 6
+            },
+            "FATIGUE": {
+              "f1": 0.8421052631578947,
+              "precision": 0.7741935483870968,
+              "recall": 0.9230769230769231,
+              "support": 26
+            },
+            "WORTHLESSNESS": {
+              "f1": 0.9166666666666666,
+              "precision": 0.9482758620689655,
+              "recall": 0.8870967741935484,
+              "support": 62
+            },
+            "COGNITIVE_ISSUES": {
+              "f1": 0.5263157894736842,
+              "precision": 0.5,
+              "recall": 0.5555555555555556,
+              "support": 9
+            },
+            "SUICIDAL_THOUGHTS": {
+              "f1": 0.96,
+              "precision": 0.9473684210526315,
+              "recall": 0.972972972972973,
+              "support": 37
+            },
+            "SPECIAL_CASE": {
+              "f1": 0.5625,
+              "precision": 0.47368421052631576,
+              "recall": 0.6923076923076923,
+              "support": 13
+            },
+            "NO_SYMPTOM": {
+              "f1": 0.3333333333333333,
+              "precision": 0.5,
+              "recall": 0.25,
+              "support": 40
+            }
+          }
+        }
+      },
+      "ensemble": {
+        "accuracy": 0.8210862619808307,
+        "micro_f1": 0.8210862619808307,
+        "macro_f1": 0.7439160096779371,
+        "per_class": {
+          "DEPRESSED_MOOD": {
+            "f1": 0.9343065693430657,
+            "precision": 0.9142857142857143,
+            "recall": 0.9552238805970149,
+            "support": 67
+          },
+          "ANHEDONIA": {
+            "f1": 0.8695652173913043,
+            "precision": 0.8,
+            "recall": 0.9523809523809523,
+            "support": 21
+          },
+          "APPETITE_CHANGE": {
+            "f1": 0.782608695652174,
+            "precision": 0.6428571428571429,
+            "recall": 1.0,
+            "support": 9
+          },
+          "SLEEP_ISSUES": {
+            "f1": 0.8979591836734694,
+            "precision": 0.8461538461538461,
+            "recall": 0.9565217391304348,
+            "support": 23
+          },
+          "PSYCHOMOTOR": {
+            "f1": 0.5,
+            "precision": 0.5,
+            "recall": 0.5,
+            "support": 6
+          },
+          "FATIGUE": {
+            "f1": 0.8771929824561403,
+            "precision": 0.8064516129032258,
+            "recall": 0.9615384615384616,
+            "support": 26
+          },
+          "WORTHLESSNESS": {
+            "f1": 0.9193548387096774,
+            "precision": 0.9193548387096774,
+            "recall": 0.9193548387096774,
+            "support": 62
+          },
+          "COGNITIVE_ISSUES": {
+            "f1": 0.64,
+            "precision": 0.5,
+            "recall": 0.8888888888888888,
+            "support": 9
+          },
+          "SUICIDAL_THOUGHTS": {
+            "f1": 0.972972972972973,
+            "precision": 0.972972972972973,
+            "recall": 0.972972972972973,
+            "support": 37
+          },
+          "SPECIAL_CASE": {
+            "f1": 0.6666666666666666,
+            "precision": 0.5882352941176471,
+            "recall": 0.7692307692307693,
+            "support": 13
+          },
+          "NO_SYMPTOM": {
+            "f1": 0.12244897959183673,
+            "precision": 0.3333333333333333,
+            "recall": 0.075,
+            "support": 40
+          }
+        }
+      }
+    },
+    {
+      "fold": 5,
+      "individual": {
+        "DAPT-DistilBERT": {
+          "accuracy": 0.7827476038338658,
+          "micro_f1": 0.7827476038338658,
+          "macro_f1": 0.7395685446051092,
+          "per_class": {
+            "DEPRESSED_MOOD": {
+              "f1": 0.8529411764705882,
+              "precision": 0.8169014084507042,
+              "recall": 0.8923076923076924,
+              "support": 65
+            },
+            "ANHEDONIA": {
+              "f1": 0.7692307692307693,
+              "precision": 0.7407407407407407,
+              "recall": 0.8,
+              "support": 25
+            },
+            "APPETITE_CHANGE": {
+              "f1": 0.8421052631578947,
+              "precision": 0.7272727272727273,
+              "recall": 1.0,
+              "support": 8
+            },
+            "SLEEP_ISSUES": {
+              "f1": 0.7906976744186046,
+              "precision": 0.68,
+              "recall": 0.9444444444444444,
+              "support": 18
+            },
+            "PSYCHOMOTOR": {
+              "f1": 0.5555555555555556,
+              "precision": 0.4166666666666667,
+              "recall": 0.8333333333333334,
+              "support": 6
+            },
+            "FATIGUE": {
+              "f1": 0.8636363636363636,
+              "precision": 0.9047619047619048,
+              "recall": 0.8260869565217391,
+              "support": 23
+            },
+            "WORTHLESSNESS": {
+              "f1": 0.8549618320610687,
+              "precision": 0.8484848484848485,
+              "recall": 0.8615384615384616,
+              "support": 65
+            },
+            "COGNITIVE_ISSUES": {
+              "f1": 0.8148148148148148,
+              "precision": 0.6875,
+              "recall": 1.0,
+              "support": 11
+            },
+            "SUICIDAL_THOUGHTS": {
+              "f1": 0.9487179487179487,
+              "precision": 0.9487179487179487,
+              "recall": 0.9487179487179487,
+              "support": 39
+            },
+            "SPECIAL_CASE": {
+              "f1": 0.5833333333333334,
+              "precision": 0.5833333333333334,
+              "recall": 0.5833333333333334,
+              "support": 12
+            },
+            "NO_SYMPTOM": {
+              "f1": 0.25925925925925924,
+              "precision": 0.5384615384615384,
+              "recall": 0.17073170731707318,
+              "support": 41
+            }
+          }
+        },
+        "RoBERTa": {
+          "accuracy": 0.7987220447284346,
+          "micro_f1": 0.7987220447284346,
+          "macro_f1": 0.783643744110332,
+          "per_class": {
+            "DEPRESSED_MOOD": {
+              "f1": 0.8270676691729323,
+              "precision": 0.8088235294117647,
+              "recall": 0.8461538461538461,
+              "support": 65
+            },
+            "ANHEDONIA": {
+              "f1": 0.7924528301886793,
+              "precision": 0.75,
+              "recall": 0.84,
+              "support": 25
+            },
+            "APPETITE_CHANGE": {
+              "f1": 0.8888888888888888,
+              "precision": 0.8,
+              "recall": 1.0,
+              "support": 8
+            },
+            "SLEEP_ISSUES": {
+              "f1": 0.8292682926829268,
+              "precision": 0.7391304347826086,
+              "recall": 0.9444444444444444,
+              "support": 18
+            },
+            "PSYCHOMOTOR": {
+              "f1": 0.6666666666666666,
+              "precision": 0.5555555555555556,
+              "recall": 0.8333333333333334,
+              "support": 6
+            },
+            "FATIGUE": {
+              "f1": 0.8695652173913043,
+              "precision": 0.8695652173913043,
+              "recall": 0.8695652173913043,
+              "support": 23
+            },
+            "WORTHLESSNESS": {
+              "f1": 0.8769230769230769,
+              "precision": 0.8769230769230769,
+              "recall": 0.8769230769230769,
+              "support": 65
+            },
+            "COGNITIVE_ISSUES": {
+              "f1": 0.9166666666666666,
+              "precision": 0.8461538461538461,
+              "recall": 1.0,
+              "support": 11
+            },
+            "SUICIDAL_THOUGHTS": {
+              "f1": 0.9367088607594937,
+              "precision": 0.925,
+              "recall": 0.9487179487179487,
+              "support": 39
+            },
+            "SPECIAL_CASE": {
+              "f1": 0.6666666666666666,
+              "precision": 0.6666666666666666,
+              "recall": 0.6666666666666666,
+              "support": 12
+            },
+            "NO_SYMPTOM": {
+              "f1": 0.3492063492063492,
+              "precision": 0.5,
+              "recall": 0.2682926829268293,
+              "support": 41
+            }
+          }
+        },
+        "DeBERTa": {
+          "accuracy": 0.805111821086262,
+          "micro_f1": 0.805111821086262,
+          "macro_f1": 0.7708648562509974,
+          "per_class": {
+            "DEPRESSED_MOOD": {
+              "f1": 0.8656716417910447,
+              "precision": 0.8405797101449275,
+              "recall": 0.8923076923076924,
+              "support": 65
+            },
+            "ANHEDONIA": {
+              "f1": 0.851063829787234,
+              "precision": 0.9090909090909091,
+              "recall": 0.8,
+              "support": 25
+            },
+            "APPETITE_CHANGE": {
+              "f1": 0.9411764705882353,
+              "precision": 0.8888888888888888,
+              "recall": 1.0,
+              "support": 8
+            },
+            "SLEEP_ISSUES": {
+              "f1": 0.8095238095238095,
+              "precision": 0.7083333333333334,
+              "recall": 0.9444444444444444,
+              "support": 18
+            },
+            "PSYCHOMOTOR": {
+              "f1": 0.5555555555555556,
+              "precision": 0.4166666666666667,
+              "recall": 0.8333333333333334,
+              "support": 6
+            },
+            "FATIGUE": {
+              "f1": 0.8372093023255814,
+              "precision": 0.9,
+              "recall": 0.782608695652174,
+              "support": 23
+            },
+            "WORTHLESSNESS": {
+              "f1": 0.9104477611940298,
+              "precision": 0.8840579710144928,
+              "recall": 0.9384615384615385,
+              "support": 65
+            },
+            "COGNITIVE_ISSUES": {
+              "f1": 0.8,
+              "precision": 0.7142857142857143,
+              "recall": 0.9090909090909091,
+              "support": 11
+            },
+            "SUICIDAL_THOUGHTS": {
+              "f1": 0.961038961038961,
+              "precision": 0.9736842105263158,
+              "recall": 0.9487179487179487,
+              "support": 39
+            },
+            "SPECIAL_CASE": {
+              "f1": 0.6,
+              "precision": 0.75,
+              "recall": 0.5,
+              "support": 12
+            },
+            "NO_SYMPTOM": {
+              "f1": 0.34782608695652173,
+              "precision": 0.42857142857142855,
+              "recall": 0.2926829268292683,
+              "support": 41
+            }
+          }
+        }
+      },
+      "ensemble": {
+        "accuracy": 0.8083067092651757,
+        "micro_f1": 0.8083067092651757,
+        "macro_f1": 0.7690510318612273,
+        "per_class": {
+          "DEPRESSED_MOOD": {
+            "f1": 0.8740740740740741,
+            "precision": 0.8428571428571429,
+            "recall": 0.9076923076923077,
+            "support": 65
+          },
+          "ANHEDONIA": {
+            "f1": 0.8235294117647058,
+            "precision": 0.8076923076923077,
+            "recall": 0.84,
+            "support": 25
+          },
+          "APPETITE_CHANGE": {
+            "f1": 0.8888888888888888,
+            "precision": 0.8,
+            "recall": 1.0,
+            "support": 8
+          },
+          "SLEEP_ISSUES": {
+            "f1": 0.7906976744186046,
+            "precision": 0.68,
+            "recall": 0.9444444444444444,
+            "support": 18
+          },
+          "PSYCHOMOTOR": {
+            "f1": 0.5882352941176471,
+            "precision": 0.45454545454545453,
+            "recall": 0.8333333333333334,
+            "support": 6
+          },
+          "FATIGUE": {
+            "f1": 0.8636363636363636,
+            "precision": 0.9047619047619048,
+            "recall": 0.8260869565217391,
+            "support": 23
+          },
+          "WORTHLESSNESS": {
+            "f1": 0.916030534351145,
+            "precision": 0.9090909090909091,
+            "recall": 0.9230769230769231,
+            "support": 65
+          },
+          "COGNITIVE_ISSUES": {
+            "f1": 0.9166666666666666,
+            "precision": 0.8461538461538461,
+            "recall": 1.0,
+            "support": 11
+          },
+          "SUICIDAL_THOUGHTS": {
+            "f1": 0.9620253164556962,
+            "precision": 0.95,
+            "recall": 0.9743589743589743,
+            "support": 39
+          },
+          "SPECIAL_CASE": {
+            "f1": 0.5454545454545454,
+            "precision": 0.6,
+            "recall": 0.5,
+            "support": 12
+          },
+          "NO_SYMPTOM": {
+            "f1": 0.2903225806451613,
+            "precision": 0.42857142857142855,
+            "recall": 0.21951219512195122,
+            "support": 41
+          }
+        }
+      }
+    }
+  ]
+}

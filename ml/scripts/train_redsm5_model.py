@@ -39,16 +39,35 @@ logger = logging.getLogger(__name__)
 class SymptomClassifier(nn.Module):
     """Transformer-based sentence-level DSM-5 symptom classifier."""
 
-    def __init__(self, num_classes: int = 11, model_name: str = "distilbert-base-uncased"):
+    def __init__(self, num_classes: int = 11, model_name: str = "distilbert-base-uncased", pooling: str = "mean"):
         super().__init__()
         self.encoder = AutoModel.from_pretrained(model_name)
         hidden_size = self.encoder.config.hidden_size  # 768 for both DistilBERT and BERT
         self.dropout = nn.Dropout(0.3)
-        self.classifier = nn.Linear(hidden_size, num_classes)
+        self.pooling = pooling  # "cls", "mean", or "cls_mean"
+
+        if pooling == "cls_mean":
+            self.classifier = nn.Linear(hidden_size * 2, num_classes)
+        else:
+            self.classifier = nn.Linear(hidden_size, num_classes)
 
     def forward(self, input_ids, attention_mask):
         outputs = self.encoder(input_ids=input_ids, attention_mask=attention_mask)
-        pooled = outputs.last_hidden_state[:, 0]  # CLS token
+
+        cls_output = outputs.last_hidden_state[:, 0]
+
+        if self.pooling == "mean" or self.pooling == "cls_mean":
+            token_embeddings = outputs.last_hidden_state
+            mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
+            mean_output = (token_embeddings * mask_expanded).sum(1) / mask_expanded.sum(1).clamp(min=1e-9)
+
+        if self.pooling == "cls_mean":
+            pooled = torch.cat([cls_output, mean_output], dim=1)
+        elif self.pooling == "mean":
+            pooled = mean_output
+        else:
+            pooled = cls_output
+
         dropped = self.dropout(pooled)
         logits = self.classifier(dropped)
         return logits

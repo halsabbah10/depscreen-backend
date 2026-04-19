@@ -1,0 +1,24 @@
+{
+  "models": [
+    "./ml/models/v2_dapt_base",
+    "distilbert-base-uncased",
+    "microsoft/deberta-base",
+    "roberta-base"
+  ],
+  "metric_avg_micro": 0.7694572331849058,
+  "metric_avg_macro": 0.7403495157119516,
+  "estimated_macro": 0.7720820409049544,
+  "per_class_estimate": {
+    "DEPRESSED_MOOD": 0.8615715469049383,
+    "ANHEDONIA": 0.8354971336413474,
+    "APPETITE_CHANGE": 0.8178385017123138,
+    "SLEEP_ISSUES": 0.8722093421493515,
+    "PSYCHOMOTOR": 0.6906589988958409,
+    "FATIGUE": 0.8845551263302667,
+    "WORTHLESSNESS": 0.8875418963723989,
+    "COGNITIVE_ISSUES": 0.6808784209847877,
+    "SUICIDAL_THOUGHTS": 0.9585475061465869,
+    "SPECIAL_CASE": 0.5698624035217781,
+    "NO_SYMPTOM": 0.4337415732948859
+  }
+}

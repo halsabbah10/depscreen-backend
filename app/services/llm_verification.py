@@ -57,7 +57,13 @@ def extract_json(text: str) -> dict:
 
 
 class VerificationService:
-    """Service for LLM-powered verification of symptom detections."""
+    """Service for LLM-powered verification of symptom detections.
+
+    Uses hybrid model tiers per task:
+    - Evidence validation: Flash (structured, not reasoning-heavy)
+    - Adversarial detection: Pro (hardest reasoning task, security stakes)
+    - Confidence calibration: Flash (pattern matching)
+    """
 
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -69,7 +75,12 @@ class VerificationService:
                 "X-Title": "DepScreen Verification",
             },
         )
-        self.model = settings.llm_model
+        # Per-task model assignment
+        self.model_evidence = settings.llm_model_flash      # Structured task
+        self.model_adversarial = settings.llm_model_pro      # Reasoning-heavy, security
+        self.model_confidence = settings.llm_model_flash     # Pattern matching
+        # Fallback for any code that references self.model directly
+        self.model = settings.llm_model_flash
 
     async def verify_prediction(
         self,
@@ -136,7 +147,7 @@ Respond in JSON:
             @llm_retry
             async def _call_evidence():
                 return await self.client.chat.completions.create(
-                    model=self.model,
+                    model=self.model_evidence,
                     messages=[
                         {
                             "role": "system",
@@ -178,7 +189,7 @@ Respond in JSON:
             @llm_retry
             async def _call_adversarial():
                 return await self.client.chat.completions.create(
-                    model=self.model,
+                    model=self.model_adversarial,
                     messages=[
                         {
                             "role": "system",
@@ -230,7 +241,7 @@ Respond in JSON:
             @llm_retry
             async def _call_confidence():
                 return await self.client.chat.completions.create(
-                    model=self.model,
+                    model=self.model_confidence,
                     messages=[
                         {
                             "role": "system",

@@ -1,0 +1,843 @@
+{
+  "config": {
+    "model": "gemini-3-flash-preview",
+    "pilot_size": 45,
+    "elapsed_seconds": 693.3611149787903
+  },
+  "report": {
+    "pilot_size": 45,
+    "valid_responses": 42,
+    "success_rate": 0.9333333333333333,
+    "agreement_rate": 0.7142857142857143,
+    "cohens_kappa": 0.6637758505670447,
+    "avg_entropy": 0.6300519913630405,
+    "avg_confidence_when_agreed": 0.8693333333333332,
+    "num_disagreements": 12
+  },
+  "disagreements": [
+    {
+      "index": 2,
+      "sentence": "I can get a job but some days I am so depressed it's hard to even go out.",
+      "human": "ANHEDONIA",
+      "pro_argmax": "DEPRESSED_MOOD",
+      "pro_confidence": 0.85,
+      "human_prob": 0.0,
+      "entropy": 0.8475847030780705
+    },
+    {
+      "index": 15,
+      "sentence": "i dont have the energy too, imm just suffering so much man",
+      "human": "FATIGUE",
+      "pro_argmax": "DEPRESSED_MOOD",
+      "pro_confidence": 0.45,
+      "human_prob": 0.45,
+      "entropy": 1.468995616842778
+    },
+    {
+      "index": 21,
+      "sentence": "I think this makes me feel like a don't have the will to change things a lot of the time because I'm",
+      "human": "NO_SYMPTOM",
+      "pro_argmax": "FATIGUE",
+      "pro_confidence": 0.9,
+      "human_prob": 0.05,
+      "entropy": 0.568995620164706
+    },
+    {
+      "index": 22,
+      "sentence": "This had me crying",
+      "human": "NO_SYMPTOM",
+      "pro_argmax": "DEPRESSED_MOOD",
+      "pro_confidence": 0.9,
+      "human_prob": 0.1,
+      "entropy": 0.46899562348663404
+    },
+    {
+      "index": 23,
+      "sentence": "I think Im gonna cry the rest of the day!!!!",
+      "human": "NO_SYMPTOM",
+      "pro_argmax": "DEPRESSED_MOOD",
+      "pro_confidence": 0.9,
+      "human_prob": 0.1,
+      "entropy": 0.46899562348663404
+    },
+    {
+      "index": 24,
+      "sentence": "I cried like a baby for so long.",
+      "human": "NO_SYMPTOM",
+      "pro_argmax": "DEPRESSED_MOOD",
+      "pro_confidence": 0.9,
+      "human_prob": 0.1,
+      "entropy": 0.46899562348663404
+    },
+    {
+      "index": 29,
+      "sentence": "I feel tired and sleepy even after sleeping a lot and this has been for a week.",
+      "human": "SLEEP_ISSUES",
+      "pro_argmax": "FATIGUE",
+      "pro_confidence": 0.5,
+      "human_prob": 0.45,
+      "entropy": 1.2344978233700654
+    },
+    {
+      "index": 30,
+      "sentence": "Now i get paid more and have more time to do other things i enjoy",
+      "human": "SPECIAL_CASE",
+      "pro_argmax": "NO_SYMPTOM",
+      "pro_confidence": 0.95,
+      "human_prob": 0.05,
+      "entropy": 0.28639698701330907
+    },
+    {
+      "index": 31,
+      "sentence": "I went insane for a while before I got antidepressants.",
+      "human": "SPECIAL_CASE",
+      "pro_argmax": "NO_SYMPTOM",
+      "pro_confidence": 0.9,
+      "human_prob": 0.1,
+      "entropy": 0.46899562348663404
+    },
+    {
+      "index": 35,
+      "sentence": "Now instead of suicidal thoughts I am obsessing over something else.",
+      "human": "SUICIDAL_THOUGHTS",
+      "pro_argmax": "SPECIAL_CASE",
+      "pro_confidence": 0.8,
+      "human_prob": 0.05,
+      "entropy": 1.021928118140859
+    },
+    {
+      "index": 40,
+      "sentence": "For the past few weeks I've been feeling better about myself, I was starting to feel I might actuall",
+      "human": "WORTHLESSNESS",
+      "pro_argmax": "NO_SYMPTOM",
+      "pro_confidence": 0.95,
+      "human_prob": 0.0,
+      "entropy": 0.28639698701330907
+    },
+    {
+      "index": 41,
+      "sentence": "I felt completely and utterly worthless and I couldn't wait to die.",
+      "human": "WORTHLESSNESS",
+      "pro_argmax": "SUICIDAL_THOUGHTS",
+      "pro_confidence": 0.5,
+      "human_prob": 0.45,
+      "entropy": 1.2344978233700654
+    }
+  ],
+  "soft_labels": [
+    {
+      "sentence": "i enjoy nothing in life im depressed .",
+      "human_label": "ANHEDONIA",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.47,
+        "ANHEDONIA": 0.48,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 0.05
+      }
+    },
+    {
+      "sentence": "I have lost all interest.",
+      "human_label": "ANHEDONIA",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.05,
+        "ANHEDONIA": 0.9,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 0.05
+      }
+    },
+    {
+      "sentence": "I can get a job but some days I am so depressed it's hard to even go out.",
+      "human_label": "ANHEDONIA",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.85,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.05,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.05,
+        "NO_SYMPTOM": 0.05
+      }
+    },
+    {
+      "sentence": "No matter what I still have the urge to eat.",
+      "human_label": "APPETITE_CHANGE",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.0,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.8,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.05,
+        "NO_SYMPTOM": 0.15
+      }
+    },
+    {
+      "sentence": "I can't concentrate on homework at all.",
+      "human_label": "COGNITIVE_ISSUES",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.0,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.95,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 0.05
+      }
+    },
+    {
+      "sentence": "As so I'm left feeling pessimistic on a daily basis.",
+      "human_label": "DEPRESSED_MOOD",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.9,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.05,
+        "NO_SYMPTOM": 0.05
+      }
+    },
+    {
+      "sentence": "I'd be lying if I said i didnt cry sometimes about this.",
+      "human_label": "DEPRESSED_MOOD",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.9,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 0.1
+      }
+    },
+    {
+      "sentence": "I'm becoming an extremely bitter and pessimistic person.",
+      "human_label": "DEPRESSED_MOOD",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.9,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.05,
+        "NO_SYMPTOM": 0.05
+      }
+    },
+    {
+      "sentence": "I guess I'm depressed",
+      "human_label": "DEPRESSED_MOOD",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.9,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.05,
+        "NO_SYMPTOM": 0.05
+      }
+    },
+    {
+      "sentence": "I wanted to cry.",
+      "human_label": "DEPRESSED_MOOD",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.9,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 0.1
+      }
+    },
+    {
+      "sentence": "I cried more than I ever will I think.",
+      "human_label": "DEPRESSED_MOOD",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.9,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 0.1
+      }
+    },
+    {
+      "sentence": "Honestly, at this point, I feel like my life is going nowhere, and that theres no point in trying anymore.",
+      "human_label": "DEPRESSED_MOOD",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.6,
+        "ANHEDONIA": 0.05,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.1,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.2,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 0.05
+      }
+    },
+    {
+      "sentence": "I was getting quite irritable .",
+      "human_label": "DEPRESSED_MOOD",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.9,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 0.1
+      }
+    },
+    {
+      "sentence": "How can I stop being always extremely tired?",
+      "human_label": "FATIGUE",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.0,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.9,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 0.1
+      }
+    },
+    {
+      "sentence": "i dont have the energy too, imm just suffering so much man",
+      "human_label": "FATIGUE",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.45,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.45,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.05,
+        "NO_SYMPTOM": 0.05
+      }
+    },
+    {
+      "sentence": "I guess lately i just dont have the energy.",
+      "human_label": "FATIGUE",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.05,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.9,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 0.05
+      }
+    },
+    {
+      "sentence": "I like being optimistic.",
+      "human_label": "NO_SYMPTOM",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.0,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 1.0
+      }
+    },
+    {
+      "sentence": "As far as religion goes, I'm (obviously) not religious and I certainly couldn't date someone who is very religious but I don't know about the people who believe in God but don't go to church and won't get upset over trivial things.",
+      "human_label": "NO_SYMPTOM",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.0,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 1.0
+      }
+    },
+    {
+      "sentence": "Im in a diet and I have cravings.",
+      "human_label": "NO_SYMPTOM",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.0,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.05,
+        "NO_SYMPTOM": 0.95
+      }
+    },
+    {
+      "sentence": "I think this makes me feel like a don't have the will to change things a lot of the time because I'm just too tired.",
+      "human_label": "NO_SYMPTOM",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.05,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.9,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 0.05
+      }
+    },
+    {
+      "sentence": "This had me crying",
+      "human_label": "NO_SYMPTOM",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.9,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 0.1
+      }
+    },
+    {
+      "sentence": "I think Im gonna cry the rest of the day!!!!",
+      "human_label": "NO_SYMPTOM",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.9,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 0.1
+      }
+    },
+    {
+      "sentence": "I cried like a baby for so long.",
+      "human_label": "NO_SYMPTOM",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.9,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 0.1
+      }
+    },
+    {
+      "sentence": "If I want kids, I sort of like the idea of a stay-at-home mom...",
+      "human_label": "NO_SYMPTOM",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.0,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 1.0
+      }
+    },
+    {
+      "sentence": "I've learned my lesson through many failures.",
+      "human_label": "NO_SYMPTOM",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.0,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.05,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.05,
+        "NO_SYMPTOM": 0.9
+      }
+    },
+    {
+      "sentence": "My body was agitated, but my mind was full of excuses not to notice, mention, or otherwise regard these strange discrepancies.",
+      "human_label": "PSYCHOMOTOR",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.0,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.85,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.05,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.05,
+        "NO_SYMPTOM": 0.05
+      }
+    },
+    {
+      "sentence": "I get ridiculed for sleeping too much while in reality I usually sleep in the morning and never at night.",
+      "human_label": "SLEEP_ISSUES",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.0,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.95,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 0.05
+      }
+    },
+    {
+      "sentence": "I feel tired and sleepy even after sleeping a lot and this has been for a week.",
+      "human_label": "SLEEP_ISSUES",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.0,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.45,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.5,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 0.05
+      }
+    },
+    {
+      "sentence": "Now i get paid more and have more time to do other things i enjoy",
+      "human_label": "SPECIAL_CASE",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.0,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.05,
+        "NO_SYMPTOM": 0.95
+      }
+    },
+    {
+      "sentence": "I went insane for a while before I got antidepressants.",
+      "human_label": "SPECIAL_CASE",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.0,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.1,
+        "NO_SYMPTOM": 0.9
+      }
+    },
+    {
+      "sentence": "And to me it seems the only way out is death.",
+      "human_label": "SUICIDAL_THOUGHTS",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.03,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.95,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 0.02
+      }
+    },
+    {
+      "sentence": "A few interesting self-observations: I have had suicidal thoughts before, and I have acted on them once and failed.",
+      "human_label": "SUICIDAL_THOUGHTS",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.0,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.95,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 0.05
+      }
+    },
+    {
+      "sentence": "I have NAS(NarcissisticAbuseSyndrome), severe depression with CONSTANT suicidal ideation...I've attempted suicide 4 times, actually being successful on the second but lived ultimately, and that's where I had a nea[SUBREDDIT] death experience that will shape the rest of my life, for however long that may be.",
+      "human_label": "SUICIDAL_THOUGHTS",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.1,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.8,
+        "SPECIAL_CASE": 0.1,
+        "NO_SYMPTOM": 0.0
+      }
+    },
+    {
+      "sentence": "Now instead of suicidal thoughts I am obsessing over something else.",
+      "human_label": "SUICIDAL_THOUGHTS",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.0,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.1,
+        "SUICIDAL_THOUGHTS": 0.05,
+        "SPECIAL_CASE": 0.8,
+        "NO_SYMPTOM": 0.05
+      }
+    },
+    {
+      "sentence": "I hate myself.",
+      "human_label": "WORTHLESSNESS",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.1,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.85,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 0.05
+      }
+    },
+    {
+      "sentence": "Why do I feel like such a failure?",
+      "human_label": "WORTHLESSNESS",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.05,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.9,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 0.05
+      }
+    },
+    {
+      "sentence": "I might respond by thinking that I'm a failure.",
+      "human_label": "WORTHLESSNESS",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.05,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.9,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 0.05
+      }
+    },
+    {
+      "sentence": "For the past few weeks I've been feeling better about myself, I was starting to feel I might actually have some worth or someway out of feeling horrible.",
+      "human_label": "WORTHLESSNESS",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.0,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.0,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.05,
+        "NO_SYMPTOM": 0.95
+      }
+    },
+    {
+      "sentence": "I felt completely and utterly worthless and I couldn't wait to die.",
+      "human_label": "WORTHLESSNESS",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.0,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.45,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.5,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 0.05
+      }
+    },
+    {
+      "sentence": "If something bad happens to me, it is likely to in some way be my fault",
+      "human_label": "WORTHLESSNESS",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.05,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.9,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 0.05
+      }
+    },
+    {
+      "sentence": "I hate myself.",
+      "human_label": "WORTHLESSNESS",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.05,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.0,
+        "FATIGUE": 0.0,
+        "WORTHLESSNESS": 0.9,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 0.05
+      }
+    },
+    {
+      "sentence": "When I am in a depressive state, I feel worthless and can't do anything.",
+      "human_label": "WORTHLESSNESS",
+      "soft_label": {
+        "DEPRESSED_MOOD": 0.35,
+        "ANHEDONIA": 0.0,
+        "APPETITE_CHANGE": 0.0,
+        "SLEEP_ISSUES": 0.0,
+        "PSYCHOMOTOR": 0.05,
+        "FATIGUE": 0.1,
+        "WORTHLESSNESS": 0.45,
+        "COGNITIVE_ISSUES": 0.0,
+        "SUICIDAL_THOUGHTS": 0.0,
+        "SPECIAL_CASE": 0.0,
+        "NO_SYMPTOM": 0.05
+      }
+    }
+  ]
+}

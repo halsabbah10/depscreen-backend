@@ -59,9 +59,14 @@ DEFAULT_RESOURCES = [
 
 
 class LLMService:
-    """Service for LLM-powered explanation generation."""
+    """Service for LLM-powered explanation generation.
 
-    def __init__(self, settings: Settings):
+    Supports per-task model selection via the model parameter.
+    Default: settings.llm_model_pro (explanation is patient-facing, needs quality).
+    Override at init to use a different tier.
+    """
+
+    def __init__(self, settings: Settings, model: str | None = None):
         self.settings = settings
         self.client = AsyncOpenAI(
             api_key=settings.llm_api_key,
@@ -71,7 +76,8 @@ class LLMService:
                 "X-Title": "DepScreen Explanation",
             },
         )
-        self.model = settings.llm_model
+        # Explanation is patient-facing → Pro by default
+        self.model = model or settings.llm_model_pro
 
     async def generate_explanation(
         self,

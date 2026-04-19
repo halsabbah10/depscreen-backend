@@ -45,16 +45,28 @@ env/
 uploads/*
 !uploads/.gitkeep
 
-# ML Models (too large for git)
-ml/models/*.pt
-ml/models/*.pth
-ml/models/*.bin
-ml/models/*.onnx
+# ML Models (too large for git — use HuggingFace for weights)
+ml/models/**/*.pt
+ml/models/**/*.pth
+ml/models/**/*.bin
+ml/models/**/*.onnx
+ml/models/**/*.safetensors
+ml/models/baseline_v1/
+ml/models/v2_dapt_base/
+ml/models/v_production_ensemble/dapt_distilbert/model.pt
+ml/models/v_production_ensemble/roberta/model.pt
+ml/models/v_production_ensemble/deberta/model.pt
 
 # ML Data (too large for git)
-ml/data/suicide_watch/*.csv
+ml/data/suicide_watch/
 ml/data/lmvd/
-ml/data/redsm5/processed/*.csv
+ml/data/dapt_corpus/
+ml/data/redsm5/**/*.csv
+ml/data/redsm5/augmented_v3/
+ml/data/redsm5/augmented_v4/
+
+# PDF artifacts (generated, not source)
+ml/DepScreen_Model_Results.pdf
 
 # ChromaDB persistence (legacy, migrated to pgvector)
 data/chromadb/

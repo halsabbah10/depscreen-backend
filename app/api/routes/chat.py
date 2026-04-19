@@ -44,7 +44,8 @@ async def get_chat_service(settings: Settings = Depends(get_settings)):
     if _chat_service is None:
         _rag_service = RAGService(settings)
         await _rag_service.initialize()
-        llm_service = LLMService(settings)
+        # Chat uses Flash tier — latency matters for conversational UX
+        llm_service = LLMService(settings, model=settings.llm_model_flash)
         _chat_service = ChatService(llm_service, _rag_service)
     return _chat_service
 

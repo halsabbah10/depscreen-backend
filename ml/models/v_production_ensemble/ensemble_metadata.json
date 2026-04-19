@@ -1,0 +1,83 @@
+{
+  "type": "soft_vote_ensemble",
+  "models": [
+    {
+      "name": "./ml/models/v2_dapt_base",
+      "label": "dapt_distilbert",
+      "dir": "/Users/axerroce/General Assembly - Data Science Part Time Bootcamp/Capstone Project/backend/ml/models/v_production_ensemble/dapt_distilbert"
+    },
+    {
+      "name": "roberta-base",
+      "label": "roberta",
+      "dir": "/Users/axerroce/General Assembly - Data Science Part Time Bootcamp/Capstone Project/backend/ml/models/v_production_ensemble/roberta"
+    },
+    {
+      "name": "microsoft/deberta-base",
+      "label": "deberta",
+      "dir": "/Users/axerroce/General Assembly - Data Science Part Time Bootcamp/Capstone Project/backend/ml/models/v_production_ensemble/deberta"
+    }
+  ],
+  "label_map": {
+    "DEPRESSED_MOOD": 0,
+    "ANHEDONIA": 1,
+    "APPETITE_CHANGE": 2,
+    "SLEEP_ISSUES": 3,
+    "PSYCHOMOTOR": 4,
+    "FATIGUE": 5,
+    "WORTHLESSNESS": 6,
+    "COGNITIVE_ISSUES": 7,
+    "SUICIDAL_THOUGHTS": 8,
+    "SPECIAL_CASE": 9,
+    "NO_SYMPTOM": 10
+  },
+  "label_readable": {
+    "DEPRESSED_MOOD": "Depressed Mood",
+    "ANHEDONIA": "Loss of Interest / Pleasure",
+    "APPETITE_CHANGE": "Appetite / Weight Change",
+    "SLEEP_ISSUES": "Sleep Disturbance",
+    "PSYCHOMOTOR": "Psychomotor Changes",
+    "FATIGUE": "Fatigue / Loss of Energy",
+    "WORTHLESSNESS": "Worthlessness / Guilt",
+    "COGNITIVE_ISSUES": "Difficulty Concentrating",
+    "SUICIDAL_THOUGHTS": "Suicidal Ideation",
+    "SPECIAL_CASE": "Other Clinical Indicator",
+    "NO_SYMPTOM": "No Symptom Detected"
+  },
+  "num_classes": 11,
+  "pooling": "mean",
+  "max_length": 128,
+  "thresholds": {
+    "DEPRESSED_MOOD": 0.25,
+    "ANHEDONIA": 0.45,
+    "APPETITE_CHANGE": 0.5,
+    "SLEEP_ISSUES": 0.55,
+    "PSYCHOMOTOR": 0.5,
+    "FATIGUE": 0.6000000000000001,
+    "WORTHLESSNESS": 0.4,
+    "COGNITIVE_ISSUES": 0.15000000000000002,
+    "SUICIDAL_THOUGHTS": 0.05,
+    "SPECIAL_CASE": 0.55,
+    "NO_SYMPTOM": 0.15000000000000002
+  },
+  "cv_performance": {
+    "ensemble_micro_f1": "0.813 \u00b1 0.010",
+    "ensemble_macro_f1": "0.770 \u00b1 0.017",
+    "threshold_tuned_micro_f1": 0.82,
+    "threshold_tuned_macro_f1": 0.792,
+    "note": "Threshold-tuned metrics have slight optimistic bias (tuned on eval data). True performance is between raw ensemble and tuned metrics."
+  },
+  "training_config": {
+    "data": "cleaned_v2 (train + val) + augmented_v2 (196 samples)",
+    "total_samples": 1792,
+    "epochs": 7,
+    "lr": 3e-05,
+    "loss": "CrossEntropyLoss (effective-number weights, label_smoothing=0.1)",
+    "pooling": "mean"
+  },
+  "data_provenance": {
+    "original_dataset": "ReDSM5 (CIKM 2025), 1,484 Reddit posts, 2,058 annotations",
+    "cleaning": "Conflict resolution (53 sentences), dedup (20), confident learning (66 relabeled, 96 removed), manual fixes (9)",
+    "augmentation": "196 samples via Gemini 2.5 Flash paraphrasing, similarity filtered [0.70, 0.95]",
+    "dapt": "Domain-adaptive pre-training on 39K Reddit mental health posts (perplexity 16.90\u21927.59)"
+  }
+}

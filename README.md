@@ -25,9 +25,9 @@ Frontend (React + Vite): [halsabbah10/depscreen-frontend](https://github.com/hal
 | DB | Postgres (Supabase) + pgvector · SQLite in-memory for tests |
 | Migrations | Alembic — idempotent boot-time sync via `init_db()` |
 | ORM | SQLAlchemy 2.x |
-| ML | PyTorch + Transformers (DistilBERT, 11-class, 0.696 micro-F1) |
+| ML | PyTorch + Transformers — 3-model ensemble (DAPT DistilBERT + RoBERTa + DeBERTa, 0.813 micro-F1) |
 | Embeddings | sentence-transformers `all-MiniLM-L6-v2` (384-d) |
-| LLM | OpenAI SDK → OpenRouter → Gemini 2.5 Flash (free tier) |
+| LLM | OpenAI SDK → Google AI Studio — Gemini Pro/Flash/Lite hybrid tiers |
 | Resilience | `tenacity` retry with exponential backoff on every LLM call |
 | Rate limiting | `slowapi` — auth 10/min, screening 20/min, chat 30/min |
 | Logging | `structlog` JSON, request IDs, PII-scrubbed |
@@ -89,9 +89,12 @@ cp .env.example .env              # fill in the values below
 |---|---|
 | `DATABASE_URL` | `postgresql://...` (Supabase) or `sqlite:///./app.db` for local |
 | `JWT_SECRET` | ≥32-char secret for signing access / refresh tokens |
-| `LLM_API_KEY` | OpenRouter key — leave blank to disable LLM calls (pipeline degrades gracefully) |
-| `LLM_BASE_URL` | `https://openrouter.ai/api/v1` |
-| `LLM_MODEL` | `google/gemini-2.5-flash:free` (current) |
+| `LLM_API_KEY` | Google AI Studio key — leave blank to disable LLM calls (pipeline degrades gracefully) |
+| `LLM_BASE_URL` | `https://generativelanguage.googleapis.com/v1beta/openai/` |
+| `LLM_MODEL` | `gemini-3-flash-preview` (default) |
+| `LLM_MODEL_PRO` | `gemini-3.1-pro-preview` (adversarial, explanation) |
+| `LLM_MODEL_FLASH` | `gemini-3-flash-preview` (chat, evidence) |
+| `LLM_MODEL_LITE` | `gemini-3.1-flash-lite-preview` (auto-title, utilities) |
 | `CORS_ORIGINS` | JSON array, e.g. `["http://localhost:3000","https://depscreen.vercel.app"]` |
 
 ### Optional env vars

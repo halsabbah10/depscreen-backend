@@ -9,6 +9,7 @@ import json
 import logging
 import re
 
+import numpy as np
 import torch
 import torch.nn as nn
 from transformers import AutoModel, AutoTokenizer
@@ -25,16 +26,35 @@ logger = logging.getLogger(__name__)
 class SymptomClassifier(nn.Module):
     """Sentence-level DSM-5 symptom classifier (matches training architecture)."""
 
-    def __init__(self, num_classes: int = 11, model_name: str = "distilbert-base-uncased"):
+    def __init__(self, num_classes: int = 11, model_name: str = "distilbert-base-uncased", pooling: str = "mean"):
         super().__init__()
         self.encoder = AutoModel.from_pretrained(model_name)
         hidden_size = self.encoder.config.hidden_size
         self.dropout = nn.Dropout(0.3)
-        self.classifier = nn.Linear(hidden_size, num_classes)
+        self.pooling = pooling
+
+        if pooling == "cls_mean":
+            self.classifier = nn.Linear(hidden_size * 2, num_classes)
+        else:
+            self.classifier = nn.Linear(hidden_size, num_classes)
 
     def forward(self, input_ids, attention_mask):
         outputs = self.encoder(input_ids=input_ids, attention_mask=attention_mask)
-        pooled = outputs.last_hidden_state[:, 0]  # CLS token
+
+        cls_output = outputs.last_hidden_state[:, 0]
+
+        if self.pooling == "mean" or self.pooling == "cls_mean":
+            token_embeddings = outputs.last_hidden_state
+            mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
+            mean_output = (token_embeddings * mask_expanded).sum(1) / mask_expanded.sum(1).clamp(min=1e-9)
+
+        if self.pooling == "cls_mean":
+            pooled = torch.cat([cls_output, mean_output], dim=1)
+        elif self.pooling == "mean":
+            pooled = mean_output
+        else:
+            pooled = cls_output
+
         dropped = self.dropout(pooled)
         logits = self.classifier(dropped)
         return logits
@@ -93,6 +113,11 @@ DSM5_CRITERIA = [
     "SUICIDAL_THOUGHTS",
 ]
 
+# Safety floor: if SUICIDAL_THOUGHTS raw probability exceeds this, always
+# predict it regardless of per-class threshold adjustment.  A depression
+# screening tool must NEVER down-rank suicidal ideation.
+SUICIDAL_SAFETY_FLOOR = 0.15
+
 SYMPTOM_KEYWORDS = {
     "DEPRESSED_MOOD": ["sad", "depressed", "crying", "hopeless", "miserable", "unhappy"],
     "ANHEDONIA": ["no interest", "don't enjoy", "can't enjoy", "nothing matters", "don't care"],
@@ -149,7 +174,11 @@ def compute_severity(unique_dsm5_count: int) -> dict:
 
 
 class ModelService:
-    """Service for loading the trained model and running symptom inference."""
+    """Service for loading the trained model(s) and running symptom inference.
+
+    Supports both single-model and ensemble mode.
+    Ensemble mode is activated when model_path contains ensemble_metadata.json.
+    """
 
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -161,6 +190,12 @@ class ModelService:
         self.max_length: int = 128
         self.model_name: str = "distilbert-base-uncased"
 
+        # Ensemble support
+        self.is_ensemble: bool = False
+        self.ensemble_models: list[SymptomClassifier] = []
+        self.ensemble_tokenizers: list = []
+        self.thresholds: np.ndarray | None = None
+
     @staticmethod
     def _get_device() -> torch.device:
         if torch.backends.mps.is_available():
@@ -170,10 +205,20 @@ class ModelService:
         return torch.device("cpu")
 
     async def load_models(self):
-        """Load the trained symptom classifier and metadata."""
+        """Load the trained symptom classifier(s) and metadata.
+
+        If model_path contains ensemble_metadata.json, loads all ensemble
+        models and enables soft-vote averaging at inference time.
+        """
         model_dir = self.settings.model_path
 
-        # Load metadata
+        # Check for ensemble
+        ensemble_meta_path = model_dir / "ensemble_metadata.json"
+        if ensemble_meta_path.exists():
+            await self._load_ensemble(model_dir, ensemble_meta_path)
+            return
+
+        # Load metadata (single model)
         metadata_path = model_dir / self.settings.symptom_metadata_name
         if metadata_path.exists():
             with open(metadata_path) as f:
@@ -229,6 +274,62 @@ class ModelService:
         else:
             logger.warning(f"Model not found at {model_path} — using demo mode")
 
+    async def _load_ensemble(self, model_dir, meta_path):
+        """Load all ensemble models and thresholds."""
+        with open(meta_path) as f:
+            meta = json.load(f)
+
+        self.is_ensemble = True
+        self.num_classes = meta.get("num_classes", 11)
+        self.max_length = meta.get("max_length", 128)
+
+        # Label map
+        label_map_raw = meta.get("label_map", {})
+        self.label_map = {int(v): k for k, v in label_map_raw.items()}
+
+        # Thresholds
+        thresholds_dict = meta.get("thresholds", {})
+        if thresholds_dict:
+            label_names = sorted(label_map_raw.keys(), key=lambda x: label_map_raw[x])
+            self.thresholds = np.array([float(thresholds_dict.get(n, 0.0)) for n in label_names])
+            logger.info(f"Loaded per-class thresholds")
+
+        # Load each model
+        for model_info in meta.get("models", []):
+            model_name = model_info["name"]
+            model_label = model_info["label"]
+            sub_dir = model_dir / model_label
+
+            try:
+                # Load tokenizer from saved dir, model architecture from original name
+                tokenizer = AutoTokenizer.from_pretrained(str(sub_dir))
+                model = SymptomClassifier(
+                    num_classes=self.num_classes,
+                    model_name=model_name,  # Use original model name for architecture
+                    pooling=meta.get("pooling", "mean"),
+                )
+                # Load to CPU first, then move to device (avoids MPS alignment bug)
+                state_dict = torch.load(sub_dir / "model.pt", map_location="cpu", weights_only=False)
+                model.load_state_dict(state_dict, strict=False)
+                model.to(self.device)
+                model.eval()
+
+                self.ensemble_models.append(model)
+                self.ensemble_tokenizers.append(tokenizer)
+                logger.info(f"Loaded ensemble model: {model_label} from {sub_dir}")
+            except Exception as e:
+                import traceback
+                logger.error(f"Failed to load ensemble model {model_label}: {e}")
+                logger.error(traceback.format_exc())
+
+        if self.ensemble_models:
+            # Set primary tokenizer/model for backward compatibility
+            self.tokenizer = self.ensemble_tokenizers[0]
+            self.symptom_model = self.ensemble_models[0]
+            logger.info(f"Ensemble loaded: {len(self.ensemble_models)} models")
+        else:
+            logger.error("No ensemble models loaded — falling back to demo mode")
+
     async def unload_models(self):
         """Release model resources."""
         self.symptom_model = None
@@ -260,21 +361,52 @@ class ModelService:
         detections: list[SymptomDetection] = []
 
         for i, sentence in enumerate(sentences):
-            encoding = self.tokenizer(
-                sentence,
-                truncation=True,
-                max_length=self.max_length,
-                return_tensors="pt",
-                padding=True,
-            )
-            input_ids = encoding["input_ids"].to(self.device)
-            attention_mask = encoding["attention_mask"].to(self.device)
+            if self.is_ensemble and len(self.ensemble_models) > 1:
+                # Ensemble: average softmax probabilities across models
+                all_probs = []
+                for model, tok in zip(self.ensemble_models, self.ensemble_tokenizers):
+                    encoding = tok(
+                        sentence, truncation=True, max_length=self.max_length,
+                        return_tensors="pt", padding=True,
+                    )
+                    input_ids = encoding["input_ids"].to(self.device)
+                    attention_mask = encoding["attention_mask"].to(self.device)
+                    with torch.no_grad():
+                        logits = model(input_ids, attention_mask)
+                        probs = torch.softmax(logits, dim=1).cpu().numpy()[0]
+                    all_probs.append(probs)
 
-            with torch.no_grad():
-                logits = self.symptom_model(input_ids, attention_mask)
-                probs = torch.softmax(logits, dim=1)
-                pred_class = torch.argmax(probs, dim=1).item()
-                confidence = probs[0, pred_class].item()
+                avg_probs = np.mean(all_probs, axis=0)
+
+                # Safety override: if SUICIDAL_THOUGHTS raw probability
+                # exceeds the safety floor, force that prediction.
+                suicidal_idx = next(
+                    (idx for idx, name in self.label_map.items() if name == "SUICIDAL_THOUGHTS"),
+                    None,
+                )
+                if suicidal_idx is not None and avg_probs[suicidal_idx] >= SUICIDAL_SAFETY_FLOOR:
+                    # Suicidal ideation detected — never allow thresholds to override this
+                    pred_class = suicidal_idx
+                elif self.thresholds is not None:
+                    adjusted = avg_probs - self.thresholds
+                    pred_class = int(np.argmax(adjusted))
+                else:
+                    pred_class = int(np.argmax(avg_probs))
+
+                confidence = float(avg_probs[pred_class])
+            else:
+                # Single model
+                encoding = self.tokenizer(
+                    sentence, truncation=True, max_length=self.max_length,
+                    return_tensors="pt", padding=True,
+                )
+                input_ids = encoding["input_ids"].to(self.device)
+                attention_mask = encoding["attention_mask"].to(self.device)
+                with torch.no_grad():
+                    logits = self.symptom_model(input_ids, attention_mask)
+                    probs = torch.softmax(logits, dim=1)
+                    pred_class = torch.argmax(probs, dim=1).item()
+                    confidence = probs[0, pred_class].item()
 
             symptom_name = self.label_map.get(pred_class, "NO_SYMPTOM")
 

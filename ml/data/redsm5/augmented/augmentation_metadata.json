@@ -1,0 +1,38 @@
+{
+  "model": "gemini-2.5-flash",
+  "original_samples": 1591,
+  "augmented_samples": 172,
+  "combined_samples": 1763,
+  "paraphrases_per_sentence": 5,
+  "similarity_range": [
+    0.7,
+    0.95
+  ],
+  "per_class": {
+    "COGNITIVE_ISSUES": {
+      "original": 51,
+      "augmented": 31,
+      "combined": 82
+    },
+    "SUICIDAL_THOUGHTS": {
+      "original": 155,
+      "augmented": 10,
+      "combined": 165
+    },
+    "SPECIAL_CASE": {
+      "original": 76,
+      "augmented": 63,
+      "combined": 139
+    },
+    "APPETITE_CHANGE": {
+      "original": 41,
+      "augmented": 62,
+      "combined": 103
+    },
+    "PSYCHOMOTOR": {
+      "original": 30,
+      "augmented": 6,
+      "combined": 36
+    }
+  }
+}
