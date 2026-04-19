@@ -89,6 +89,7 @@ class Settings(BaseSettings):
     rate_limit_screening: str = "20/minute"  # Screening submissions
     rate_limit_chat: str = "30/minute"  # Chat messages
     rate_limit_default: str = "100/minute"  # General endpoints
+    redis_url: str = ""  # Upstash Redis URL; empty = in-memory fallback
 
     # ── Safety ─────────────────────────────────────────────────────────────
     always_include_disclaimer: bool = True

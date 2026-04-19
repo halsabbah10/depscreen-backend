@@ -41,6 +41,7 @@ sentence-transformers>=2.2.0
 
 # Backend Hardening
 slowapi>=0.1.9
+redis>=5.0.0
 structlog>=23.1.0
 
 # Email notifications

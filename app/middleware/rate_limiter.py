@@ -6,14 +6,44 @@ Protects against:
 - LLM API abuse (each screening triggers 4+ LLM calls)
 - General abuse / DoS
 
-Limits are configured in app.core.config.Settings.
+Uses Redis (Upstash free tier) when REDIS_URL is set,
+falls back to in-memory storage otherwise.
 """
+
+import logging
 
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 
-# Create limiter instance — uses IP address for rate tracking
-limiter = Limiter(key_func=get_remote_address)
+logger = logging.getLogger(__name__)
+
+
+def _build_limiter() -> Limiter:
+    """Build limiter with Redis if available, in-memory otherwise."""
+    try:
+        from app.core.config import get_settings
+
+        redis_url = get_settings().redis_url
+    except Exception:
+        redis_url = ""
+
+    if redis_url:
+        try:
+            storage_uri = redis_url
+            limiter = Limiter(
+                key_func=get_remote_address,
+                storage_uri=storage_uri,
+            )
+            logger.info("Rate limiter: Redis-backed (%s)", redis_url.split("@")[-1] if "@" in redis_url else "redis")
+            return limiter
+        except Exception as e:
+            logger.warning("Redis rate-limiter init failed, falling back to in-memory: %s", e)
+
+    logger.info("Rate limiter: in-memory (set REDIS_URL for persistence)")
+    return Limiter(key_func=get_remote_address)
+
+
+limiter = _build_limiter()
 
 
 def get_limiter() -> Limiter:
