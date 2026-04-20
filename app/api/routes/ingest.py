@@ -294,7 +294,7 @@ async def analyze_reddit_profile(
     return {
         "screening_id": screening_id,
         "platform": "reddit",
-        "username": request.username,
+        "username": body.username,
         "posts_fetched": len(posts),
         "posts_screened": len(per_post_results),
         "aggregate_severity": screening.severity_level,
@@ -350,7 +350,7 @@ async def analyze_x_profile(
         )
 
     # Combined text
-    combined_text = "\n\n".join(f"[@{request.username}] {t.text}" for t in tweets)
+    combined_text = "\n\n".join(f"[@{body.username}] {t.text}" for t in tweets)
 
     # Run full pipeline
     screening_id, screening = await _run_full_pipeline(
@@ -366,7 +366,7 @@ async def analyze_x_profile(
     return {
         "screening_id": screening_id,
         "platform": "x",
-        "username": request.username,
+        "username": body.username,
         "posts_fetched": len(tweets),
         "posts_screened": len(per_post_results),
         "aggregate_severity": screening.severity_level,
