@@ -26,7 +26,8 @@ COPY . .
 RUN mkdir -p ml/models ml/knowledge_base uploads
 
 # HF Spaces runs as user 1000 — ensure write permissions
-RUN chmod -R 777 /app/ml/models /app/uploads
+RUN chown -R 1000:1000 /app/ml/models /app/uploads && \
+    chmod -R 755 /app/ml/models /app/uploads
 
 EXPOSE 8000
 
