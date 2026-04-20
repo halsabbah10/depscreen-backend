@@ -4,7 +4,7 @@ import secrets
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import field_validator
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -70,14 +70,17 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60  # 1 hour (reduced from 24h)
     refresh_token_expire_days: int = 7
 
-    @field_validator("jwt_secret", mode="before")
-    @classmethod
-    def validate_jwt_secret(cls, v: str) -> str:
-        if not v or v in ("", "depscreen-dev-secret-change-in-production", "depscreen-docker-secret"):
-            # Auto-generate a secure secret for development
-            # In production, this MUST be set via environment variable
-            return secrets.token_hex(32)
-        return v
+    @model_validator(mode="after")
+    def validate_jwt_secret(self) -> "Settings":
+        known_defaults = ("", "depscreen-dev-secret-change-in-production", "depscreen-docker-secret")
+        if not self.jwt_secret or self.jwt_secret in known_defaults:
+            if self.environment == "production":
+                raise ValueError(
+                    "JWT_SECRET must be explicitly set in production. "
+                    "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+                )
+            self.jwt_secret = secrets.token_hex(32)
+        return self
 
     # ── RAG ─────────────────────────────────────────────────────────────────
     knowledge_base_dir: Path = Path("./ml/knowledge_base")
