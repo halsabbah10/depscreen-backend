@@ -24,7 +24,7 @@ from app.models.db import Screening, User, get_db
 from app.schemas.analysis import (
     ScreeningListItem,
 )
-from app.services.auth import get_current_user, log_audit
+from app.services.auth import get_current_user, log_audit, require_patient
 from app.services.decision import DecisionService
 from app.services.inference import ModelService
 from app.services.ingestion import (
@@ -195,7 +195,7 @@ async def get_prompts(current_user: User = Depends(get_current_user)):
 async def submit_checkin(
     request: Request,
     body: CheckInResponse,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_patient()),
     services: dict = Depends(get_services),
     db: Session = Depends(get_db),
 ):
@@ -232,7 +232,7 @@ async def submit_checkin(
 async def analyze_reddit_profile(
     request: Request,
     body: RedditIngestionRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_patient()),
     services: dict = Depends(get_services),
     db: Session = Depends(get_db),
 ):
@@ -313,7 +313,7 @@ async def analyze_reddit_profile(
 async def analyze_x_profile(
     request: Request,
     body: XIngestionRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_patient()),
     services: dict = Depends(get_services),
     db: Session = Depends(get_db),
 ):
@@ -384,7 +384,7 @@ async def analyze_x_profile(
 async def upload_bulk_text(
     request: Request,
     body: BulkUploadRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_patient()),
     services: dict = Depends(get_services),
     db: Session = Depends(get_db),
 ):
