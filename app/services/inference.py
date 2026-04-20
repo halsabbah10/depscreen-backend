@@ -237,7 +237,6 @@ class ModelService:
                     repo_id=self.settings.hf_model_repo,
                     filename=pt_file,
                     local_dir=str(model_dir),
-                    local_dir_use_symlinks=False,
                 )
                 logger.info(f"  Downloaded {pt_file}")
         except Exception as e:

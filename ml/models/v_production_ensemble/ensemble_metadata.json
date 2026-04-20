@@ -2,19 +2,19 @@
   "type": "soft_vote_ensemble",
   "models": [
     {
-      "name": "./ml/models/v2_dapt_base",
+      "name": "distilbert-base-uncased",
       "label": "dapt_distilbert",
-      "dir": "/Users/axerroce/General Assembly - Data Science Part Time Bootcamp/Capstone Project/backend/ml/models/v_production_ensemble/dapt_distilbert"
+      "dir": "dapt_distilbert"
     },
     {
       "name": "roberta-base",
       "label": "roberta",
-      "dir": "/Users/axerroce/General Assembly - Data Science Part Time Bootcamp/Capstone Project/backend/ml/models/v_production_ensemble/roberta"
+      "dir": "roberta"
     },
     {
       "name": "microsoft/deberta-base",
       "label": "deberta",
-      "dir": "/Users/axerroce/General Assembly - Data Science Part Time Bootcamp/Capstone Project/backend/ml/models/v_production_ensemble/deberta"
+      "dir": "deberta"
     }
   ],
   "label_map": {
