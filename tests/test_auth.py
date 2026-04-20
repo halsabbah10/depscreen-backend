@@ -16,7 +16,7 @@ def test_register_patient_creates_user_and_returns_tokens(client):
     assert resp.status_code == 200, resp.text
     data = resp.json()
     assert data["access_token"]
-    assert data["refresh_token"]
+    assert "refresh_token" not in data
     assert data["user"]["email"] == "newbie@test.local"
     assert data["user"]["role"] == "patient"
     # Patients don't receive a clinician_code
@@ -128,26 +128,23 @@ def test_me_rejects_refresh_token_as_access(client, patient_user):
 
 
 def test_refresh_rotates_tokens(client, patient_user):
-    # First login to get a real refresh token
     login = client.post(
         "/api/auth/login",
         json={"email": patient_user.email, "password": "test-password-123"},
     )
-    refresh = login.json()["refresh_token"]
-
-    resp = client.post("/api/auth/refresh", json={"refresh_token": refresh})
+    assert login.status_code == 200
+    resp = client.post("/api/auth/refresh")
     assert resp.status_code == 200
     new_access = resp.json()["access_token"]
     assert new_access
-    # Should work on /me
     ok = client.get("/api/auth/me", headers={"Authorization": f"Bearer {new_access}"})
     assert ok.status_code == 200
 
 
-def test_refresh_rejects_access_token(client, patient_headers):
-    """Passing an access token where a refresh is expected must 401."""
-    access = patient_headers["Authorization"].removeprefix("Bearer ")
-    resp = client.post("/api/auth/refresh", json={"refresh_token": access})
+def test_refresh_rejects_tampered_cookie(client):
+    """A garbage cookie value should 401."""
+    client.cookies.set("refresh_token", "not-a-real-jwt", domain="testserver", path="/api/auth")
+    resp = client.post("/api/auth/refresh")
     assert resp.status_code == 401
 
 

@@ -254,10 +254,12 @@ class UserProfile(BaseModel):
 
 
 class TokenResponse(BaseModel):
-    """JWT token response."""
+    """JWT token response.
+
+    refresh_token is delivered via httpOnly cookie, not in the JSON body.
+    """
 
     access_token: str
-    refresh_token: str
     token_type: str = "bearer"
     user: UserProfile
 

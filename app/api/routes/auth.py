@@ -7,6 +7,7 @@ Registration, login, token refresh, and profile management.
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -15,7 +16,6 @@ from app.middleware.rate_limiter import limiter
 from app.models.db import User, get_db
 from app.schemas.analysis import (
     LoginRequest,
-    RefreshRequest,
     RegisterRequest,
     TokenResponse,
     UserProfile,
@@ -32,6 +32,24 @@ from app.services.auth import (
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+def _set_refresh_cookie(response: JSONResponse, token: str, settings: Settings) -> None:
+    """Set the refresh token as an httpOnly cookie on the response."""
+    response.set_cookie(
+        key="refresh_token",
+        value=token,
+        httponly=True,
+        secure=settings.is_production,
+        samesite="strict" if settings.is_production else "lax",
+        path="/api/auth",
+        max_age=settings.refresh_token_expire_days * 86400,
+    )
+
+
+def _clear_refresh_cookie(response: JSONResponse) -> None:
+    """Delete the refresh token cookie."""
+    response.delete_cookie(key="refresh_token", path="/api/auth")
 
 
 def _user_to_profile(user: User) -> UserProfile:
@@ -58,7 +76,7 @@ def _user_to_profile(user: User) -> UserProfile:
     )
 
 
-@router.post("/register", response_model=TokenResponse)
+@router.post("/register")
 @limiter.limit("5/minute")
 async def register(
     body: RegisterRequest,
@@ -90,14 +108,16 @@ async def register(
         except Exception as e:
             logger.warning(f"Welcome email failed: {e}")
 
-    return TokenResponse(
+    body_out = TokenResponse(
         access_token=access_token,
-        refresh_token=refresh_token,
         user=_user_to_profile(user),
     )
+    response = JSONResponse(content=body_out.model_dump())
+    _set_refresh_cookie(response, refresh_token, settings)
+    return response
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login")
 @limiter.limit("10/minute")
 async def login(
     body: LoginRequest,
@@ -119,21 +139,26 @@ async def login(
 
     log_audit(db, user.id, "login", resource_type="user")
 
-    return TokenResponse(
+    body_out = TokenResponse(
         access_token=access_token,
-        refresh_token=refresh_token,
         user=_user_to_profile(user),
     )
+    response = JSONResponse(content=body_out.model_dump())
+    _set_refresh_cookie(response, refresh_token, settings)
+    return response
 
 
-@router.post("/refresh", response_model=TokenResponse)
+@router.post("/refresh")
 async def refresh_token(
-    body: RefreshRequest,
+    request: Request,
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ):
-    """Refresh an access token using a valid refresh token."""
-    payload = decode_token(body.refresh_token, settings)
+    """Refresh an access token using the httpOnly refresh cookie."""
+    cookie_token = request.cookies.get("refresh_token")
+    if not cookie_token:
+        raise HTTPException(status_code=401, detail="No refresh token cookie")
+    payload = decode_token(cookie_token, settings)
 
     if payload.get("type") != "refresh":
         raise HTTPException(status_code=401, detail="Invalid token type — expected refresh token")
@@ -146,11 +171,13 @@ async def refresh_token(
     new_access = create_access_token(user.id, user.role, settings)
     new_refresh = create_refresh_token(user.id, settings)
 
-    return TokenResponse(
+    body_out = TokenResponse(
         access_token=new_access,
-        refresh_token=new_refresh,
         user=_user_to_profile(user),
     )
+    response = JSONResponse(content=body_out.model_dump())
+    _set_refresh_cookie(response, new_refresh, settings)
+    return response
 
 
 @router.get("/me", response_model=UserProfile)
@@ -164,14 +191,11 @@ async def logout(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Server-side logout — records the audit event.
-
-    Note: stateless JWTs can't be truly revoked without a denylist. For now,
-    we log the event and rely on the client clearing tokens. A production
-    deployment should add a Redis-backed denylist keyed by jti claim.
-    """
+    """Server-side logout — clears refresh cookie and records audit event."""
     log_audit(db, current_user.id, "logout", resource_type="user")
-    return {"status": "logged_out"}
+    response = JSONResponse(content={"status": "logged_out"})
+    _clear_refresh_cookie(response)
+    return response
 
 
 class LinkClinicianRequest(BaseModel):
