@@ -204,12 +204,53 @@ class ModelService:
             return torch.device("cuda")
         return torch.device("cpu")
 
+    async def _download_models_if_needed(self):
+        """Download ensemble models from HuggingFace if not present locally."""
+        model_dir = self.settings.model_path
+        ensemble_meta = model_dir / "ensemble_metadata.json"
+
+        if not ensemble_meta.exists():
+            logger.info("No ensemble metadata found locally — skipping HF download")
+            return
+
+        with open(ensemble_meta) as f:
+            meta = json.load(f)
+
+        missing = []
+        for model_info in meta.get("models", []):
+            pt_path = model_dir / model_info["label"] / "model.pt"
+            if not pt_path.exists():
+                missing.append(model_info["label"])
+
+        if not missing:
+            logger.info("All ensemble model weights present locally")
+            return
+
+        logger.info(f"Downloading missing model weights from {self.settings.hf_model_repo}: {missing}")
+        try:
+            from huggingface_hub import hf_hub_download
+
+            for label in missing:
+                pt_file = f"{label}/model.pt"
+                logger.info(f"  Downloading {pt_file}...")
+                hf_hub_download(
+                    repo_id=self.settings.hf_model_repo,
+                    filename=pt_file,
+                    local_dir=str(model_dir),
+                    local_dir_use_symlinks=False,
+                )
+                logger.info(f"  Downloaded {pt_file}")
+        except Exception as e:
+            logger.error(f"Failed to download models from HF: {e}")
+
     async def load_models(self):
         """Load the trained symptom classifier(s) and metadata.
 
         If model_path contains ensemble_metadata.json, loads all ensemble
         models and enables soft-vote averaging at inference time.
+        Downloads missing weights from HuggingFace if needed.
         """
+        await self._download_models_if_needed()
         model_dir = self.settings.model_path
 
         # Check for ensemble

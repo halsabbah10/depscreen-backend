@@ -62,6 +62,7 @@ class Settings(BaseSettings):
     model_path: Path = Path("./ml/models/v_production_ensemble")
     symptom_model_name: str = "symptom_classifier.pt"
     symptom_metadata_name: str = "redsm5_metadata.json"
+    hf_model_repo: str = "halsabbah/depscreen-models"  # HF model repo for ensemble weights
 
     # ── Auth ───────────────────────────────────────────────────────────────
     jwt_secret: str = ""

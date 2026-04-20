@@ -16,21 +16,39 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          lfs: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install huggingface_hub
+        run: pip install huggingface-hub
 
       - name: Inject HF Space config into README
         # HF Spaces reads configuration (sdk, port, title, emoji) from YAML
         # frontmatter at the top of README.md. GitHub renders that frontmatter
         # as an ugly table, so the canonical README.md has none — we prepend
-        # it here, only on the commit that gets pushed to the Space.
+        # it here before uploading.
         run: |
           cat .hf-space-header.md README.md > README.md.with-header
           mv README.md.with-header README.md
-          git -c user.email="ci@example.com" -c user.name="CI" \
-              commit -am "ci: inject HF Space frontmatter"
 
-      - name: Push to HuggingFace Spaces
+      - name: Deploy code to HuggingFace Spaces
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          git push https://halsabbah:$HF_TOKEN@huggingface.co/spaces/halsabbah/depscreen main --force
+          python3 -c "
+          from huggingface_hub import HfApi
+          api = HfApi(token='$HF_TOKEN')
+          api.upload_folder(
+              folder_path='.',
+              repo_id='halsabbah/depscreen',
+              repo_type='space',
+              # Skip model weights — they live in halsabbah/depscreen-models
+              # and are downloaded at runtime by the inference service.
+              ignore_patterns=['*.pt', '*.pth', '*.bin', '*.safetensors', '*.onnx', '.git/*'],
+              commit_message='deploy: sync code from GitHub main',
+          )
+          print('Deploy complete')
+          "
