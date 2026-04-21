@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     sentry_dsn: str = ""
 
     # ── Database ───────────────────────────────────────────────────────────
-    database_url: str = "sqlite:///./app.db"
+    database_url: str = "postgresql://postgres:postgres@localhost:5432/depscreen"
 
     # ── Model Paths ────────────────────────────────────────────────────────
     model_path: Path = Path("./ml/models/v_production_ensemble")

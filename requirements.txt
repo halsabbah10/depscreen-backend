@@ -12,7 +12,6 @@ python-multipart>=0.0.22
 sqlalchemy>=2.0.27,<2.1
 psycopg2-binary>=2.9.0
 alembic>=1.12.0
-aiosqlite==0.19.0
 
 # Authentication
 python-jose[cryptography]>=3.3.0
@@ -39,6 +38,12 @@ tenacity>=8.2.0
 # RAG (Phase 5)
 pgvector>=0.2.0
 sentence-transformers>=2.2.0
+
+# PDF parsing — Docling is primary; pdfplumber is the fallback for simpler PDFs
+pdfplumber>=0.11.0
+
+# Document extraction — Docling handles complex clinical PDF layouts
+docling>=2.0.0
 
 # Backend Hardening
 slowapi>=0.1.9
@@ -68,9 +73,8 @@ aiofiles==23.2.1
 httpx==0.26.0
 
 # PDF parsing (uploaded patient forms: PHQ-9, GAD-7, etc.)
-# pdfplumber handles text-native PDFs; ocrmypdf is the scan fallback
-# (uses Tesseract; requires the apt packages installed in the Dockerfile).
-pdfplumber>=0.11.0
+# Docling is primary; pdfplumber is fallback; ocrmypdf handles scanned PDFs
+# (uses Tesseract; requires apt packages in Dockerfile).
 ocrmypdf>=16.0.0
 
 # PDF generation (screening result reports, patient export, clinical summary)

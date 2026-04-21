@@ -22,7 +22,7 @@ Frontend (React + Vite): [halsabbah10/depscreen-frontend](https://github.com/hal
 | Concern | Choice |
 |---|---|
 | Framework | FastAPI 0.120 on Uvicorn |
-| DB | Postgres (Supabase) + pgvector · SQLite in-memory for tests |
+| DB | Postgres (Supabase) + pgvector · SQLite in-memory for unit tests only (not supported for local dev) |
 | Migrations | Alembic — idempotent boot-time sync via `init_db()` |
 | ORM | SQLAlchemy 2.x |
 | ML | PyTorch + Transformers — 3-model ensemble (DAPT DistilBERT + RoBERTa + DeBERTa, 0.813 micro-F1) |
@@ -34,7 +34,7 @@ Frontend (React + Vite): [halsabbah10/depscreen-frontend](https://github.com/hal
 | Errors | Sentry (FastAPI integration) — no-op when DSN unset |
 | Auth | JWT (python-jose) · bcrypt (passlib) · access 1h / refresh 7d |
 | Email | Resend (via `resend` SDK); Jinja2 templates |
-| PDF | pdfplumber (parse uploaded forms) · reportlab (generate reports) |
+| PDF | Docling (parse uploaded forms, primary) · pdfplumber (fallback) · reportlab (generate reports) |
 | Storage | Supabase Storage (profile avatars) |
 
 ---
@@ -87,7 +87,7 @@ cp .env.example .env              # fill in the values below
 
 | Name | Purpose |
 |---|---|
-| `DATABASE_URL` | `postgresql://...` (Supabase) or `sqlite:///./app.db` for local |
+| `DATABASE_URL` | `postgresql://...` (Supabase or local Postgres with pgvector) — SQLite is not supported |
 | `JWT_SECRET` | ≥32-char secret for signing access / refresh tokens |
 | `LLM_API_KEY` | Google AI Studio key — leave blank to disable LLM calls (pipeline degrades gracefully) |
 | `LLM_BASE_URL` | `https://generativelanguage.googleapis.com/v1beta/openai/` |

@@ -334,9 +334,10 @@ async def upload_my_document_file(
 ):
     """Upload a file (PDF or text) directly. PDFs are parsed automatically.
 
-    Accepts multipart/form-data. For PDFs we run pdfplumber; for .txt we
-    decode as UTF-8. Other formats are rejected. Extracted text goes through
-    the same DB + RAG pipeline as the JSON upload endpoint.
+    Accepts multipart/form-data. For PDFs we run Docling (with pdfplumber
+    fallback); for .txt we decode as UTF-8. Other formats are rejected.
+    Extracted text goes through the same DB + RAG pipeline as the JSON
+    upload endpoint.
     """
     from app.services.pdf_extractor import PDFExtractionError, extract_text_from_pdf_bytes
 

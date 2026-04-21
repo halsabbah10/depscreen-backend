@@ -1,8 +1,9 @@
 DepScreen — Alembic migrations
 ================================
 
-Single-database configuration (Supabase Postgres in production, SQLite in
-local dev). Runs automatically on backend startup via `init_db()`.
+Single-database configuration (Supabase Postgres in production, local Postgres
+with pgvector for dev). SQLite is not supported. Runs automatically on backend
+startup via `init_db()`.
 
 Workflow for a schema change
 ----------------------------
