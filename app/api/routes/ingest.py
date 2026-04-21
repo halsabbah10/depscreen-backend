@@ -415,10 +415,17 @@ async def upload_bulk_text(
 
     # Screen each entry (DL only for per-entry breakdown)
     model_service: ModelService = services["model"]
-    per_entry_results = []
+    # Screen entries concurrently (same pattern as Reddit/X endpoints)
+    sem = asyncio.Semaphore(5)
 
-    for entry in entries:
-        result = await model_service.predict_symptoms(entry["text"])
+    async def _predict_entry(entry):
+        async with sem:
+            return entry, await model_service.predict_symptoms(entry["text"])
+
+    entry_results = await asyncio.gather(*[_predict_entry(e) for e in entries])
+
+    per_entry_results = []
+    for entry, result in entry_results:
         per_entry_results.append(
             {
                 "source": entry.get("source", "upload"),
