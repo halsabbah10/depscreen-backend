@@ -112,7 +112,7 @@ async def register(
         access_token=access_token,
         user=_user_to_profile(user),
     )
-    response = JSONResponse(content=body_out.model_dump())
+    response = JSONResponse(content=body_out.model_dump(mode="json"))
     _set_refresh_cookie(response, refresh_token, settings)
     return response
 
@@ -143,7 +143,7 @@ async def login(
         access_token=access_token,
         user=_user_to_profile(user),
     )
-    response = JSONResponse(content=body_out.model_dump())
+    response = JSONResponse(content=body_out.model_dump(mode="json"))
     _set_refresh_cookie(response, refresh_token, settings)
     return response
 
@@ -175,7 +175,7 @@ async def refresh_token(
         access_token=new_access,
         user=_user_to_profile(user),
     )
-    response = JSONResponse(content=body_out.model_dump())
+    response = JSONResponse(content=body_out.model_dump(mode="json"))
     _set_refresh_cookie(response, new_refresh, settings)
     return response
 
