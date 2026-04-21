@@ -10,6 +10,7 @@ Four ingestion methods, all running the full screening pipeline:
 Every method runs: DL classification → LLM verification → Decision → RAG enrichment → DB persistence.
 """
 
+import asyncio
 import logging
 from datetime import datetime
 from uuid import uuid4
@@ -259,12 +260,18 @@ async def analyze_reddit_profile(
             detail=f"No relevant posts found for u/{body.username}.",
         )
 
-    # Screen each post individually (DL only — verification on aggregate)
+    # Screen each post concurrently (DL only — verification on aggregate)
+    sem = asyncio.Semaphore(5)
+
+    async def _predict_reddit(post):
+        async with sem:
+            return post, await model_service.predict_symptoms(post.text)
+
+    prediction_results = await asyncio.gather(*[_predict_reddit(p) for p in posts])
+
     per_post_results = []
     all_detections = []
-
-    for post in posts:
-        result = await model_service.predict_symptoms(post.text)
+    for post, result in prediction_results:
         per_post_results.append(
             {
                 "subreddit": post.subreddit,
@@ -333,12 +340,18 @@ async def analyze_x_profile(
             detail=f"No relevant posts found for @{body.username}.",
         )
 
-    # Screen each tweet (DL only)
+    # Screen each tweet concurrently (DL only)
     per_post_results = []
     model_service: ModelService = services["model"]
+    sem = asyncio.Semaphore(5)
 
-    for tweet in tweets:
-        result = await model_service.predict_symptoms(tweet.text)
+    async def _predict_tweet(tweet):
+        async with sem:
+            return tweet, await model_service.predict_symptoms(tweet.text)
+
+    tweet_results = await asyncio.gather(*[_predict_tweet(t) for t in tweets])
+
+    for tweet, result in tweet_results:
         per_post_results.append(
             {
                 "platform": "x",
