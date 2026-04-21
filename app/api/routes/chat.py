@@ -9,6 +9,7 @@ The chatbot is RAG-grounded and crisis-aware. It NEVER diagnoses.
 Tone: warm, empathetic, patient, non-judgmental — the user may be in crisis.
 """
 
+import asyncio
 import logging
 from uuid import uuid4
 
@@ -578,75 +579,89 @@ async def send_conversation_message_stream(
     async def event_generator_standalone():
         full_response = ""
 
-        if is_crisis:
-            logger.warning(f"Crisis keywords in standalone stream for user {current_user.id[:8]}")
-            warm_response = await chat_service.generate_warm_crisis_response(body.message)
-            # Stream in small chunks so the UI shows a gentle progressive
-            # appearance (matches the calm tone — no sudden wall of text).
-            for i in range(0, len(warm_response), 40):
-                chunk_text = warm_response[i : i + 40]
-                escaped = chunk_text.replace("\n", "\\n")
-                yield f"data: {escaped}\n\n"
-            full_response = warm_response
-        else:
-            try:
-                stream = await chat_service.llm.client.chat.completions.create(
-                    model=chat_service.llm.model,
-                    messages=[
-                        {"role": "system", "content": CHAT_SYSTEM_PROMPT},
-                        {"role": "user", "content": prompt},
-                    ],
-                    temperature=0.4,
-                    max_tokens=600,
-                    stream=True,
-                )
-                async for chunk in stream:
-                    if chunk.choices and chunk.choices[0].delta.content:
-                        delta = chunk.choices[0].delta.content
-                        full_response += delta
-                        escaped = delta.replace("\n", "\\n")
-                        yield f"data: {escaped}\n\n"
-
-                full_response = re_module.sub(r"<think>.*?</think>", "", full_response, flags=re_module.DOTALL).strip()
-                # Safety guard on stream output
+        try:
+            if is_crisis:
+                logger.warning(f"Crisis keywords in standalone stream for user {current_user.id[:8]}")
+                warm_response = await chat_service.generate_warm_crisis_response(body.message)
+                # Stream in small chunks so the UI shows a gentle progressive
+                # appearance (matches the calm tone — no sudden wall of text).
+                for i in range(0, len(warm_response), 40):
+                    chunk_text = warm_response[i : i + 40]
+                    escaped = chunk_text.replace("\n", "\\n")
+                    yield f"data: {escaped}\n\n"
+                full_response = warm_response
+            else:
                 try:
-                    from app.services.safety_guard import scan_text as _sg_scan
+                    stream = await chat_service.llm.client.chat.completions.create(
+                        model=chat_service.llm.model,
+                        messages=[
+                            {"role": "system", "content": CHAT_SYSTEM_PROMPT},
+                            {"role": "user", "content": prompt},
+                        ],
+                        temperature=0.4,
+                        max_tokens=600,
+                        stream=True,
+                    )
+                    async for chunk in stream:
+                        if chunk.choices and chunk.choices[0].delta.content:
+                            delta = chunk.choices[0].delta.content
+                            full_response += delta
+                            escaped = delta.replace("\n", "\\n")
+                            yield f"data: {escaped}\n\n"
 
-                    _sg = _sg_scan(full_response, context="chat")
-                    if _sg.violations:
-                        logger.warning(
-                            f"Streaming standalone chat violations for user {current_user.id[:8]}: "
-                            f"{[(v.category, v.severity) for v in _sg.violations]}"
-                        )
-                    full_response = _sg.redacted
-                except Exception as _sg_err:
-                    logger.warning(f"Safety guard error (non-fatal): {_sg_err}")
-            except Exception as e:
-                logger.error(f"Standalone chat streaming failed: {type(e).__name__}: {e}", exc_info=True)
-                fallback = (
-                    "I'm having trouble putting something together for you right "
-                    "now — that's on my side, not yours. Whatever you wrote still "
-                    "matters. Try sending it again in a moment, or take a breath "
-                    "and come back when you feel like it.\n\n"
-                    "If things are heavy right now and you'd rather talk to a "
-                    "person, Shamsaha (17651421) answers 24/7 — it's free and "
-                    "confidential. For an emergency, 999."
-                )
-                yield f"data: {fallback}\n\n"
-                full_response = fallback
+                    full_response = re_module.sub(r"<think>.*?</think>", "", full_response, flags=re_module.DOTALL).strip()
+                    # Safety guard on stream output
+                    try:
+                        from app.services.safety_guard import scan_text as _sg_scan
 
-        # Save assistant message
-        assistant_msg = ChatMessage(
-            id=str(uuid4()),
-            conversation_id=conversation_id,
-            role="assistant",
-            content=full_response,
-        )
-        db.add(assistant_msg)
-        conv.updated_at = assistant_msg.created_at
-        db.commit()
+                        _sg = _sg_scan(full_response, context="chat")
+                        if _sg.violations:
+                            logger.warning(
+                                f"Streaming standalone chat violations for user {current_user.id[:8]}: "
+                                f"{[(v.category, v.severity) for v in _sg.violations]}"
+                            )
+                        full_response = _sg.redacted
+                    except Exception as _sg_err:
+                        logger.warning(f"Safety guard error (non-fatal): {_sg_err}")
+                except Exception as e:
+                    logger.error(f"Standalone chat streaming failed: {type(e).__name__}: {e}", exc_info=True)
+                    fallback = (
+                        "I'm having trouble putting something together for you right "
+                        "now — that's on my side, not yours. Whatever you wrote still "
+                        "matters. Try sending it again in a moment, or take a breath "
+                        "and come back when you feel like it.\n\n"
+                        "If things are heavy right now and you'd rather talk to a "
+                        "person, Shamsaha (17651421) answers 24/7 — it's free and "
+                        "confidential. For an emergency, 999."
+                    )
+                    yield f"data: {fallback}\n\n"
+                    full_response = fallback
 
-        yield "data: [DONE]\n\n"
+            yield "data: [DONE]\n\n"
+        except (asyncio.CancelledError, GeneratorExit):
+            logger.info(f"Stream disconnected for conversation {conversation_id}")
+        finally:
+            # Save assistant message even on disconnect (partial response)
+            if full_response.strip():
+                try:
+                    assistant_msg = ChatMessage(
+                        id=str(uuid4()),
+                        conversation_id=conversation_id,
+                        role="assistant",
+                        content=full_response,
+                    )
+                    db.add(assistant_msg)
+                    latest_msg = (
+                        db.query(ChatMessage)
+                        .filter(ChatMessage.conversation_id == conversation_id)
+                        .order_by(desc(ChatMessage.created_at))
+                        .first()
+                    )
+                    if latest_msg:
+                        conv.updated_at = latest_msg.created_at
+                    db.commit()
+                except Exception as save_err:
+                    logger.error(f"Failed to save assistant response: {save_err}")
 
     return StreamingResponse(
         event_generator_standalone(),
