@@ -73,7 +73,7 @@ class User(Base):
     is_active = Column(Boolean, default=True)
 
     # Patient ↔ Clinician relationship
-    clinician_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    clinician_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     clinician_code = Column(String(10), unique=True, nullable=True)
 
     # Demographics (Phase 2)
@@ -159,13 +159,13 @@ class Screening(Base):
     # Clinical workflow
     triage_status = Column(String(50), default="new", index=True)
     reviewed_at = Column(DateTime, nullable=True)
-    reviewed_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    reviewed_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     clinician_notes = Column(Text, nullable=True)
     next_action = Column(String(255), nullable=True)
     next_action_date = Column(DateTime, nullable=True)
 
     # Link to care plan (if active)
-    care_plan_id = Column(String(36), ForeignKey("care_plans.id"), nullable=True)
+    care_plan_id = Column(String(36), ForeignKey("care_plans.id"), nullable=True, index=True)
 
     # Relationships
     patient = relationship("User", back_populates="screenings", foreign_keys=[patient_id])
@@ -206,7 +206,7 @@ class Conversation(Base):
     title = Column(String(255), default="New Conversation")
     context_type = Column(String(50), default="general")  # general, screening_followup, clinician_direct
     linked_screening_id = Column(String(36), nullable=True)  # Optional screening context
-    linked_clinician_id = Column(String(36), ForeignKey("users.id"), nullable=True)  # For clinician-direct
+    linked_clinician_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)  # For clinician-direct
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
