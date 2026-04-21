@@ -161,7 +161,7 @@ Respond in JSON:
                 )
 
             response = await _call_evidence()
-            data = extract_json(response.choices[0].message.content)
+            data = extract_json(response.choices[0].message.content or "")
             return EvidenceValidation(**data)
         except Exception as e:
             logger.error(f"Evidence validation failed: {e}")
@@ -203,7 +203,7 @@ Respond in JSON:
                 )
 
             response = await _call_adversarial()
-            data = extract_json(response.choices[0].message.content)
+            data = extract_json(response.choices[0].message.content or "")
             return AdversarialCheck(**data)
         except Exception as e:
             logger.error(f"Adversarial check failed: {e}")
@@ -255,7 +255,7 @@ Respond in JSON:
                 )
 
             response = await _call_confidence()
-            data = extract_json(response.choices[0].message.content)
+            data = extract_json(response.choices[0].message.content or "")
             return ConfidenceAnalysis(**data)
         except Exception as e:
             logger.error(f"Confidence calibration failed: {e}")

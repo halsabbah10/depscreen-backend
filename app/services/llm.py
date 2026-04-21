@@ -113,7 +113,7 @@ class LLMService:
 
             response = await _call()
 
-            content = response.choices[0].message.content
+            content = response.choices[0].message.content or ""
             data = extract_json(content)
 
             # Ensure safety fields are always present

@@ -261,7 +261,7 @@ def create_app() -> FastAPI:
             )
             return {
                 "status": "ok",
-                "response": response.choices[0].message.content,
+                "response": response.choices[0].message.content or "",
                 "model": settings.llm_model,
             }
         except Exception as e:

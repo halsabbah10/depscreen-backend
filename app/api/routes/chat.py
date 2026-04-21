@@ -377,7 +377,7 @@ async def send_conversation_message(
                     temperature=0.4,
                     max_tokens=600,
                 )
-                response_text = response.choices[0].message.content
+                response_text = response.choices[0].message.content or ""
                 response_text = re.sub(r"<think>.*?</think>", "", response_text, flags=re.DOTALL).strip()
                 # Safety guard
                 from app.services.safety_guard import scan_text as _sg_scan

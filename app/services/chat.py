@@ -298,7 +298,7 @@ class ChatService:
                     temperature=0.4,
                     max_tokens=600,
                 )
-                response_text = response.choices[0].message.content
+                response_text = response.choices[0].message.content or ""
 
                 # Strip any <think> tags from reasoning models (e.g. DeepSeek R1)
                 response_text = re.sub(r"<think>.*?</think>", "", response_text, flags=re.DOTALL).strip()
