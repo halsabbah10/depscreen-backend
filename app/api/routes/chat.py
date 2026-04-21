@@ -234,6 +234,12 @@ async def auto_title_conversation(
         logger.warning(f"Auto-title LLM call failed: {e}")
         title = msgs[0].content[:50]
 
+    # Safety guard on LLM-generated title
+    from app.services.safety_guard import scan_text as _sg_scan_title
+
+    _sg_title = _sg_scan_title(title, context="title")
+    title = _sg_title.redacted
+
     conv.title = title
     db.commit()
     log_audit(db, current_user.id, "conversation_auto_titled", "conversation", conv.id)
@@ -324,6 +330,36 @@ async def send_conversation_message(
         if any(kw in message_lower for kw in CRISIS_KEYWORDS):
             logger.warning(f"Crisis keywords in standalone chat for user {current_user.id[:8]}")
             response_text = await chat_service.generate_warm_crisis_response(body.message)
+
+            # Notify clinician (same pattern as streaming path)
+            try:
+                if current_user.clinician_id:
+                    from app.core.config import get_settings as _get_settings
+                    from app.models.db import Notification
+                    from app.models.db import User as UserModel
+                    from app.services.email import get_email_service
+
+                    clinician = db.query(UserModel).filter(UserModel.id == current_user.clinician_id).first()
+                    if clinician and clinician.email:
+                        get_email_service(_get_settings()).send_crisis_alert_to_clinician(
+                            clinician_name=clinician.full_name,
+                            clinician_email=clinician.email,
+                            patient_name=current_user.full_name,
+                            severity="crisis_chat",
+                            symptom_count=0,
+                            screening_id=conversation_id,
+                        )
+                    db.add(Notification(
+                        id=str(uuid4()),
+                        user_id=current_user.clinician_id,
+                        notification_type="crisis_alert",
+                        title="Crisis keywords detected in chat",
+                        message=f"{current_user.full_name} used crisis-related language in a chat session.",
+                        is_read=False,
+                    ))
+                    db.commit()
+            except Exception as e:
+                logger.warning(f"Chat crisis notification failed (non-fatal): {e}")
         else:
             # RAG context based on user's detected symptoms from recent screenings
             detected_symptoms = []

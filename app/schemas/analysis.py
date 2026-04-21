@@ -411,6 +411,8 @@ class AppointmentResponse(BaseModel):
     id: str
     patient_id: str
     clinician_id: str
+    patient_name: str | None = None
+    clinician_name: str | None = None
     scheduled_at: datetime
     duration_minutes: int
     appointment_type: str
@@ -467,6 +469,8 @@ class CarePlanResponse(BaseModel):
     id: str
     patient_id: str
     clinician_id: str
+    patient_name: str | None = None
+    clinician_name: str | None = None
     title: str
     description: str | None = None
     template_name: str | None = None
