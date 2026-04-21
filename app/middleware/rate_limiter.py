@@ -34,7 +34,7 @@ def _build_limiter() -> Limiter:
                 key_func=get_remote_address,
                 storage_uri=storage_uri,
             )
-            logger.info("Rate limiter: Redis-backed (%s)", redis_url.split("@")[-1] if "@" in redis_url else "redis")
+            logger.info("Rate limiter: Redis-backed")
             return limiter
         except Exception as e:
             logger.warning("Redis rate-limiter init failed, falling back to in-memory: %s", e)

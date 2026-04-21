@@ -347,6 +347,9 @@ async def upload_my_document_file(
         )
 
     raw = await file.read()
+    max_upload_bytes = 10 * 1024 * 1024  # 10 MB
+    if len(raw) > max_upload_bytes:
+        raise HTTPException(status_code=413, detail="File exceeds 10 MB limit")
     filename = (file.filename or "").lower()
     content_type = (file.content_type or "").lower()
 
