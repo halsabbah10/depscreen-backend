@@ -866,6 +866,7 @@ async def update_allergy(
         reaction=allergy.reaction,
         diagnosed_date=allergy.diagnosed_date.isoformat() if allergy.diagnosed_date else None,
         notes=allergy.notes,
+        created_at=allergy.created_at,
     )
 
 

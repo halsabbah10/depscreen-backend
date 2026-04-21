@@ -411,13 +411,14 @@ async def send_conversation_message(
         db.commit()
 
     # Update conversation timestamp
-    conv.updated_at = (
+    latest_msg = (
         db.query(ChatMessage)
         .filter(ChatMessage.conversation_id == conversation_id)
         .order_by(desc(ChatMessage.created_at))
         .first()
-        .created_at
     )
+    if latest_msg:
+        conv.updated_at = latest_msg.created_at
     db.commit()
 
     return ChatMessageResponse(
