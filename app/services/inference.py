@@ -135,37 +135,41 @@ SYMPTOM_KEYWORDS = {
 
 
 def compute_severity(unique_dsm5_count: int) -> dict:
-    """Map symptom count to DSM-5 severity level."""
+    """Map symptom count to screening severity level.
+
+    Note: These are screening indicators, not clinical diagnoses.
+    The level keys (none/mild/moderate/severe) are used throughout
+    the codebase as enum-like values — do not rename them.
+    """
     if unique_dsm5_count == 0:
         return {
             "level": "none",
-            "explanation": "No DSM-5 depression symptoms were detected in the text.",
+            "explanation": "No depression-related patterns were detected in this text.",
         }
     elif unique_dsm5_count <= 2:
         return {
             "level": "mild",
             "explanation": (
-                f"{unique_dsm5_count} DSM-5 symptom(s) detected. "
-                "Below the clinical threshold for Major Depressive Episode. "
-                "Monitoring recommended."
+                f"{unique_dsm5_count} pattern(s) detected. "
+                "Below the threshold that typically warrants further evaluation. "
+                "Continued self-monitoring is encouraged."
             ),
         }
     elif unique_dsm5_count <= 4:
         return {
             "level": "moderate",
             "explanation": (
-                f"{unique_dsm5_count} DSM-5 symptoms detected. "
-                "Approaching clinical threshold. "
-                "Professional evaluation is recommended."
+                f"{unique_dsm5_count} patterns detected. "
+                "This suggests it may be helpful to speak with a professional."
             ),
         }
     else:
         return {
             "level": "severe",
             "explanation": (
-                f"{unique_dsm5_count} DSM-5 symptoms detected. "
-                "Meets or exceeds the DSM-5 threshold for Major Depressive Episode "
-                "(5+ of 9 criteria). Prompt professional evaluation is strongly recommended."
+                f"{unique_dsm5_count} patterns detected. "
+                "This screening suggests speaking with a mental health professional "
+                "would be beneficial."
             ),
         }
 

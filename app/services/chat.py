@@ -20,9 +20,9 @@ from app.services.rag import RAGService
 logger = logging.getLogger(__name__)
 
 # Keywords that trigger an immediate crisis response (pre-LLM)
-# English — Arabic keywords will be added in Phase 4 (i18n)
+# English + Arabic (MSA and Gulf/Khaleeji dialect for Bahrain context)
 CRISIS_KEYWORDS = [
-    # Direct suicidal ideation
+    # Direct suicidal ideation (English)
     "kill myself",
     "killing myself",
     "suicide",
@@ -37,7 +37,7 @@ CRISIS_KEYWORDS = [
     "ending it",
     "take my life",
     "take my own life",
-    # Self-harm
+    # Self-harm (English)
     "self harm",
     "self-harm",
     "selfharm",
@@ -45,7 +45,7 @@ CRISIS_KEYWORDS = [
     "hurt myself",
     "cutting myself",
     "cut myself",
-    # Indirect / resigned
+    # Indirect / resigned (English)
     "no reason to live",
     "nothing to live for",
     "better off dead",
@@ -59,7 +59,7 @@ CRISIS_KEYWORDS = [
     "dont want to be here anymore",
     "tired of being alive",
     "tired of living",
-    # Plan-related
+    # Plan-related (English)
     "have a plan",
     "made a plan",
     "have the means",
@@ -68,6 +68,34 @@ CRISIS_KEYWORDS = [
     "jump off",
     "hang myself",
     "hanging myself",
+    # ── Arabic: Direct suicidal ideation (MSA + Gulf dialect) ──
+    "انتحار",              # suicide
+    "انتحاري",             # suicidal
+    "اقتل نفسي",           # kill myself (MSA)
+    "أقتل نفسي",           # kill myself (with hamza)
+    "أريد أن أموت",         # I want to die (MSA)
+    "ابي اموت",            # I want to die (Gulf dialect)
+    "ابغى اموت",           # I want to die (Gulf dialect variant)
+    "اريد الموت",           # I want death
+    "أنهي حياتي",          # end my life
+    # ── Arabic: Self-harm ──
+    "إيذاء النفس",          # self-harm (MSA)
+    "ايذاء النفس",          # self-harm (without hamza)
+    "أجرح نفسي",           # cut/hurt myself
+    "اجرح نفسي",           # cut/hurt myself (without hamza)
+    "أأذي نفسي",           # harm myself
+    # ── Arabic: Indirect / resigned ──
+    "لا سبب للعيش",         # no reason to live
+    "الحياة لا تستحق",      # life isn't worth it
+    "تعبت من الحياة",       # tired of living
+    "خلاص ما ابي اعيش",     # done, don't want to live (Gulf)
+    "ما ابي اعيش",          # don't want to live (Gulf)
+    "مافي فايدة",           # no point / no use (Gulf)
+    "أفضل لو كنت ميت",     # better off dead (MSA)
+    # ── Arabic: Plan-related ──
+    "جرعة زائدة",           # overdose
+    "أشنق نفسي",           # hang myself
+    "حبوب",                # pills (colloquial context)
 ]
 
 # Localized crisis response (Bahrain)

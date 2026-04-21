@@ -109,6 +109,8 @@ CRISIS_RESOURCES_BY_PRIORITY = sorted(CRISIS_RESOURCES, key=lambda r: r["priorit
 # ── Safety Disclaimer ────────────────────────────────────────────────────────
 
 SAFETY_DISCLAIMER = (
+    "This tool is a research prototype. It is not FDA-cleared, CE-marked, or approved "
+    "by any regulatory body. It is not a diagnostic instrument. "
     "This is a screening companion — not a medical diagnosis. What it shows is one "
     "small window into how you're doing, and a clinician can see much more. In Bahrain, "
     "if things feel urgent, 999 is there 24/7, and Salmaniya Medical Complex's "
