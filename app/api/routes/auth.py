@@ -29,6 +29,7 @@ from app.services.auth import (
     log_audit,
     register_user,
 )
+from app.services.token_denylist import deny_token
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -188,10 +189,37 @@ async def get_profile(current_user: User = Depends(get_current_user)):
 
 @router.post("/logout")
 async def logout(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
 ):
-    """Server-side logout — clears refresh cookie and records audit event."""
+    """Server-side logout — revokes tokens and clears refresh cookie."""
+    # Deny the access token
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        access_token_str = auth_header.removeprefix("Bearer ")
+        try:
+            access_payload = decode_token(access_token_str, settings)
+            if access_jti := access_payload.get("jti"):
+                from datetime import datetime
+                exp = datetime.utcfromtimestamp(access_payload["exp"])
+                await deny_token(access_jti, exp)
+        except Exception:
+            pass  # Token already validated by get_current_user
+
+    # Deny the refresh token (from cookie)
+    refresh_cookie = request.cookies.get("refresh_token")
+    if refresh_cookie:
+        try:
+            refresh_payload = decode_token(refresh_cookie, settings)
+            if refresh_jti := refresh_payload.get("jti"):
+                from datetime import datetime
+                exp = datetime.utcfromtimestamp(refresh_payload["exp"])
+                await deny_token(refresh_jti, exp)
+        except Exception:
+            pass  # Cookie may be expired/invalid — still clear it
+
     log_audit(db, current_user.id, "logout", resource_type="user")
     response = JSONResponse(content={"status": "logged_out"})
     _clear_refresh_cookie(response)

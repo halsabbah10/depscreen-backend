@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
 from app.models.db import AuditLog, User, get_db
+from app.services.token_denylist import is_denied
 
 logger = logging.getLogger(__name__)
 
@@ -203,6 +204,14 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token type",
+        )
+
+    # Check if token has been revoked
+    jti = payload.get("jti")
+    if jti and await is_denied(jti):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked",
         )
 
     user_id = payload.get("sub")
