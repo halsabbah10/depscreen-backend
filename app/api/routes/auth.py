@@ -206,7 +206,7 @@ async def logout(
                 exp = datetime.utcfromtimestamp(access_payload["exp"])
                 await deny_token(access_jti, exp)
         except Exception:
-            pass  # Token already validated by get_current_user
+            logger.debug("Access token deny skipped (already expired or invalid)")
 
     # Deny the refresh token (from cookie)
     refresh_cookie = request.cookies.get("refresh_token")
@@ -218,7 +218,7 @@ async def logout(
                 exp = datetime.utcfromtimestamp(refresh_payload["exp"])
                 await deny_token(refresh_jti, exp)
         except Exception:
-            pass  # Cookie may be expired/invalid — still clear it
+            logger.debug("Refresh token deny skipped (cookie expired or invalid)")
 
     log_audit(db, current_user.id, "logout", resource_type="user")
     response = JSONResponse(content={"status": "logged_out"})
