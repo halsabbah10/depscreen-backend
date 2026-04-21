@@ -34,19 +34,27 @@ from app.core.config import get_settings
 
 settings = get_settings()
 
-pool_config = {
-    # Bumped from 10 → 20 after dashboard load profiling: on a moderately
-    # active clinician session (dashboard + patient detail + screenings)
-    # we'd saturate the old pool and spend 50–200 ms per request in
-    # queue. 20 + 40 overflow comfortably covers concurrent loads without
-    # overwhelming Supabase's session pooler.
-    "pool_size": 20,
-    "max_overflow": 40,
-    # 30 min is safer than the default 1 h for long-lived session-pooler
-    # connections which can go stale without warning.
-    "pool_recycle": 1800,
-    "pool_pre_ping": True,  # keep — Supabase pooler needs it
-}
+_is_sqlite = settings.database_url.startswith("sqlite")
+
+# SQLite (used in tests) does not support connection-pool tuning kwargs;
+# only apply them for real PostgreSQL connections.
+pool_config: dict = (
+    {}
+    if _is_sqlite
+    else {
+        # Bumped from 10 → 20 after dashboard load profiling: on a moderately
+        # active clinician session (dashboard + patient detail + screenings)
+        # we'd saturate the old pool and spend 50–200 ms per request in
+        # queue. 20 + 40 overflow comfortably covers concurrent loads without
+        # overwhelming Supabase's session pooler.
+        "pool_size": 20,
+        "max_overflow": 40,
+        # 30 min is safer than the default 1 h for long-lived session-pooler
+        # connections which can go stale without warning.
+        "pool_recycle": 1800,
+        "pool_pre_ping": True,  # keep — Supabase pooler needs it
+    }
+)
 
 engine = create_engine(settings.database_url, **pool_config)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
