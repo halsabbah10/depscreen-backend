@@ -9,7 +9,7 @@ Requires authentication — screenings are always attributed to a patient.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -102,6 +102,18 @@ async def screen_text(
         raise HTTPException(
             status_code=400,
             detail=f"Text exceeds maximum length of {settings.max_text_length} characters",
+        )
+
+    # Deduplication guard: reject if the same patient submitted another screening within 60 seconds
+    recent_cutoff = datetime.utcnow() - timedelta(seconds=60)
+    recent = db.query(Screening).filter(
+        Screening.patient_id == current_user.id,
+        Screening.created_at >= recent_cutoff,
+    ).first()
+    if recent:
+        raise HTTPException(
+            status_code=429,
+            detail="Please wait before submitting another screening."
         )
 
     # Step 1: DL symptom detection
