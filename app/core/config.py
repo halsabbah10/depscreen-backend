@@ -85,6 +85,42 @@ class Settings(BaseSettings):
     # ── RAG ─────────────────────────────────────────────────────────────────
     knowledge_base_dir: Path = Path("./ml/knowledge_base")
 
+    # Models (provisional — validated before deployment)
+    rag_embedding_model: str = "Alibaba-NLP/gte-large-en-v1.5"
+    rag_reranker_model: str = "BAAI/bge-reranker-v2-m3"
+    rag_nli_model: str = "cross-encoder/nli-deberta-v3-base"
+    rag_embedding_dimensions: int = 1024
+
+    # Retrieval
+    rag_similarity_threshold: float = 0.40  # Placeholder — calibrate empirically
+    rag_retrieval_top_k: int = 20  # Bi-encoder + BM25 candidates each
+    rag_rerank_top_k: int = 7  # Post-reranker results
+    rag_rrf_k: int = 50
+    rag_full_text_weight: float = 0.7
+    rag_semantic_weight: float = 1.0
+
+    # Token budget (percentages apply AFTER structured data deducted)
+    rag_max_context_tokens: int = 2500
+    rag_budget_clinical: float = 0.45
+    rag_budget_patient_history: float = 0.40
+    rag_budget_buffer: float = 0.15
+
+    # Chunking
+    rag_child_chunk_target: int = 400
+    rag_child_chunk_max: int = 512
+    rag_child_chunk_overlap: int = 64
+    rag_parent_chunk_max: int = 1500
+
+    # Chat summary
+    rag_chat_extraction_threshold: float = 0.45
+    rag_chat_summary_min_messages: int = 10
+    rag_chat_summary_min_substantive: int = 3
+
+    # Timeouts
+    rag_timeout_screening: float = 5.0
+    rag_timeout_chat: float = 2.0
+    rag_timeout_crisis: float = 0.0
+
     # ── CORS ───────────────────────────────────────────────────────────────
     cors_origins: str = '["http://localhost:3000","http://localhost:5173"]'
 
