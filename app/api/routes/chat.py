@@ -349,14 +349,16 @@ async def send_conversation_message(
                             symptom_count=0,
                             screening_id=conversation_id,
                         )
-                    db.add(Notification(
-                        id=str(uuid4()),
-                        user_id=current_user.clinician_id,
-                        notification_type="crisis_alert",
-                        title="Crisis keywords detected in chat",
-                        message=f"{current_user.full_name} used crisis-related language in a chat session.",
-                        is_read=False,
-                    ))
+                    db.add(
+                        Notification(
+                            id=str(uuid4()),
+                            user_id=current_user.clinician_id,
+                            notification_type="crisis_alert",
+                            title="Crisis keywords detected in chat",
+                            message=f"{current_user.full_name} used crisis-related language in a chat session.",
+                            is_read=False,
+                        )
+                    )
                     db.commit()
             except Exception as e:
                 logger.warning(f"Chat crisis notification failed (non-fatal): {e}")
@@ -668,14 +670,16 @@ async def send_conversation_message_stream(
                                 symptom_count=0,
                                 screening_id=conversation_id,
                             )
-                        db.add(Notification(
-                            id=str(uuid4()),
-                            user_id=current_user.clinician_id,
-                            notification_type="crisis_alert",
-                            title="Crisis keywords detected in chat",
-                            message=f"{current_user.full_name} used crisis-related language in a chat session.",
-                            is_read=False,
-                        ))
+                        db.add(
+                            Notification(
+                                id=str(uuid4()),
+                                user_id=current_user.clinician_id,
+                                notification_type="crisis_alert",
+                                title="Crisis keywords detected in chat",
+                                message=f"{current_user.full_name} used crisis-related language in a chat session.",
+                                is_read=False,
+                            )
+                        )
                         db.commit()
                 except Exception as e:
                     logger.warning(f"Chat crisis notification failed (non-fatal): {e}")
@@ -698,7 +702,9 @@ async def send_conversation_message_stream(
                             escaped = delta.replace("\n", "\\n")
                             yield f"data: {escaped}\n\n"
 
-                    full_response = re_module.sub(r"<think>.*?</think>", "", full_response, flags=re_module.DOTALL).strip()
+                    full_response = re_module.sub(
+                        r"<think>.*?</think>", "", full_response, flags=re_module.DOTALL
+                    ).strip()
                     # Safety guard on stream output
                     try:
                         from app.services.safety_guard import scan_text as _sg_scan

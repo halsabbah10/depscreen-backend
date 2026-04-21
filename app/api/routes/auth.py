@@ -203,6 +203,7 @@ async def logout(
             access_payload = decode_token(access_token_str, settings)
             if access_jti := access_payload.get("jti"):
                 from datetime import datetime
+
                 exp = datetime.utcfromtimestamp(access_payload["exp"])
                 await deny_token(access_jti, exp)
         except Exception:
@@ -215,6 +216,7 @@ async def logout(
             refresh_payload = decode_token(refresh_cookie, settings)
             if refresh_jti := refresh_payload.get("jti"):
                 from datetime import datetime
+
                 exp = datetime.utcfromtimestamp(refresh_payload["exp"])
                 await deny_token(refresh_jti, exp)
         except Exception:

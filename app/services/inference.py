@@ -159,8 +159,7 @@ def compute_severity(unique_dsm5_count: int) -> dict:
         return {
             "level": "moderate",
             "explanation": (
-                f"{unique_dsm5_count} patterns detected. "
-                "This suggests it may be helpful to speak with a professional."
+                f"{unique_dsm5_count} patterns detected. This suggests it may be helpful to speak with a professional."
             ),
         }
     else:

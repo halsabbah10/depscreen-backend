@@ -70,33 +70,33 @@ CRISIS_KEYWORDS = [
     "hang myself",
     "hanging myself",
     # ── Arabic: Direct suicidal ideation (MSA + Gulf dialect) ──
-    "انتحار",              # suicide
-    "انتحاري",             # suicidal
-    "اقتل نفسي",           # kill myself (MSA)
-    "أقتل نفسي",           # kill myself (with hamza)
-    "أريد أن أموت",         # I want to die (MSA)
-    "ابي اموت",            # I want to die (Gulf dialect)
-    "ابغى اموت",           # I want to die (Gulf dialect variant)
-    "اريد الموت",           # I want death
-    "أنهي حياتي",          # end my life
+    "انتحار",  # suicide
+    "انتحاري",  # suicidal
+    "اقتل نفسي",  # kill myself (MSA)
+    "أقتل نفسي",  # kill myself (with hamza)
+    "أريد أن أموت",  # I want to die (MSA)
+    "ابي اموت",  # I want to die (Gulf dialect)
+    "ابغى اموت",  # I want to die (Gulf dialect variant)
+    "اريد الموت",  # I want death
+    "أنهي حياتي",  # end my life
     # ── Arabic: Self-harm ──
-    "إيذاء النفس",          # self-harm (MSA)
-    "ايذاء النفس",          # self-harm (without hamza)
-    "أجرح نفسي",           # cut/hurt myself
-    "اجرح نفسي",           # cut/hurt myself (without hamza)
-    "أأذي نفسي",           # harm myself
+    "إيذاء النفس",  # self-harm (MSA)
+    "ايذاء النفس",  # self-harm (without hamza)
+    "أجرح نفسي",  # cut/hurt myself
+    "اجرح نفسي",  # cut/hurt myself (without hamza)
+    "أأذي نفسي",  # harm myself
     # ── Arabic: Indirect / resigned ──
-    "لا سبب للعيش",         # no reason to live
-    "الحياة لا تستحق",      # life isn't worth it
-    "تعبت من الحياة",       # tired of living
-    "خلاص ما ابي اعيش",     # done, don't want to live (Gulf)
-    "ما ابي اعيش",          # don't want to live (Gulf)
-    "مافي فايدة",           # no point / no use (Gulf)
-    "أفضل لو كنت ميت",     # better off dead (MSA)
+    "لا سبب للعيش",  # no reason to live
+    "الحياة لا تستحق",  # life isn't worth it
+    "تعبت من الحياة",  # tired of living
+    "خلاص ما ابي اعيش",  # done, don't want to live (Gulf)
+    "ما ابي اعيش",  # don't want to live (Gulf)
+    "مافي فايدة",  # no point / no use (Gulf)
+    "أفضل لو كنت ميت",  # better off dead (MSA)
     # ── Arabic: Plan-related ──
-    "جرعة زائدة",           # overdose
-    "أشنق نفسي",           # hang myself
-    "حبوب",                # pills (colloquial context)
+    "جرعة زائدة",  # overdose
+    "أشنق نفسي",  # hang myself
+    "حبوب",  # pills (colloquial context)
 ]
 
 # Localized crisis response (Bahrain)
@@ -235,6 +235,7 @@ class ChatService:
         from app.services.safety_guard import scan_text
 
         try:
+
             @llm_retry
             async def _call_crisis():
                 return await self.llm.client.chat.completions.create(
@@ -313,14 +314,16 @@ class ChatService:
                             screening_id=str(screening.id),
                         )
                     # In-app notification for the clinician
-                    db.add(Notification(
-                        id=str(uuid4()),
-                        user_id=clinician.id if clinician else patient.clinician_id,
-                        notification_type="crisis_alert",
-                        title="Crisis keywords detected in chat",
-                        message=f"{patient.full_name} used crisis-related language in a chat session.",
-                        is_read=False,
-                    ))
+                    db.add(
+                        Notification(
+                            id=str(uuid4()),
+                            user_id=clinician.id if clinician else patient.clinician_id,
+                            notification_type="crisis_alert",
+                            title="Crisis keywords detected in chat",
+                            message=f"{patient.full_name} used crisis-related language in a chat session.",
+                            is_read=False,
+                        )
+                    )
                     db.commit()
             except Exception as e:
                 logger.warning(f"Chat crisis notification failed (non-fatal): {e}")
@@ -355,6 +358,7 @@ class ChatService:
 
             # 4. Call LLM (with retry on transient errors)
             try:
+
                 @llm_retry
                 async def _call_chat():
                     return await self.llm.client.chat.completions.create(

@@ -77,7 +77,7 @@ class Settings(BaseSettings):
             if self.environment == "production":
                 raise ValueError(
                     "JWT_SECRET must be explicitly set in production. "
-                    "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+                    'Generate one with: python -c "import secrets; print(secrets.token_hex(32))"'
                 )
             self.jwt_secret = secrets.token_hex(32)
         return self
