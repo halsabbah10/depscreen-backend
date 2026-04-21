@@ -268,7 +268,7 @@ Respond in JSON:
             evidence_supports_prediction=True,
             coherence_score=0.7,
             alternative_interpretation=None,
-            flagged_for_review=False,
+            flagged_for_review=True,  # Flag for review when verification unavailable
         )
 
     def _fallback_adversarial_check(self) -> AdversarialCheck:
