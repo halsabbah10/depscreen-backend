@@ -26,6 +26,7 @@ from sqlalchemy import (
     Text,
     create_engine,
 )
+from sqlalchemy.dialects.postgresql import TSVECTOR as TSVector
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 
@@ -222,6 +223,8 @@ class PatientDocument(Base):
     content = Column(Text, nullable=False)
     file_url = Column(String(500), nullable=True)  # Supabase Storage URL (for PDFs/images)
     file_size = Column(Integer, nullable=True)  # bytes
+    processing_status = Column(String(20), default="ready")  # processing, ready, failed
+    processing_error = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -444,33 +447,59 @@ class EmailDelivery(Base):
 
 
 class KnowledgeChunk(Base):
-    """Clinical knowledge base chunks with pgvector embeddings."""
+    """Clinical knowledge base chunks with pgvector embeddings and BM25 search."""
 
     __tablename__ = "knowledge_chunks"
 
     id = Column(String(36), primary_key=True)
+    parent_chunk_id = Column(String(36), ForeignKey("knowledge_chunks.id"), nullable=True)
+    chunk_level = Column(String(10), default="child")  # 'parent' or 'child'
+    sequence_index = Column(Integer, default=0)
     content = Column(Text, nullable=False)
-    category = Column(String(50))  # dsm5_criteria, coping_strategies, psychoeducation, crisis
-    symptom = Column(String(50))  # DEPRESSED_MOOD, ANHEDONIA, etc. (or empty)
+    search_vector = Column(TSVector)  # BM25 full-text search
+    category = Column(String(50))  # dsm5_criteria, medications, etc.
+    subcategory = Column(String(100))
+    symptoms = Column(JSON, default=list)  # Array of symptom tags
     source_file = Column(String(255))
-    embedding = Column(Vector(384))  # all-MiniLM-L6-v2 outputs 384-dim vectors
+    source_type = Column(String(50))  # markdown, json, pdf, admin_upload
+    token_count = Column(Integer)
+    embedding = Column(Vector(1024))  # gte-large-en-v1.5
+    metadata_json = Column(JSON, nullable=True)
+    is_current = Column(Boolean, default=True)
+    document_version = Column(String(50), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    parent = relationship("KnowledgeChunk", remote_side=[id], lazy="select")
 
 
 class PatientRAGChunk(Base):
-    """Per-patient RAG chunks (screenings, documents) with pgvector embeddings."""
+    """Per-patient RAG chunks with pgvector embeddings and BM25 search."""
 
     __tablename__ = "patient_rag_chunks"
 
     id = Column(String(36), primary_key=True)
-    patient_id = Column(String(36), ForeignKey("users.id"), index=True)
+    parent_chunk_id = Column(String(36), ForeignKey("patient_rag_chunks.id"), nullable=True)
+    chunk_level = Column(String(10), default="child")
+    sequence_index = Column(Integer, default=0)
+    patient_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     screening_id = Column(String(36), nullable=True)
     doc_id = Column(String(36), nullable=True)
     content = Column(Text, nullable=False)
-    chunk_type = Column(String(50))  # screening_text, symptom_evidence, patient_document
+    search_vector = Column(TSVector)
+    chunk_type = Column(String(50))  # screening_text, symptom_evidence, patient_document, chat_summary
+    source_table = Column(String(50))  # screenings, patient_documents, chat_messages
+    source_row_id = Column(String(36))  # FK to source row for sync
+    content_hash = Column(String(64))  # SHA-256 for dedup
+    is_current = Column(Boolean, default=True)
+    token_count = Column(Integer)
+    embedding = Column(Vector(1024))
     metadata_json = Column(JSON, nullable=True)
-    embedding = Column(Vector(384))
     created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    parent = relationship("PatientRAGChunk", remote_side=[id], lazy="select")
+    patient = relationship("User", foreign_keys=[patient_id], lazy="select")
 
 
 # ── Session Management ────────────────────────────────────────────────────────
