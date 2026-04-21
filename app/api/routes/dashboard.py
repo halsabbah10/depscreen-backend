@@ -249,23 +249,34 @@ async def get_patient_full_profile(
         .first()
     )
 
-    # Aggregate counts
-    screening_count = db.query(Screening).filter(Screening.patient_id == patient_id).count()
-    doc_count = db.query(PatientDocument).filter(PatientDocument.patient_id == patient_id).count()
-    appt_count = (
-        db.query(Appointment)
+    # Aggregate counts — single DB round trip via scalar subqueries
+    screening_sq = (
+        db.query(func.count(Screening.id))
+        .filter(Screening.patient_id == patient_id)
+        .scalar_subquery()
+    )
+    doc_sq = (
+        db.query(func.count(PatientDocument.id))
+        .filter(PatientDocument.patient_id == patient_id)
+        .scalar_subquery()
+    )
+    appt_sq = (
+        db.query(func.count(Appointment.id))
         .filter(
             Appointment.patient_id == patient_id,
             Appointment.status.in_(["scheduled", "confirmed"]),
             Appointment.scheduled_at >= datetime.utcnow(),
         )
-        .count()
+        .scalar_subquery()
     )
-    cp_count = (
-        db.query(CarePlan)
+    cp_sq = (
+        db.query(func.count(CarePlan.id))
         .filter(CarePlan.patient_id == patient_id, CarePlan.status.in_(["active", "review_needed"]))
-        .count()
+        .scalar_subquery()
     )
+    screening_count, doc_count, appt_count, cp_count = db.query(
+        screening_sq, doc_sq, appt_sq, cp_sq
+    ).one()
     latest_screening = (
         db.query(Screening).filter(Screening.patient_id == patient_id).order_by(desc(Screening.created_at)).first()
     )
