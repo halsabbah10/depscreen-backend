@@ -14,8 +14,10 @@ import logging
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+
+from app.middleware.llm_resilience import llm_retry
 from fastapi.responses import StreamingResponse
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
@@ -76,9 +78,20 @@ async def list_conversations(
         .all()
     )
 
+    # Single grouped query for all message counts (avoids N+1)
+    conv_ids = [c.id for c in convos]
+    count_map: dict[str, int] = {}
+    if conv_ids:
+        counts = (
+            db.query(ChatMessage.conversation_id, func.count(ChatMessage.id))
+            .filter(ChatMessage.conversation_id.in_(conv_ids))
+            .group_by(ChatMessage.conversation_id)
+            .all()
+        )
+        count_map = dict(counts)
+
     results = []
     for c in convos:
-        msg_count = db.query(ChatMessage).filter(ChatMessage.conversation_id == c.id).count()
         results.append(
             ConversationResponse(
                 id=c.id,
@@ -88,7 +101,7 @@ async def list_conversations(
                 is_active=c.is_active,
                 created_at=c.created_at,
                 updated_at=c.updated_at,
-                message_count=msg_count,
+                message_count=count_map.get(c.id, 0),
             )
         )
 
@@ -369,15 +382,20 @@ async def send_conversation_message(
 
             try:
                 llm_svc = chat_service.llm
-                response = await llm_svc.client.chat.completions.create(
-                    model=llm_svc.model,
-                    messages=[
-                        {"role": "system", "content": CHAT_SYSTEM_PROMPT},
-                        {"role": "user", "content": prompt},
-                    ],
-                    temperature=0.4,
-                    max_tokens=600,
-                )
+
+                @llm_retry
+                async def _call_standalone():
+                    return await llm_svc.client.chat.completions.create(
+                        model=llm_svc.model,
+                        messages=[
+                            {"role": "system", "content": CHAT_SYSTEM_PROMPT},
+                            {"role": "user", "content": prompt},
+                        ],
+                        temperature=0.4,
+                        max_tokens=600,
+                    )
+
+                response = await _call_standalone()
                 response_text = response.choices[0].message.content or ""
                 response_text = re.sub(r"<think>.*?</think>", "", response_text, flags=re.DOTALL).strip()
                 # Safety guard
@@ -467,30 +485,36 @@ async def send_conversation_message_stream(
             )
 
             async def event_generator_linked():
-                async for chunk in chat_service.respond_stream(
-                    screening=screening,
-                    message=body.message,
-                    history=history,
-                    db=db,
-                ):
-                    # Fix the conversation_id for saved messages
-                    escaped = chunk.replace("\n", "\\n")
-                    yield f"data: {escaped}\n\n"
-                # After streaming, fix conversation_id links on saved messages
-                recent_msgs = (
-                    db.query(ChatMessage)
-                    .filter(
-                        ChatMessage.screening_id == screening.id,
-                        ChatMessage.conversation_id == None,
-                    )
-                    .order_by(desc(ChatMessage.created_at))
-                    .limit(2)
-                    .all()
-                )
-                for m in recent_msgs:
-                    m.conversation_id = conversation_id
-                db.commit()
-                yield "data: [DONE]\n\n"
+                try:
+                    async for chunk in chat_service.respond_stream(
+                        screening=screening,
+                        message=body.message,
+                        history=history,
+                        db=db,
+                    ):
+                        escaped = chunk.replace("\n", "\\n")
+                        yield f"data: {escaped}\n\n"
+                    yield "data: [DONE]\n\n"
+                except (asyncio.CancelledError, GeneratorExit):
+                    logger.info(f"Linked stream disconnected for conversation {conversation_id}")
+                finally:
+                    # Ensure conversation links are fixed even on disconnect
+                    try:
+                        recent_msgs = (
+                            db.query(ChatMessage)
+                            .filter(
+                                ChatMessage.screening_id == screening.id,
+                                ChatMessage.conversation_id == None,
+                            )
+                            .order_by(desc(ChatMessage.created_at))
+                            .limit(2)
+                            .all()
+                        )
+                        for m in recent_msgs:
+                            m.conversation_id = conversation_id
+                        db.commit()
+                    except Exception as e:
+                        logger.error(f"Failed to fix conversation links on disconnect: {e}")
 
             return StreamingResponse(
                 event_generator_linked(),
@@ -590,6 +614,34 @@ async def send_conversation_message_stream(
                     escaped = chunk_text.replace("\n", "\\n")
                     yield f"data: {escaped}\n\n"
                 full_response = warm_response
+
+                # Notify clinician if patient has one linked
+                try:
+                    if current_user.clinician_id:
+                        from app.models.db import Notification, User as UserModel
+                        from app.services.email import get_email_service
+
+                        clinician = db.query(UserModel).filter(UserModel.id == current_user.clinician_id).first()
+                        if clinician and clinician.email:
+                            get_email_service(settings).send_crisis_alert_to_clinician(
+                                clinician_name=clinician.full_name,
+                                clinician_email=clinician.email,
+                                patient_name=current_user.full_name,
+                                severity="crisis_chat",
+                                symptom_count=0,
+                                screening_id=conversation_id,
+                            )
+                        db.add(Notification(
+                            id=str(uuid4()),
+                            user_id=current_user.clinician_id,
+                            notification_type="crisis_alert",
+                            title="Crisis keywords detected in chat",
+                            message=f"{current_user.full_name} used crisis-related language in a chat session.",
+                            is_read=False,
+                        ))
+                        db.commit()
+                except Exception as e:
+                    logger.warning(f"Chat crisis notification failed (non-fatal): {e}")
             else:
                 try:
                     stream = await chat_service.llm.client.chat.completions.create(

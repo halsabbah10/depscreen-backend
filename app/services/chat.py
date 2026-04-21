@@ -13,6 +13,7 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from app.core import localization
+from app.middleware.llm_resilience import llm_retry
 from app.models.db import ChatMessage, Screening
 from app.services.llm import LLMService
 from app.services.rag import RAGService
@@ -234,15 +235,19 @@ class ChatService:
         from app.services.safety_guard import scan_text
 
         try:
-            resp = await self.llm.client.chat.completions.create(
-                model=self.llm.model,
-                messages=[
-                    {"role": "system", "content": CRISIS_CHAT_SYSTEM_PROMPT},
-                    {"role": "user", "content": message},
-                ],
-                temperature=0.5,
-                max_tokens=500,
-            )
+            @llm_retry
+            async def _call_crisis():
+                return await self.llm.client.chat.completions.create(
+                    model=self.llm.model,
+                    messages=[
+                        {"role": "system", "content": CRISIS_CHAT_SYSTEM_PROMPT},
+                        {"role": "user", "content": message},
+                    ],
+                    temperature=0.5,
+                    max_tokens=500,
+                )
+
+            resp = await _call_crisis()
             body = resp.choices[0].message.content or ""
             body = re.sub(r"<think>.*?</think>", "", body, flags=re.DOTALL).strip()
             safety = scan_text(body, context="chat")
@@ -286,6 +291,38 @@ class ChatService:
         if is_crisis:
             logger.warning(f"Crisis keywords detected in chat for screening {screening.id}")
             response_text = await self.generate_warm_crisis_response(message)
+
+            # Notify clinician — replicate the pattern from analyze.py
+            try:
+                from app.core.config import get_settings
+                from app.models.db import Notification, User as UserModel
+                from app.services.email import get_email_service
+
+                patient = db.query(UserModel).filter(UserModel.id == screening.patient_id).first()
+                if patient and patient.clinician_id:
+                    clinician = db.query(UserModel).filter(UserModel.id == patient.clinician_id).first()
+                    if clinician and clinician.email:
+                        settings = get_settings()
+                        get_email_service(settings).send_crisis_alert_to_clinician(
+                            clinician_name=clinician.full_name,
+                            clinician_email=clinician.email,
+                            patient_name=patient.full_name,
+                            severity="crisis_chat",
+                            symptom_count=0,
+                            screening_id=str(screening.id),
+                        )
+                    # In-app notification for the clinician
+                    db.add(Notification(
+                        id=str(uuid4()),
+                        user_id=clinician.id if clinician else patient.clinician_id,
+                        notification_type="crisis_alert",
+                        title="Crisis keywords detected in chat",
+                        message=f"{patient.full_name} used crisis-related language in a chat session.",
+                        is_read=False,
+                    ))
+                    db.commit()
+            except Exception as e:
+                logger.warning(f"Chat crisis notification failed (non-fatal): {e}")
         else:
             # 2. Retrieve RAG context
             detected_symptoms = []
@@ -315,17 +352,21 @@ class ChatService:
             # 3. Build prompt
             prompt = self._build_prompt(screening, message, history, rag_context, patient_profile)
 
-            # 4. Call LLM
+            # 4. Call LLM (with retry on transient errors)
             try:
-                response = await self.llm.client.chat.completions.create(
-                    model=self.llm.model,
-                    messages=[
-                        {"role": "system", "content": CHAT_SYSTEM_PROMPT},
-                        {"role": "user", "content": prompt},
-                    ],
-                    temperature=0.4,
-                    max_tokens=600,
-                )
+                @llm_retry
+                async def _call_chat():
+                    return await self.llm.client.chat.completions.create(
+                        model=self.llm.model,
+                        messages=[
+                            {"role": "system", "content": CHAT_SYSTEM_PROMPT},
+                            {"role": "user", "content": prompt},
+                        ],
+                        temperature=0.4,
+                        max_tokens=600,
+                    )
+
+                response = await _call_chat()
                 response_text = response.choices[0].message.content or ""
 
                 # Strip any <think> tags from reasoning models (e.g. DeepSeek R1)
