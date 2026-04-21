@@ -14,13 +14,12 @@ import logging
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-
-from app.middleware.llm_resilience import llm_retry
 from fastapi.responses import StreamingResponse
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
+from app.middleware.llm_resilience import llm_retry
 from app.middleware.rate_limiter import limiter
 from app.models.db import ChatMessage, Conversation, Screening, User, get_db
 from app.schemas.analysis import (
@@ -618,12 +617,14 @@ async def send_conversation_message_stream(
                 # Notify clinician if patient has one linked
                 try:
                     if current_user.clinician_id:
-                        from app.models.db import Notification, User as UserModel
+                        from app.core.config import get_settings as _get_settings
+                        from app.models.db import Notification
+                        from app.models.db import User as UserModel
                         from app.services.email import get_email_service
 
                         clinician = db.query(UserModel).filter(UserModel.id == current_user.clinician_id).first()
                         if clinician and clinician.email:
-                            get_email_service(settings).send_crisis_alert_to_clinician(
+                            get_email_service(_get_settings()).send_crisis_alert_to_clinician(
                                 clinician_name=clinician.full_name,
                                 clinician_email=clinician.email,
                                 patient_name=current_user.full_name,

@@ -295,7 +295,8 @@ class ChatService:
             # Notify clinician — replicate the pattern from analyze.py
             try:
                 from app.core.config import get_settings
-                from app.models.db import Notification, User as UserModel
+                from app.models.db import Notification
+                from app.models.db import User as UserModel
                 from app.services.email import get_email_service
 
                 patient = db.query(UserModel).filter(UserModel.id == screening.patient_id).first()
