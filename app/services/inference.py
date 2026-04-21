@@ -456,8 +456,19 @@ class ModelService:
                 with torch.no_grad():
                     logits = self.symptom_model(input_ids, attention_mask)
                     probs = torch.softmax(logits, dim=1)
-                    pred_class = torch.argmax(probs, dim=1).item()
-                    confidence = probs[0, pred_class].item()
+
+                    # Safety override: same suicidal safety floor as ensemble path
+                    probs_np = probs[0].cpu().numpy()
+                    suicidal_idx = next(
+                        (idx for idx, name in self.label_map.items() if name == "SUICIDAL_THOUGHTS"),
+                        None,
+                    )
+                    if suicidal_idx is not None and probs_np[suicidal_idx] >= SUICIDAL_SAFETY_FLOOR:
+                        pred_class = suicidal_idx
+                        confidence = float(probs_np[suicidal_idx])
+                    else:
+                        pred_class = torch.argmax(probs, dim=1).item()
+                        confidence = probs[0, pred_class].item()
 
             symptom_name = self.label_map.get(pred_class, "NO_SYMPTOM")
 
