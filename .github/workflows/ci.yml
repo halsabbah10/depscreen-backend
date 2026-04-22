@@ -162,7 +162,7 @@ jobs:
             -p 8000:8000 \
             depscreen-backend
           echo "Waiting for container to start..."
-          for i in $(seq 1 30); do
+          for i in $(seq 1 60); do
             if curl -sf http://localhost:8000/health/live > /dev/null 2>&1; then
               echo "Health check passed after ${i}s"
               break

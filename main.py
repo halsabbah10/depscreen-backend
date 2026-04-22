@@ -86,17 +86,21 @@ async def lifespan(app: FastAPI):
     logger.info(f"Rate limits: auth={settings.rate_limit_auth}, screening={settings.rate_limit_screening}")
 
     # RAG initialization (embedding model eager-loaded, reranker/NLI lazy)
+    # Skip in CI / smoke-test environments to avoid 1GB+ model downloads on startup
     from app.services.container import set_rag_service
     from app.services.rag import RAGService
 
     global _rag_service_instance
     _rag_service_instance = RAGService(settings)
-    try:
-        await _rag_service_instance.initialize()
-        _rag_service_instance.warmup()
-        logger.info("RAG service initialized (all models warm)")
-    except Exception as e:
-        logger.warning(f"RAG service initialization failed (non-fatal): {e}")
+    if settings.environment not in ("testing", "ci"):
+        try:
+            await _rag_service_instance.initialize()
+            _rag_service_instance.warmup()
+            logger.info("RAG service initialized (all models warm)")
+        except Exception as e:
+            logger.warning(f"RAG service initialization failed (non-fatal): {e}")
+    else:
+        logger.info("RAG service skipped in testing/CI environment")
     set_rag_service(_rag_service_instance)
 
     # Start the background scheduler (screening reminders, appointment reminders, care plan reviews)
