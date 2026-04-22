@@ -117,12 +117,21 @@ Original text (first 500 chars): "{text[:500]}"
 For each detected symptom, evaluate: Does the quoted sentence genuinely indicate this DSM-5 criterion?
 Consider sarcasm, metaphor, context, and whether the symptom mapping is accurate.
 
+Pay special attention to NEGATION. Statements like "I haven't lost interest",
+"Nobody said I'm slow", "I don't feel worthless" are NEGATIONS — the person is
+DENYING the symptom, not reporting it. Mark these as supported=false.
+
+Return one verdict per detected symptom in per_symptom_verdicts.
+
 Respond in JSON:
 {{
     "evidence_supports_prediction": true/false,
     "coherence_score": 0.0-1.0,
     "alternative_interpretation": "string or null",
-    "flagged_for_review": true/false
+    "flagged_for_review": true/false,
+    "per_symptom_verdicts": [
+        {{"symptom": "SYMPTOM_CODE", "supported": true/false, "reason": "brief explanation"}}
+    ]
 }}"""
 
         try:
@@ -139,7 +148,7 @@ Respond in JSON:
                         {"role": "user", "content": prompt},
                     ],
                     temperature=0.2,
-                    max_tokens=800,
+                    max_tokens=1200,
                     timeout=60,
                     response_format={"type": "json_object"},
                 )

@@ -13,6 +13,7 @@ from app.schemas.analysis import (
     AdversarialCheck,
     ConfidenceAnalysis,
     EvidenceValidation,
+    PerSymptomVerdict,
     PostSymptomSummary,
     SymptomDetection,
     VerificationReport,
@@ -213,3 +214,91 @@ def test_verification_summary_mentions_adversarial(service):
 def test_verification_summary_mentions_evidence_mismatch(service):
     out = service.get_verification_summary(_verification(evidence_supports=False))
     assert "evidence" in out.lower()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Per-symptom false positive filtering
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _verification_with_verdicts(verdicts: list[PerSymptomVerdict]) -> VerificationReport:
+    return VerificationReport(
+        evidence_validation=EvidenceValidation(
+            evidence_supports_prediction=True,
+            coherence_score=0.9,
+            per_symptom_verdicts=verdicts,
+        ),
+        confidence_analysis=ConfidenceAnalysis(should_trust_prediction="high", reasoning="test"),
+        adversarial_check=AdversarialCheck(authenticity_score=0.95),
+    )
+
+
+def test_filter_removes_unsupported_symptoms():
+    summary = _summary("moderate", symptoms=["DEPRESSED_MOOD", "ANHEDONIA", "SLEEP_ISSUES"])
+    verdicts = [
+        PerSymptomVerdict(symptom="DEPRESSED_MOOD", supported=True, reason="genuine"),
+        PerSymptomVerdict(symptom="ANHEDONIA", supported=False, reason="negated statement"),
+        PerSymptomVerdict(symptom="SLEEP_ISSUES", supported=True, reason="genuine"),
+    ]
+    result = DecisionService.filter_false_positives(summary, _verification_with_verdicts(verdicts))
+    assert result.unique_symptom_count == 2
+    symptom_codes = [d.symptom for d in result.symptoms_detected]
+    assert "ANHEDONIA" not in symptom_codes
+    assert "DEPRESSED_MOOD" in symptom_codes
+    assert "SLEEP_ISSUES" in symptom_codes
+    assert result.severity_level == "mild"  # 2 symptoms = mild
+
+
+def test_filter_never_removes_suicidal_thoughts():
+    summary = _summary("moderate", symptoms=["DEPRESSED_MOOD", "SUICIDAL_THOUGHTS"])
+    verdicts = [
+        PerSymptomVerdict(symptom="DEPRESSED_MOOD", supported=True, reason="genuine"),
+        PerSymptomVerdict(symptom="SUICIDAL_THOUGHTS", supported=False, reason="LLM thinks false positive"),
+    ]
+    result = DecisionService.filter_false_positives(summary, _verification_with_verdicts(verdicts))
+    assert result.unique_symptom_count == 2
+    assert "SUICIDAL_THOUGHTS" in [d.symptom for d in result.symptoms_detected]
+
+
+def test_filter_empty_verdicts_returns_unchanged():
+    summary = _summary("moderate", symptoms=["DEPRESSED_MOOD", "ANHEDONIA"])
+    result = DecisionService.filter_false_positives(summary, _verification())
+    assert result is summary  # exact same object, not a copy
+
+
+def test_filter_all_rejected():
+    summary = _summary("mild", symptoms=["DEPRESSED_MOOD", "ANHEDONIA"])
+    verdicts = [
+        PerSymptomVerdict(symptom="DEPRESSED_MOOD", supported=False, reason="negated"),
+        PerSymptomVerdict(symptom="ANHEDONIA", supported=False, reason="negated"),
+    ]
+    result = DecisionService.filter_false_positives(summary, _verification_with_verdicts(verdicts))
+    assert result.unique_symptom_count == 0
+    assert result.severity_level == "none"
+    assert result.symptoms_detected == []
+
+
+def test_filter_recomputes_severity():
+    symptoms = ["DEPRESSED_MOOD", "ANHEDONIA", "SLEEP_ISSUES", "FATIGUE", "WORTHLESSNESS"]
+    summary = _summary("severe", symptoms=symptoms)
+    verdicts = [
+        PerSymptomVerdict(symptom="DEPRESSED_MOOD", supported=True, reason="genuine"),
+        PerSymptomVerdict(symptom="ANHEDONIA", supported=False, reason="negated"),
+        PerSymptomVerdict(symptom="SLEEP_ISSUES", supported=True, reason="genuine"),
+        PerSymptomVerdict(symptom="FATIGUE", supported=False, reason="negated"),
+        PerSymptomVerdict(symptom="WORTHLESSNESS", supported=False, reason="negated"),
+    ]
+    result = DecisionService.filter_false_positives(summary, _verification_with_verdicts(verdicts))
+    assert result.unique_symptom_count == 2
+    assert result.severity_level == "mild"  # 2 symptoms = mild, not severe
+
+
+def test_filter_unknown_symptom_in_verdict():
+    summary = _summary("mild", symptoms=["DEPRESSED_MOOD"])
+    verdicts = [
+        PerSymptomVerdict(symptom="DEPRESSED_MOOD", supported=True, reason="genuine"),
+        PerSymptomVerdict(symptom="NONEXISTENT", supported=False, reason="unknown"),
+    ]
+    result = DecisionService.filter_false_positives(summary, _verification_with_verdicts(verdicts))
+    assert result.unique_symptom_count == 1
+    assert result.symptoms_detected[0].symptom == "DEPRESSED_MOOD"

@@ -34,6 +34,14 @@ class PostSymptomSummary(BaseModel):
 # ── LLM Verification Schemas ─────────────────────────────────────────────────
 
 
+class PerSymptomVerdict(BaseModel):
+    """LLM verdict on whether a single detected symptom is genuine."""
+
+    symptom: str = Field(description="Symptom code, e.g. 'ANHEDONIA'")
+    supported: bool = Field(description="Whether the evidence genuinely indicates this symptom")
+    reason: str = Field(description="Brief explanation of the verdict")
+
+
 class EvidenceValidation(BaseModel):
     """LLM validation of whether detected symptoms are genuinely supported."""
 
@@ -45,6 +53,10 @@ class EvidenceValidation(BaseModel):
         default=None, description="Alternative interpretation if evidence seems contradictory"
     )
     flagged_for_review: bool = Field(default=False, description="Whether this case should be flagged for human review")
+    per_symptom_verdicts: list[PerSymptomVerdict] = Field(
+        default_factory=list,
+        description="Per-symptom LLM verdicts; empty list = no per-symptom data available",
+    )
 
 
 class ConfidenceAnalysis(BaseModel):

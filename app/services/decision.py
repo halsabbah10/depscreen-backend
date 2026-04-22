@@ -1,13 +1,15 @@
 """
 Decision service for combining symptom predictions with LLM verification.
 
-The LLM does NOT override symptom detections, but CAN adjust confidence
-and flag cases for clinician review based on verification results.
+The LLM CAN filter false-positive detections (e.g. negated statements)
+via per-symptom verdicts, adjust overall confidence, and flag cases
+for clinician review based on verification results.
 """
 
 import logging
 
 from app.schemas.analysis import PostSymptomSummary, VerificationReport
+from app.services.inference import compute_severity
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +92,45 @@ class DecisionService:
 
         final_conf = max(0.0, min(1.0, final_conf))
         return final_prediction, final_conf, adjusted, flagged
+
+    @staticmethod
+    def filter_false_positives(
+        symptom_analysis: PostSymptomSummary,
+        verification: VerificationReport,
+    ) -> PostSymptomSummary:
+        """Remove symptoms the LLM identified as false positives.
+
+        Returns a new PostSymptomSummary with unsupported symptoms removed
+        and aggregates recomputed. If per_symptom_verdicts is empty
+        (fallback/failure), returns the original analysis unchanged (fail-open).
+        """
+        verdicts = verification.evidence_validation.per_symptom_verdicts
+        if not verdicts:
+            return symptom_analysis
+
+        # Build set of rejected symptom codes (case-insensitive match)
+        rejected = {v.symptom.upper() for v in verdicts if not v.supported and v.symptom.upper() != "SUICIDAL_THOUGHTS"}
+
+        if not rejected:
+            return symptom_analysis
+
+        # Filter detections
+        filtered = [d for d in symptom_analysis.symptoms_detected if d.symptom.upper() not in rejected]
+
+        # Recompute aggregates
+        new_criteria = sorted({d.symptom for d in filtered})
+        severity = compute_severity(len(new_criteria))
+
+        logger.info(f"Filtered {len(rejected)} false positive(s): {', '.join(sorted(rejected))}")
+
+        return PostSymptomSummary(
+            symptoms_detected=filtered,
+            unique_symptom_count=len(new_criteria),
+            total_sentences_analyzed=symptom_analysis.total_sentences_analyzed,
+            severity_level=severity["level"],
+            severity_explanation=severity["explanation"],
+            dsm5_criteria_met=new_criteria,
+        )
 
     def get_verification_summary(self, verification: VerificationReport) -> str:
         """Generate a text summary of verification findings for the explanation LLM."""

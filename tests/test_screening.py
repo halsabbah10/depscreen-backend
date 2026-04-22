@@ -113,6 +113,7 @@ def mocked_services(app, monkeypatch):
     verification_svc.verify_prediction = AsyncMock(return_value=_canned_verification())
 
     decision_svc = MagicMock()
+    decision_svc.filter_false_positives = MagicMock(side_effect=lambda sa, _v: sa)
     decision_svc.compute_final_prediction = MagicMock(return_value=("some_indicators", 0.82, False, False))
     decision_svc.get_verification_summary = MagicMock(return_value="Verified: high trust")
 

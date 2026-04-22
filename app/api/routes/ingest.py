@@ -108,6 +108,9 @@ async def _run_full_pipeline(
         _rag_retrieve(),
     )
 
+    # Step 2.5: Filter false positives identified by LLM verification
+    symptom_analysis = decision_service.filter_false_positives(symptom_analysis, verification)
+
     # Step 3: Decision
     final_prediction, final_confidence, confidence_adjusted, flagged = decision_service.compute_final_prediction(
         symptom_analysis, verification
