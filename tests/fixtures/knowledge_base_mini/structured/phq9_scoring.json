@@ -1,0 +1,5 @@
+[
+    {"tool": "PHQ-9", "range": "0-4", "severity": "minimal", "clinical_action": "Monitor"},
+    {"tool": "PHQ-9", "range": "10-14", "severity": "moderate", "clinical_action": "Treatment plan"},
+    {"tool": "PHQ-9", "range": "20-27", "severity": "severe", "clinical_action": "Immediate treatment"}
+]

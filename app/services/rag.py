@@ -419,72 +419,249 @@ class RAGService:
         """Whether the knowledge base has been loaded into the database."""
         return self._knowledge_base_loaded
 
-    # ── Stub Methods (to be replaced in Tasks 8-9) ──────────────────────────
-    #
-    # These stubs keep the codebase importable and functional while retrieval
-    # and patient-history methods are implemented in subsequent tasks.
+    # ── Hybrid Retrieval (Task 8) ─────────────────────────────────────────
 
     def retrieve(
         self,
         query: str,
-        n_results: int = 5,
+        n_results: int | None = None,
         category: str | None = None,
         symptom: str | None = None,
-    ) -> list[dict]:
-        """Retrieve relevant documents for a query. (Stub — Task 8.)"""
-        if not self._initialized or self.embedder is None:
-            return []
+    ) -> list[dict] | None:
+        """Main hybrid retrieval: dense + BM25 + RRF fusion + cross-encoder reranking.
 
+        Returns None if the service is not initialized (graceful degradation).
+        Falls back to BM25-only if the embedding model fails.
+        """
+        if not self._initialized:
+            return None
+
+        top_k = n_results or self.settings.rag_rerank_top_k
+        retrieval_k = self.settings.rag_retrieval_top_k  # candidates per ranker
+
+        # Embed the query; fall back to BM25-only on failure
         query_embedding = self.embed(query)
         if query_embedding is None:
-            return []
+            logger.warning("Embedding failed for query — falling back to BM25-only")
+            return self._retrieve_bm25_only(query, top_k, category, symptom)
 
         db = SessionLocal()
         try:
-            q = db.query(KnowledgeChunk).filter(KnowledgeChunk.is_current.is_(True))
+            # Tune HNSW ef_search for this session (higher = more accurate, slower)
+            db.execute(text("SET LOCAL hnsw.ef_search = 150"))
+
+            dense_results = self._dense_search(db, query_embedding, retrieval_k, category, symptom)
+            bm25_results = self._bm25_search(db, query, retrieval_k, category, symptom)
+
+            fused = self._rrf_fusion(dense_results, bm25_results)
+            reranked = self._rerank(query, fused, top_k)
+
+            return reranked
+        except Exception as exc:
+            logger.error("Hybrid retrieval failed: %s", exc, exc_info=True)
+            return None
+        finally:
+            db.close()
+
+    def _dense_search(
+        self,
+        db: Session,
+        query_embedding: list[float],
+        top_k: int,
+        category: str | None,
+        symptom: str | None,
+    ) -> list[dict]:
+        """Cosine-similarity search over pgvector embeddings."""
+        q = db.query(KnowledgeChunk).filter(KnowledgeChunk.is_current.is_(True))
+
+        if category:
+            q = q.filter(KnowledgeChunk.category == category)
+        if symptom:
+            q = q.filter(KnowledgeChunk.symptoms.contains([symptom]))
+
+        results = (
+            q.order_by(KnowledgeChunk.embedding.cosine_distance(query_embedding))
+            .limit(top_k)
+            .all()
+        )
+
+        return [
+            {
+                "id": chunk.id,
+                "text": chunk.content,
+                "metadata": {
+                    "source_file": chunk.source_file or "",
+                    "category": chunk.category or "",
+                    "subcategory": chunk.subcategory or "",
+                    "symptoms": chunk.symptoms or [],
+                    "chunk_level": chunk.chunk_level or "child",
+                    "parent_chunk_id": chunk.parent_chunk_id,
+                },
+                "rank": rank + 1,
+                "method": "dense",
+            }
+            for rank, chunk in enumerate(results)
+        ]
+
+    def _bm25_search(
+        self,
+        db: Session,
+        query: str,
+        top_k: int,
+        category: str | None,
+        symptom: str | None,
+    ) -> list[dict]:
+        """Full-text BM25 search using PostgreSQL tsvector/tsquery."""
+        try:
+            ts_query = func.websearch_to_tsquery("english", query)
+
+            q = (
+                db.query(KnowledgeChunk)
+                .filter(KnowledgeChunk.is_current.is_(True))
+                .filter(KnowledgeChunk.search_vector.op("@@")(ts_query))
+            )
+
             if category:
                 q = q.filter(KnowledgeChunk.category == category)
             if symptom:
-                q = q.filter(KnowledgeChunk.symptoms.op("@>")([symptom]))
+                q = q.filter(KnowledgeChunk.symptoms.contains([symptom]))
 
             results = (
-                q.order_by(KnowledgeChunk.embedding.cosine_distance(query_embedding))
-                .limit(n_results)
+                q.order_by(func.ts_rank_cd(KnowledgeChunk.search_vector, ts_query).desc())
+                .limit(top_k)
                 .all()
             )
 
             return [
                 {
+                    "id": chunk.id,
                     "text": chunk.content,
                     "metadata": {
                         "source_file": chunk.source_file or "",
                         "category": chunk.category or "",
+                        "subcategory": chunk.subcategory or "",
                         "symptoms": chunk.symptoms or [],
+                        "chunk_level": chunk.chunk_level or "child",
+                        "parent_chunk_id": chunk.parent_chunk_id,
                     },
-                    "distance": 0,
+                    "rank": rank + 1,
+                    "method": "bm25",
                 }
-                for chunk in results
+                for rank, chunk in enumerate(results)
             ]
+        except Exception as exc:
+            logger.warning("BM25 search failed (non-fatal): %s", exc)
+            return []
+
+    def _rrf_fusion(
+        self,
+        dense_results: list[dict],
+        bm25_results: list[dict],
+    ) -> list[dict]:
+        """Reciprocal Rank Fusion: merge dense and BM25 result lists.
+
+        score(d) = SUM over rankers: weight / (k + rank)
+        """
+        k = self.settings.rag_rrf_k
+        semantic_w = self.settings.rag_semantic_weight
+        fulltext_w = self.settings.rag_full_text_weight
+
+        # Accumulate scores keyed by doc id
+        scores: dict[str, float] = {}
+        doc_map: dict[str, dict] = {}
+
+        for result in dense_results:
+            doc_id = result["id"]
+            scores[doc_id] = scores.get(doc_id, 0.0) + semantic_w / (k + result["rank"])
+            doc_map[doc_id] = result
+
+        for result in bm25_results:
+            doc_id = result["id"]
+            scores[doc_id] = scores.get(doc_id, 0.0) + fulltext_w / (k + result["rank"])
+            if doc_id not in doc_map:
+                doc_map[doc_id] = result
+
+        # Sort by RRF score descending
+        sorted_ids = sorted(scores, key=lambda d: scores[d], reverse=True)
+
+        fused: list[dict] = []
+        for doc_id in sorted_ids:
+            entry = dict(doc_map[doc_id])  # shallow copy
+            entry["rrf_score"] = scores[doc_id]
+            entry["ranking_method"] = "rrf"
+            fused.append(entry)
+
+        return fused
+
+    def _rerank(
+        self,
+        query: str,
+        candidates: list[dict],
+        top_k: int,
+    ) -> list[dict]:
+        """Cross-encoder reranking for precision. Falls back to RRF order on failure."""
+        if not candidates:
+            return []
+
+        try:
+            reranker = self._load_reranker()
+        except Exception as exc:
+            logger.warning("Reranker failed to load — returning RRF results: %s", exc)
+            return candidates[:top_k]
+
+        try:
+            pairs = [(query, c["text"]) for c in candidates]
+            scores = reranker.predict(pairs)
+
+            for i, candidate in enumerate(candidates):
+                candidate["reranker_score"] = float(scores[i])
+                candidate["ranking_method"] = "reranked"
+
+            candidates.sort(key=lambda c: c["reranker_score"], reverse=True)
+            return candidates[:top_k]
+        except Exception as exc:
+            logger.warning("Reranker prediction failed — returning RRF results: %s", exc)
+            return candidates[:top_k]
+
+    def _retrieve_bm25_only(
+        self,
+        query: str,
+        n_results: int,
+        category: str | None,
+        symptom: str | None,
+    ) -> list[dict] | None:
+        """Fallback retrieval using only BM25 (when embedding model is unavailable)."""
+        db = SessionLocal()
+        try:
+            results = self._bm25_search(db, query, n_results, category, symptom)
+            if not results:
+                return None
+            for r in results:
+                r["ranking_method"] = "bm25_only"
+            return results
+        except Exception as exc:
+            logger.error("BM25-only fallback also failed: %s", exc)
+            return None
         finally:
             db.close()
 
     def retrieve_for_symptoms(self, symptoms: list[str]) -> dict[str, list[dict]]:
-        """Retrieve clinical context for each detected symptom. (Stub — Task 8.)"""
+        """Retrieve DSM-5 criteria and coping strategy docs for each symptom."""
         if not self._initialized:
             return {}
 
-        results = {}
+        results: dict[str, list[dict]] = {}
         for symptom in symptoms:
             criteria_docs = self.retrieve(
                 query=f"DSM-5 criterion for {symptom}",
                 n_results=2,
                 symptom=symptom,
-            )
+            ) or []
             coping_docs = self.retrieve(
                 query=f"coping strategies for {symptom}",
                 n_results=2,
                 category="coping_strategies",
-            )
+            ) or []
             results[symptom] = criteria_docs + coping_docs
         return results
 
@@ -494,20 +671,25 @@ class RAGService:
         detected_symptoms: list[str],
         n_results: int = 5,
     ) -> str:
-        """Build RAG context for chatbot response. (Stub — Task 9.)"""
+        """Build RAG context string for chatbot response with source attribution.
+
+        Retrieves docs for the user's question plus symptom-specific context,
+        deduplicates, and formats with source attribution. Limits to 7 docs max.
+        """
         if not self._initialized:
             return ""
 
-        docs = self.retrieve(user_message, n_results=n_results)
+        docs = self.retrieve(user_message, n_results=n_results) or []
 
         for symptom in detected_symptoms[:3]:
             symptom_docs = self.retrieve(
                 query=f"{symptom} information and guidance",
                 n_results=2,
                 symptom=symptom,
-            )
+            ) or []
             docs.extend(symptom_docs)
 
+        # Deduplicate by text prefix
         seen: set[str] = set()
         unique_docs: list[dict] = []
         for doc in docs:
@@ -519,6 +701,7 @@ class RAGService:
         if not unique_docs:
             return ""
 
+        # Format with source attribution, limit to 7
         parts = []
         for doc in unique_docs[:7]:
             source = doc.get("metadata", {}).get("source_file", "knowledge base")
