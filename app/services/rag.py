@@ -267,7 +267,7 @@ class RAGService:
         category = json_file.parent.name if json_file.parent.name != "structured" else json_file.stem
 
         chunks_added = 0
-        for i, entry in enumerate(entries):
+        for _i, entry in enumerate(entries):
             if not isinstance(entry, dict):
                 continue
 
