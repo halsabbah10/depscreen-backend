@@ -38,7 +38,6 @@ def rag_service():
     from pathlib import Path
 
     from app.core.config import get_settings
-
     from app.services.rag import RAGService
 
     settings = get_settings()

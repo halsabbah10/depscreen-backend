@@ -15,7 +15,6 @@ Usage:
     python scripts/evaluation/run_verification_gates.py
 """
 
-import json
 import logging
 import subprocess
 import sys
@@ -33,17 +32,17 @@ def run_gate(name: str, command: list[str], timeout: int = 600) -> bool:
     logger.info(f"GATE: {name}")
     logger.info(f"{'='*60}")
     try:
-        result = subprocess.run(command, capture_output=True, text=True, cwd=str(BACKEND_DIR), timeout=timeout)
+        result = subprocess.run(command, capture_output=True, text=True, cwd=str(BACKEND_DIR), timeout=timeout)  # noqa: S603
         if result.returncode == 0:
-            logger.info(f"  PASS")
+            logger.info("  PASS")
             return True
         else:
-            logger.info(f"  FAIL")
+            logger.info("  FAIL")
             if result.stderr:
                 logger.info(f"  Error: {result.stderr[:500]}")
             return False
     except subprocess.TimeoutExpired:
-        logger.info(f"  TIMEOUT")
+        logger.info("  TIMEOUT")
         return False
     except Exception as e:
         logger.info(f"  ERROR: {e}")
@@ -95,16 +94,16 @@ def main():
         if not passed:
             all_pass = False
 
-    logger.info(f"\nManual gates (require human verification):")
-    logger.info(f"  1. Retrieval Quality: Run scripts/evaluation/run_model_comparison.py")
-    logger.info(f"  2. Threshold Calibration: Run scripts/evaluation/run_threshold_calibration.py")
-    logger.info(f"  3. RAGAS Evaluation: Run scripts/evaluation/run_ragas_evaluation.py (needs clinician QA)")
-    logger.info(f"  7. Clinical Review: Clinician must review knowledge base content")
+    logger.info("\nManual gates (require human verification):")
+    logger.info("  1. Retrieval Quality: Run scripts/evaluation/run_model_comparison.py")
+    logger.info("  2. Threshold Calibration: Run scripts/evaluation/run_threshold_calibration.py")
+    logger.info("  3. RAGAS Evaluation: Run scripts/evaluation/run_ragas_evaluation.py (needs clinician QA)")
+    logger.info("  7. Clinical Review: Clinician must review knowledge base content")
 
     if all_pass:
-        logger.info(f"\nAll automated gates PASSED")
+        logger.info("\nAll automated gates PASSED")
     else:
-        logger.info(f"\nSome gates FAILED — fix before deployment")
+        logger.info("\nSome gates FAILED — fix before deployment")
         sys.exit(1)
 
 

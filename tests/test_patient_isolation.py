@@ -6,6 +6,7 @@ Must pass on every PR — runs in CI.
 """
 
 import os
+
 import pytest
 
 POSTGRES_URL = os.environ.get("DATABASE_URL", "")
@@ -39,6 +40,7 @@ def _ensure_test_users(user_ids: list[str]):
 def rag_service():
     import asyncio
     from pathlib import Path
+
     from app.core.config import get_settings
     from app.services.rag import RAGService
 

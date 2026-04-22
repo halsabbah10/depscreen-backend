@@ -1,9 +1,6 @@
 """Performance tests for RAG retrieval."""
 
-import asyncio
 import time
-
-import pytest
 
 
 class TestRetrievalPerformance:

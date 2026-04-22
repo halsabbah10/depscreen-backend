@@ -9,7 +9,6 @@ Usage:
     python scripts/fetch_knowledge_base.py --force  # Re-download all
 """
 
-import hashlib
 import logging
 import sys
 from pathlib import Path

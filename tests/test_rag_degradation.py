@@ -5,7 +5,6 @@ uninitialized → None, ingestion → silent no-op.
 """
 
 from unittest.mock import MagicMock
-import pytest
 
 
 class TestGracefulDegradation:

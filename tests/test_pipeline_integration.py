@@ -7,9 +7,6 @@ No network calls, no DB, no LLM — pure logic testing.
 
 from __future__ import annotations
 
-import pytest
-
-from app.services.decision import DecisionService
 from app.schemas.analysis import (
     AdversarialCheck,
     ConfidenceAnalysis,
@@ -18,7 +15,7 @@ from app.schemas.analysis import (
     SymptomDetection,
     VerificationReport,
 )
-
+from app.services.decision import DecisionService
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

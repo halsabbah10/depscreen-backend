@@ -11,8 +11,6 @@ Verifies that RAG context flows correctly through:
 
 import inspect
 
-import pytest
-
 
 class TestSafetyModuleIntegration:
     """Verify safety module is importable and functional."""

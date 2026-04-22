@@ -1,6 +1,5 @@
 """Unit tests for RAG components — no external dependencies required."""
 
-import pytest
 
 
 class TestDocumentExtractor:
@@ -135,8 +134,8 @@ class TestRAGServiceInit:
 
     def test_frontmatter_extraction(self):
         """YAML frontmatter is extracted correctly."""
-        from app.services.rag import RAGService
         from app.core.config import get_settings
+        from app.services.rag import RAGService
         rag = RAGService(get_settings())
 
         content = '---\ntitle: "Test"\ncategory: medications\nsymptoms: ["depressed_mood"]\n---\n\n## Body\n\nContent here.'
@@ -147,8 +146,8 @@ class TestRAGServiceInit:
 
     def test_frontmatter_legacy_format(self):
         """Legacy 'symptom: X' format on first line is handled."""
-        from app.services.rag import RAGService
         from app.core.config import get_settings
+        from app.services.rag import RAGService
         rag = RAGService(get_settings())
 
         content = "symptom: DEPRESSED_MOOD\n\n## Depressed Mood\n\nContent."
@@ -157,8 +156,8 @@ class TestRAGServiceInit:
 
     def test_strip_frontmatter(self):
         """Frontmatter is stripped, body remains."""
-        from app.services.rag import RAGService
         from app.core.config import get_settings
+        from app.services.rag import RAGService
         rag = RAGService(get_settings())
 
         content = '---\ntitle: "Test"\n---\n\n## Body\n\nContent here.'
@@ -168,8 +167,8 @@ class TestRAGServiceInit:
 
     def test_strip_frontmatter_legacy(self):
         """Legacy format: first metadata line stripped."""
-        from app.services.rag import RAGService
         from app.core.config import get_settings
+        from app.services.rag import RAGService
         rag = RAGService(get_settings())
 
         content = "symptom: DEPRESSED_MOOD\n\n## Content"

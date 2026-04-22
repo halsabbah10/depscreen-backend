@@ -1,6 +1,5 @@
 """Tests for RAG safety layers."""
 
-import pytest
 
 
 class TestRelevanceThreshold:
