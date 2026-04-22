@@ -473,6 +473,41 @@ async def send_conversation_message(
         db.add(assistant_msg)
         db.commit()
 
+        # Check if we should generate a chat summary
+        try:
+            from app.services.chat_summary import should_trigger_summary, generate_and_ingest_summary
+            from sqlalchemy import func as sa_func
+
+            if conversation_id:  # Only for conversations, not one-off chats
+                total_messages = db.query(ChatMessage).filter_by(
+                    conversation_id=conversation_id
+                ).count()
+                substantive_messages = db.query(ChatMessage).filter(
+                    ChatMessage.conversation_id == conversation_id,
+                    sa_func.length(ChatMessage.content) > 20,
+                ).count()
+
+                if should_trigger_summary(total_messages, substantive_messages):
+                    recent = db.query(ChatMessage).filter_by(
+                        conversation_id=conversation_id
+                    ).order_by(ChatMessage.created_at.desc()).limit(20).all()
+
+                    messages_for_summary = [
+                        {"role": m.role, "content": m.content, "created_at": str(m.created_at)}
+                        for m in reversed(recent)
+                    ]
+
+                    from app.services.container import get_rag_service
+                    _rag = get_rag_service()
+                    await generate_and_ingest_summary(
+                        patient_id=current_user.id,
+                        conversation_id=conversation_id,
+                        messages=messages_for_summary,
+                        rag_service=_rag,
+                    )
+        except Exception as e:
+            logger.debug(f"Chat summary check skipped: {e}")
+
     # Update conversation timestamp
     latest_msg = (
         db.query(ChatMessage)

@@ -153,7 +153,34 @@ class LLMService:
             except Exception as _sg_err:
                 logger.warning(f"Safety guard error on explanation (non-fatal): {_sg_err}")
 
-            return ExplanationReport(**data)
+            result = ExplanationReport(**data)
+
+            # Post-generation: verify dosage claims if NLI available
+            if rag_context and isinstance(rag_context, str) and len(rag_context) > 50:
+                try:
+                    from app.services.container import get_rag_service
+                    rag = get_rag_service()
+                    if rag and hasattr(rag, 'verify_claim') and rag._nli_model is not None:
+                        import re as _re
+                        # Check symptom_explanations for dosage patterns
+                        if hasattr(result, 'symptom_explanations') and isinstance(result.symptom_explanations, dict):
+                            dosage_pattern = _re.compile(r'\d+\s*mg|\d+\s*milligram', _re.IGNORECASE)
+                            for symptom, explanation_text in result.symptom_explanations.items():
+                                if isinstance(explanation_text, str) and dosage_pattern.search(explanation_text):
+                                    nli_result = rag.verify_claim(
+                                        claim=explanation_text[:200],
+                                        source=rag_context[:500],
+                                    )
+                                    if nli_result == "contradiction":
+                                        logger.warning(f"NLI: dosage claim contradicted for {symptom}")
+                                        result.symptom_explanations[symptom] = dosage_pattern.sub(
+                                            "[consult your clinician for dosage]",
+                                            explanation_text,
+                                        )
+                except Exception as e:
+                    logger.debug(f"NLI verification skipped: {e}")
+
+            return result
 
         except Exception as e:
             logger.error(f"LLM explanation generation failed: {e}")
