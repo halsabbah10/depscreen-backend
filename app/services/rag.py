@@ -81,6 +81,19 @@ class RAGService:
         logger.info("NLI model loaded")
         return self._nli_model
 
+    def warmup(self) -> None:
+        """Eagerly load reranker and NLI models so first request has no delay."""
+        logger.info("Warming up RAG models (reranker + NLI)...")
+        try:
+            self._load_reranker()
+        except Exception as exc:
+            logger.warning("Reranker warmup failed (non-fatal): %s", exc)
+        try:
+            self._load_nli_model()
+        except Exception as exc:
+            logger.warning("NLI warmup failed (non-fatal): %s", exc)
+        logger.info("RAG model warmup complete")
+
     # ── Initialization ───────────────────────────────────────────────────────
 
     async def initialize(self):

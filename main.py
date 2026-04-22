@@ -93,7 +93,8 @@ async def lifespan(app: FastAPI):
     _rag_service_instance = RAGService(settings)
     try:
         await _rag_service_instance.initialize()
-        logger.info("RAG service initialized")
+        _rag_service_instance.warmup()
+        logger.info("RAG service initialized (all models warm)")
     except Exception as e:
         logger.warning(f"RAG service initialization failed (non-fatal): {e}")
     set_rag_service(_rag_service_instance)
