@@ -72,11 +72,18 @@ def test_engine():
         poolclass=StaticPool,
     )
 
-    # Create every table EXCEPT the two pgvector-backed ones. On real
-    # Postgres these hold RAG chunks; tests that need RAG mock the
-    # service, not the storage, so the tables are unreachable and safe
-    # to skip.
-    tables = [t for name, t in Base.metadata.tables.items() if name not in ("knowledge_chunks", "patient_rag_chunks")]
+    # Create every table EXCEPT those with pgvector/TSVector columns —
+    # SQLite can't handle them. On real Postgres these hold RAG chunks;
+    # tests that need RAG mock the service, not the storage, so the
+    # tables are unreachable and safe to skip. This check is dynamic so
+    # newly added vector-backed tables are skipped automatically.
+    def _has_vector_cols(table) -> bool:
+        return any(
+            "vector" in str(col.type).lower() or "tsvector" in str(col.type).lower()
+            for col in table.columns
+        )
+
+    tables = [t for t in Base.metadata.tables.values() if not _has_vector_cols(t)]
     Base.metadata.create_all(bind=engine, tables=tables)
 
     yield engine
@@ -98,10 +105,15 @@ def db(test_engine) -> Generator[Session, None, None]:
         yield session
     finally:
         session.close()
-        # Truncate everything for the next test
+        # Truncate everything for the next test (skip vector-backed tables
+        # that were never created on SQLite)
         with test_engine.begin() as conn:
             for table in reversed(Base.metadata.sorted_tables):
-                if table.name in ("knowledge_chunks", "patient_rag_chunks"):
+                has_vector_cols = any(
+                    "vector" in str(col.type).lower() or "tsvector" in str(col.type).lower()
+                    for col in table.columns
+                )
+                if has_vector_cols:
                     continue
                 conn.execute(table.delete())
 

@@ -58,6 +58,10 @@ init_sentry(
     release=_settings_for_sentry.app_version,
 )
 
+# Module-level RAGService instance initialized during lifespan startup.
+# Typed as a string forward-reference to avoid a circular import at module load.
+_rag_service_instance: "RAGService | None" = None
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -81,6 +85,16 @@ async def lifespan(app: FastAPI):
 
     logger.info(f"LLM model: {settings.llm_model}")
     logger.info(f"Rate limits: auth={settings.rate_limit_auth}, screening={settings.rate_limit_screening}")
+
+    # RAG initialization (embedding model eager-loaded, reranker/NLI lazy)
+    from app.services.rag import RAGService
+    global _rag_service_instance
+    _rag_service_instance = RAGService(settings)
+    try:
+        await _rag_service_instance.initialize()
+        logger.info("RAG service initialized")
+    except Exception as e:
+        logger.warning(f"RAG service initialization failed (non-fatal): {e}")
 
     # Start the background scheduler (screening reminders, appointment reminders, care plan reviews)
     try:
@@ -192,7 +206,7 @@ def create_app() -> FastAPI:
     @app.get("/health/ready", tags=["Health"])
     async def readiness():
         """Readiness probe — are all dependencies operational?"""
-        from app.api.routes.analyze import _model_service, _rag_service
+        from app.api.routes.analyze import _model_service
 
         checks = {}
 
@@ -212,13 +226,22 @@ def create_app() -> FastAPI:
         except Exception:
             checks["database"] = False
 
-        # RAG
-        checks["rag_knowledge_base"] = _rag_service is not None and _rag_service.is_initialized
+        # RAG — informational; does NOT block readiness
+        checks["rag_embedding"] = (
+            _rag_service_instance is not None
+            and _rag_service_instance.embedder is not None
+        )
+        checks["rag_knowledge_base"] = (
+            _rag_service_instance is not None
+            and _rag_service_instance.knowledge_base_loaded
+        )
 
         # LLM (check API key is set — don't make a test call)
         checks["llm_configured"] = bool(settings.llm_api_key)
 
-        all_ready = all(checks.values())
+        # RAG checks are informational — exclude from the readiness gate
+        readiness_checks = {k: v for k, v in checks.items() if not k.startswith("rag_")}
+        all_ready = all(readiness_checks.values())
 
         return {
             "status": "ready" if all_ready else "degraded",
