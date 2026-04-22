@@ -521,6 +521,11 @@ async def delete_my_document(
     db.delete(doc)
     db.commit()
 
+    # Invalidate RAG chunks for this document
+    rag = get_rag_service()
+    if rag and rag.is_initialized:
+        rag.invalidate_source("patient_documents", doc_id)
+
     log_audit(
         db,
         current_user.id,
