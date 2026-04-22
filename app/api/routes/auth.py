@@ -203,9 +203,9 @@ async def logout(
         try:
             access_payload = decode_token(access_token_str, settings)
             if access_jti := access_payload.get("jti"):
-                from datetime import datetime
+                from datetime import UTC, datetime
 
-                exp = datetime.utcfromtimestamp(access_payload["exp"])
+                exp = datetime.fromtimestamp(access_payload["exp"], tz=UTC)
                 await deny_token(access_jti, exp)
         except Exception:
             logger.debug("Access token deny skipped (already expired or invalid)")
@@ -216,9 +216,9 @@ async def logout(
         try:
             refresh_payload = decode_token(refresh_cookie, settings)
             if refresh_jti := refresh_payload.get("jti"):
-                from datetime import datetime
+                from datetime import UTC, datetime
 
-                exp = datetime.utcfromtimestamp(refresh_payload["exp"])
+                exp = datetime.fromtimestamp(refresh_payload["exp"], tz=UTC)
                 await deny_token(refresh_jti, exp)
         except Exception:
             logger.debug("Refresh token deny skipped (cookie expired or invalid)")

@@ -100,6 +100,9 @@ def upgrade() -> None:
     # Drop old single-column symptom field (replaced by symptoms JSON array)
     op.drop_column("knowledge_chunks", "symptom")
 
+    # Clear existing 384-dim vectors (test data only) before dimension change
+    op.execute("UPDATE knowledge_chunks SET embedding = NULL")
+
     # Upgrade embedding from 384-dim (all-MiniLM) → 1024-dim (gte-large-en-v1.5)
     op.alter_column(
         "knowledge_chunks",
@@ -142,6 +145,9 @@ def upgrade() -> None:
 
     # Data integrity: patient_id must always be set
     op.alter_column("patient_rag_chunks", "patient_id", existing_type=sa.String(36), nullable=False)
+
+    # Clear existing 384-dim vectors (test data only) before dimension change
+    op.execute("UPDATE patient_rag_chunks SET embedding = NULL")
 
     # Upgrade embedding 384 → 1024
     op.alter_column(

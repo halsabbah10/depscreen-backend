@@ -15,6 +15,26 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+def _ensure_test_users(user_ids: list[str]):
+    """Create test user rows if they don't exist (FK constraint satisfaction)."""
+    from app.models.db import SessionLocal, User
+
+    db = SessionLocal()
+    try:
+        for uid in user_ids:
+            if not db.query(User).filter_by(id=uid).first():
+                db.add(User(
+                    id=uid,
+                    email=f"{uid}@test.depscreen.local",
+                    password_hash="$2b$12$testhashtesthasttesthash",
+                    full_name=f"Test User {uid[:8]}",
+                    role="patient",
+                ))
+        db.commit()
+    finally:
+        db.close()
+
+
 @pytest.fixture(scope="module")
 def rag_service():
     import asyncio
@@ -24,6 +44,9 @@ def rag_service():
 
     settings = get_settings()
     settings.knowledge_base_dir = Path(__file__).parent / "fixtures" / "knowledge_base_mini"
+
+    _ensure_test_users(["isolation-patient-A", "isolation-patient-B"])
+
     service = RAGService(settings)
     asyncio.get_event_loop().run_until_complete(service.initialize())
 

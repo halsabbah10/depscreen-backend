@@ -13,6 +13,7 @@ asyncio_mode = "auto"
 filterwarnings = [
     "ignore::DeprecationWarning:passlib.*",
     "ignore::DeprecationWarning:pydantic.*",
+    "ignore:`torch.jit.script` is deprecated:DeprecationWarning",
 ]
 addopts = [
     "-ra",
