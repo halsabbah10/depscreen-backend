@@ -494,9 +494,42 @@ async def list_my_documents(
             "title": d.title,
             "created_at": d.created_at,
             "content_preview": d.content[:200] + "..." if len(d.content) > 200 else d.content,
+            "processing_status": getattr(d, "processing_status", "ready") or "ready",
         }
         for d in docs
     ]
+
+
+@router.delete("/documents/{doc_id}")
+async def delete_my_document(
+    doc_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete one of the patient's own uploaded documents."""
+    doc = (
+        db.query(PatientDocument)
+        .filter(
+            PatientDocument.id == doc_id,
+            PatientDocument.patient_id == current_user.id,
+        )
+        .first()
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found.")
+
+    db.delete(doc)
+    db.commit()
+
+    log_audit(
+        db,
+        current_user.id,
+        "document_deleted",
+        resource_type="document",
+        resource_id=doc_id,
+    )
+
+    return {"status": "deleted"}
 
 
 # ── Symptom Trends ────────────────────────────────────────────────────────────
