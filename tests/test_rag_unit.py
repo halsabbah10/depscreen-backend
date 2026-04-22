@@ -175,3 +175,105 @@ class TestRAGServiceInit:
         content = "symptom: DEPRESSED_MOOD\n\n## Content"
         body = rag._strip_frontmatter(content)
         assert body.startswith("## Content")
+
+
+class TestPatientContextService:
+    """Tests for PatientContextService.build_context() filtering parameters."""
+
+    def _make_user(self):
+        from unittest.mock import MagicMock
+        user = MagicMock()
+        user.full_name = "Test Patient"
+        user.date_of_birth = None
+        user.gender = "male"
+        user.nationality = "Bahraini"
+        user.language_preference = "en"
+        user.timezone = "Asia/Bahrain"
+        user.cpr_number = "123456789"
+        user.medical_record_number = "MRN001"
+        user.blood_type = "O+"
+        user.id = "test-patient"
+        user.reddit_username = None
+        user.twitter_username = None
+        return user
+
+    def _make_db(self):
+        from unittest.mock import MagicMock
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = []
+        db.query.return_value.filter.return_value.first.return_value = None
+        db.query.return_value.filter_by.return_value.all.return_value = []
+        db.query.return_value.filter_by.return_value.first.return_value = None
+        db.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
+        db.query.return_value.filter.return_value.order_by.return_value.first.return_value = None
+        db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
+        db.query.return_value.filter_by.return_value.order_by.return_value.all.return_value = []
+        db.query.return_value.filter_by.return_value.order_by.return_value.limit.return_value.all.return_value = []
+        db.query.return_value.filter_by.return_value.order_by.return_value.first.return_value = None
+        return db
+
+    def test_build_context_sections_filter(self):
+        """sections parameter limits output to specified sections only."""
+        from app.services.patient_context import PatientContextService
+
+        svc = PatientContextService()
+        user = self._make_user()
+        db = self._make_db()
+
+        # Full context should include demographics
+        full = svc.build_context(user, db)
+        assert "Test Patient" in full or "male" in full.lower()
+
+        # medications-only should NOT include demographics name or gender
+        filtered = svc.build_context(user, db, sections=["medications"])
+        assert "Test Patient" not in filtered
+        assert "male" not in filtered.lower()
+
+    def test_build_context_sections_filter_empty_returns_empty_state(self):
+        """Requesting a section with no data returns the empty-state message."""
+        from app.services.patient_context import PatientContextService
+
+        svc = PatientContextService()
+        user = self._make_user()
+        db = self._make_db()
+
+        # medications section only — mock returns no meds, so no content produced
+        result = svc.build_context(user, db, sections=["medications"])
+        assert result == "### Patient Medical Profile\nNo medical history recorded yet."
+
+    def test_include_pii_false(self):
+        """include_pii=False excludes CPR and MRN from output."""
+        from app.services.patient_context import PatientContextService
+
+        svc = PatientContextService()
+        user = self._make_user()
+        db = self._make_db()
+
+        result = svc.build_context(user, db, include_pii=False)
+        assert "123456789" not in result
+        assert "MRN001" not in result
+
+    def test_include_pii_true_includes_medical_identifiers(self):
+        """include_pii=True (default) includes redacted CPR and MRN."""
+        from app.services.patient_context import PatientContextService
+
+        svc = PatientContextService()
+        user = self._make_user()
+        db = self._make_db()
+
+        result = svc.build_context(user, db, include_pii=True)
+        # CPR is redacted (last 4 shown), MRN shown in full per existing logic
+        assert "MRN001" in result
+        assert "Medical Identifiers" in result
+
+    def test_default_sections_none_is_backwards_compatible(self):
+        """sections=None includes all sections (backwards compatible)."""
+        from app.services.patient_context import PatientContextService
+
+        svc = PatientContextService()
+        user = self._make_user()
+        db = self._make_db()
+
+        result = svc.build_context(user, db)
+        # With no DB data except user fields, demographics should appear
+        assert "Test Patient" in result or "Male" in result or "Bahraini" in result
