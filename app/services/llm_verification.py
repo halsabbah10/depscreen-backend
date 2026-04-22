@@ -86,6 +86,7 @@ class VerificationService:
         self,
         text: str,
         symptom_analysis: PostSymptomSummary,
+        dsm5_context: dict[str, list[dict]] | None = None,
     ) -> VerificationReport:
         """Run 3 parallel LLM verification tasks on the symptom detections."""
         # Build evidence summary for verification prompts
@@ -95,7 +96,7 @@ class VerificationService:
         )
 
         tasks = [
-            self._validate_evidence(text, symptom_analysis, evidence_summary),
+            self._validate_evidence(text, symptom_analysis, evidence_summary, dsm5_context),
             self._check_adversarial(text),
             self._calibrate_confidence(text, symptom_analysis, evidence_summary),
         ]
@@ -121,9 +122,21 @@ class VerificationService:
         text: str,
         symptom_analysis: PostSymptomSummary,
         evidence_summary: str,
+        dsm5_context: dict[str, list[dict]] | None = None,
     ) -> EvidenceValidation:
         """Validate whether the detected sentences genuinely indicate DSM-5 symptoms."""
-        prompt = f"""A depression screening model detected these DSM-5 symptoms in a text:
+        prompt = ""
+
+        # Prepend DSM-5 reference criteria when available (RAG-grounded evaluation)
+        if dsm5_context:
+            dsm5_section = "\n## DSM-5-TR Reference Criteria\n"
+            dsm5_section += "Use these authoritative definitions to evaluate each detected symptom:\n\n"
+            for symptom, docs in dsm5_context.items():
+                for doc in docs[:2]:
+                    dsm5_section += f"### {symptom}\n{doc['text'][:500]}\n\n"
+            prompt += dsm5_section
+
+        prompt += f"""A depression screening model detected these DSM-5 symptoms in a text:
 
 {evidence_summary if evidence_summary else "No symptoms detected."}
 

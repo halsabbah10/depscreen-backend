@@ -122,10 +122,27 @@ async def screen_text(
         f"severity={symptom_analysis.severity_level}"
     )
 
+    # Step 1.5: Retrieve DSM-5 criteria for verification grounding
+    dsm5_context = None
+    if symptom_analysis.dsm5_criteria_met and rag_service and rag_service.is_initialized:
+        dsm5_context = {}
+        for symptom in symptom_analysis.dsm5_criteria_met[:5]:  # Cap at 5 symptoms
+            docs = rag_service.retrieve(
+                query=f"DSM-5 diagnostic criteria for {symptom}",
+                n_results=2,
+                category="dsm5_criteria",
+                symptom=symptom,
+            )
+            if docs:
+                dsm5_context[symptom] = docs
+        if dsm5_context:
+            logger.info(f"  Step 1.5 — RAG: DSM-5 criteria for {len(dsm5_context)} symptoms")
+
     # Step 2: LLM verification
     verification = await verification_service.verify_prediction(
         text=text,
         symptom_analysis=symptom_analysis,
+        dsm5_context=dsm5_context,
     )
     logger.info(
         f"  Step 2 — Verification: evidence_supports={verification.evidence_validation.evidence_supports_prediction}, "
@@ -152,6 +169,19 @@ async def screen_text(
         rag_context_str = "\n\n".join(rag_parts[:10]) if rag_parts else None
         logger.info(f"  Step 4 — RAG: retrieved context for {len(rag_context_data)} symptoms")
 
+    # Step 4.5: Assemble structured patient context
+    patient_context_str = None
+    try:
+        from app.services.patient_context import PatientContextService
+        pcs = PatientContextService()
+        patient_context_str = pcs.build_context(
+            current_user, db,
+            sections=["demographics", "medications", "allergies", "diagnoses", "care_plan"],
+            include_pii=False,
+        )
+    except Exception as e:
+        logger.warning(f"Patient context assembly failed: {e}")
+
     # Step 5: LLM explanation
     verification_summary = decision_service.get_verification_summary(verification)
     explanation = await llm_service.generate_explanation(
@@ -159,6 +189,7 @@ async def screen_text(
         symptom_analysis=symptom_analysis,
         verification_summary=verification_summary,
         rag_context=rag_context_str,
+        patient_context=patient_context_str,
     )
     logger.info("  Step 5 — Explanation generated")
 

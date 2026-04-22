@@ -85,6 +85,7 @@ class LLMService:
         symptom_analysis: PostSymptomSummary,
         verification_summary: str | None = None,
         rag_context: str | None = None,
+        patient_context: str | None = None,
     ) -> ExplanationReport:
         """Generate a human-readable explanation of the screening results.
 
@@ -93,8 +94,9 @@ class LLMService:
             symptom_analysis: Detected symptoms with sentence-level evidence
             verification_summary: Summary from LLM verification layer
             rag_context: Clinical context retrieved via RAG (optional)
+            patient_context: Structured patient context (demographics, meds, etc.)
         """
-        prompt = self._build_explanation_prompt(text, symptom_analysis, verification_summary, rag_context)
+        prompt = self._build_explanation_prompt(text, symptom_analysis, verification_summary, rag_context, patient_context)
 
         try:
 
@@ -158,7 +160,7 @@ class LLMService:
             return self._fallback_explanation(symptom_analysis)
 
     def _get_system_prompt(self) -> str:
-        return """You are an empathetic AI assistant that explains depression screening results
+        base_prompt = """You are an empathetic AI assistant that explains depression screening results
 to patients. You are NOT a doctor. You do NOT diagnose.
 
 Audience: a patient who may be anxious or tired, reading this alone after a
@@ -220,12 +222,16 @@ CRITICAL: Screening aid, not diagnosis. Never claim to diagnose. But also:
 don't be so gentle that you're vague. Both the patient and their clinician
 benefit from a clear, warm, substantive explanation."""
 
+        from app.services.rag_safety import GROUNDING_INSTRUCTIONS
+        return base_prompt + "\n\n" + GROUNDING_INSTRUCTIONS
+
     def _build_explanation_prompt(
         self,
         text: str,
         symptom_analysis: PostSymptomSummary,
         verification_summary: str | None,
         rag_context: str | None,
+        patient_context: str | None = None,
     ) -> str:
         display_text = text[:500] + "..." if len(text) > 500 else text
 
@@ -235,6 +241,7 @@ benefit from a clear, warm, substantive explanation."""
             symptom_lines.append(f'- **{d.symptom_label}** ({d.confidence:.0%}): "{d.sentence_text}"')
         symptoms_block = "\n".join(symptom_lines) if symptom_lines else "No symptoms detected."
 
+        # Screening results first (LLM attends most to beginning)
         prompt = f"""Explain these depression screening results to the patient:
 
 ## Input Text
@@ -247,21 +254,25 @@ benefit from a clear, warm, substantive explanation."""
 {symptom_analysis.severity_explanation}
 """
 
-        if rag_context:
-            prompt += f"""
-## Clinical Context (from knowledge base)
-{rag_context}
-"""
-
         if verification_summary:
             prompt += f"""
 ## Verification Notes
 {verification_summary}
 """
 
+        # Patient context (between screening results and RAG)
+        if patient_context:
+            prompt += f"\n\n## Patient Context\n{patient_context}"
+
+        # RAG context (at the bottom — LLM attends most to beginning)
+        if rag_context:
+            prompt += f"\n\n## Clinical Context (from knowledge base)\n{rag_context}"
+
         prompt += """
+
 Generate a JSON explanation. Be empathetic, clear, and honest about limitations.
 For each detected symptom, explain what it means in plain language."""
+        prompt += "\nCite sources from the Clinical Context using [Source: filename] when available."
 
         return prompt
 
