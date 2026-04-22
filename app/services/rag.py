@@ -709,6 +709,55 @@ class RAGService:
 
         return "\n\n---\n\n".join(parts)
 
+    def _chunk_exists(self, patient_id: str, content_hash: str) -> bool:
+        """Return True if a current chunk with this hash already exists for this patient."""
+        db = SessionLocal()
+        try:
+            return (
+                db.query(PatientRAGChunk)
+                .filter(
+                    PatientRAGChunk.patient_id == patient_id,
+                    PatientRAGChunk.content_hash == content_hash,
+                    PatientRAGChunk.is_current.is_(True),
+                )
+                .first()
+                is not None
+            )
+        finally:
+            db.close()
+
+    def invalidate_source(self, source_table: str, source_row_id: str) -> None:
+        """Mark all chunks with matching source_table/source_row_id as is_current=False.
+
+        Used for event-driven sync when structured data (e.g. a screening) is updated
+        or deleted so stale embeddings no longer surface in retrieval.
+        """
+        db = SessionLocal()
+        try:
+            updated = (
+                db.query(PatientRAGChunk)
+                .filter(
+                    PatientRAGChunk.source_table == source_table,
+                    PatientRAGChunk.source_row_id == source_row_id,
+                    PatientRAGChunk.is_current.is_(True),
+                )
+                .all()
+            )
+            for chunk in updated:
+                chunk.is_current = False
+            db.commit()
+            logger.info(
+                "Invalidated %d chunks for %s/%s",
+                len(updated),
+                source_table,
+                source_row_id,
+            )
+        except Exception as exc:
+            logger.error("invalidate_source failed: %s", exc, exc_info=True)
+            db.rollback()
+        finally:
+            db.close()
+
     def ingest_patient_screening(
         self,
         patient_id: str,
@@ -717,56 +766,83 @@ class RAGService:
         symptoms_detected: list[dict],
         severity_level: str,
     ) -> None:
-        """Ingest a patient's screening into patient_rag_chunks. (Stub — Task 9.)"""
+        """Embed and store a patient screening into patient_rag_chunks.
+
+        - Full screening text stored as chunk_type='screening_text'.
+        - Each detected symptom sentence stored as chunk_type='symptom_evidence'.
+        - content_hash (SHA-256) prevents duplicate embeddings for the same patient.
+        - source_table='screenings' + source_row_id=screening_id enable invalidation.
+        """
         if not self._initialized or self.embedder is None:
             return
 
-        chunks_to_add = []
+        db = SessionLocal()
+        try:
+            chunks_to_add: list[PatientRAGChunk] = []
 
-        screening_embedding = self.embed(text)
-        if screening_embedding is not None:
-            chunks_to_add.append(
-                PatientRAGChunk(
-                    id=str(uuid.uuid4()),
-                    patient_id=patient_id,
-                    screening_id=screening_id,
-                    content=text,
-                    chunk_type="screening_text",
-                    metadata_json={
-                        "severity_level": severity_level,
-                        "symptom_count": len(symptoms_detected),
-                        "symptoms": ",".join(d.get("symptom", "") for d in symptoms_detected),
-                    },
-                    embedding=screening_embedding,
+            # --- Full screening text ---
+            text_hash = hashlib.sha256(text.encode()).hexdigest()
+            if not self._chunk_exists(patient_id, text_hash):
+                screening_embedding = self.embed(text)
+                if screening_embedding is not None:
+                    chunks_to_add.append(
+                        PatientRAGChunk(
+                            id=str(uuid.uuid4()),
+                            patient_id=patient_id,
+                            screening_id=screening_id,
+                            content=text,
+                            search_vector=func.to_tsvector("english", text),
+                            chunk_type="screening_text",
+                            source_table="screenings",
+                            source_row_id=screening_id,
+                            content_hash=text_hash,
+                            is_current=True,
+                            metadata_json={
+                                "patient_id": patient_id,
+                                "severity_level": severity_level,
+                                "symptom_count": len(symptoms_detected),
+                                "symptoms": ",".join(
+                                    d.get("symptom", "") for d in symptoms_detected
+                                ),
+                            },
+                            embedding=screening_embedding,
+                        )
+                    )
+
+            # --- Per-symptom sentence chunks ---
+            for det in symptoms_detected:
+                sentence_text = det.get("sentence_text", "")
+                if not sentence_text:
+                    continue
+                sentence_hash = hashlib.sha256(sentence_text.encode()).hexdigest()
+                if self._chunk_exists(patient_id, sentence_hash):
+                    continue
+                symptom_embedding = self.embed(sentence_text)
+                if symptom_embedding is None:
+                    continue
+                chunks_to_add.append(
+                    PatientRAGChunk(
+                        id=str(uuid.uuid4()),
+                        patient_id=patient_id,
+                        screening_id=screening_id,
+                        content=sentence_text,
+                        search_vector=func.to_tsvector("english", sentence_text),
+                        chunk_type="symptom_evidence",
+                        source_table="screenings",
+                        source_row_id=screening_id,
+                        content_hash=sentence_hash,
+                        is_current=True,
+                        metadata_json={
+                            "patient_id": patient_id,
+                            "symptom": det.get("symptom", ""),
+                            "symptom_label": det.get("symptom_label", ""),
+                            "confidence": str(det.get("confidence", 0)),
+                        },
+                        embedding=symptom_embedding,
+                    )
                 )
-            )
 
-        for det in symptoms_detected:
-            sentence_text = det.get("sentence_text", "")
-            if not sentence_text:
-                continue
-            symptom_embedding = self.embed(sentence_text)
-            if symptom_embedding is None:
-                continue
-            chunks_to_add.append(
-                PatientRAGChunk(
-                    id=str(uuid.uuid4()),
-                    patient_id=patient_id,
-                    screening_id=screening_id,
-                    content=sentence_text,
-                    chunk_type="symptom_evidence",
-                    metadata_json={
-                        "symptom": det.get("symptom", ""),
-                        "symptom_label": det.get("symptom_label", ""),
-                        "confidence": str(det.get("confidence", 0)),
-                    },
-                    embedding=symptom_embedding,
-                )
-            )
-
-        if chunks_to_add:
-            db = SessionLocal()
-            try:
+            if chunks_to_add:
                 db.add_all(chunks_to_add)
                 db.commit()
                 logger.info(
@@ -775,8 +851,16 @@ class RAGService:
                     patient_id[:8],
                     len(chunks_to_add),
                 )
-            finally:
-                db.close()
+            else:
+                logger.debug(
+                    "No new chunks for screening %s (all content already exists)",
+                    screening_id,
+                )
+        except Exception as exc:
+            logger.error("ingest_patient_screening failed: %s", exc, exc_info=True)
+            db.rollback()
+        finally:
+            db.close()
 
     def ingest_patient_document(
         self,
@@ -786,37 +870,59 @@ class RAGService:
         title: str,
         content: str,
     ) -> None:
-        """Ingest a clinician-uploaded patient document. (Stub — Task 9.)"""
+        """Embed and store a clinician-uploaded patient document into patient_rag_chunks.
+
+        - Uses chunk_text() from the chunking module to split long documents.
+        - content_hash (SHA-256) prevents duplicate embeddings for the same patient.
+        - source_table='patient_documents' + source_row_id=doc_id enable invalidation.
+        """
         if not self._initialized or self.embedder is None:
             return
 
-        text_chunks = [p.strip() for p in content.split("\n\n") if len(p.strip()) > 20]
-        if not text_chunks:
-            text_chunks = [content]
+        doc_chunks: list[Chunk] = chunk_text(
+            content,
+            source_type="text",
+            max_tokens=self.settings.rag_child_chunk_max,
+            overlap_tokens=self.settings.rag_child_chunk_overlap,
+            parent_max_tokens=self.settings.rag_parent_chunk_max,
+        )
 
-        chunks_to_add = []
-        for chunk_text_str in text_chunks:
-            embedding = self.embed(chunk_text_str)
-            if embedding is None:
-                continue
-            chunks_to_add.append(
-                PatientRAGChunk(
-                    id=str(uuid.uuid4()),
-                    patient_id=patient_id,
-                    doc_id=doc_id,
-                    content=chunk_text_str,
-                    chunk_type="patient_document",
-                    metadata_json={
-                        "doc_type": doc_type,
-                        "title": title,
-                    },
-                    embedding=embedding,
+        db = SessionLocal()
+        try:
+            chunks_to_add: list[PatientRAGChunk] = []
+
+            for doc_chunk in doc_chunks:
+                chunk_hash = hashlib.sha256(doc_chunk.content.encode()).hexdigest()
+                if self._chunk_exists(patient_id, chunk_hash):
+                    continue
+
+                embedding = self.embed(doc_chunk.content)
+                if embedding is None:
+                    continue
+
+                chunks_to_add.append(
+                    PatientRAGChunk(
+                        id=str(uuid.uuid4()),
+                        patient_id=patient_id,
+                        doc_id=doc_id,
+                        content=doc_chunk.content,
+                        search_vector=func.to_tsvector("english", doc_chunk.content),
+                        chunk_type="patient_document",
+                        source_table="patient_documents",
+                        source_row_id=doc_id,
+                        content_hash=chunk_hash,
+                        is_current=True,
+                        token_count=doc_chunk.token_count,
+                        metadata_json={
+                            "patient_id": patient_id,
+                            "doc_type": doc_type,
+                            "title": title,
+                        },
+                        embedding=embedding,
+                    )
                 )
-            )
 
-        if chunks_to_add:
-            db = SessionLocal()
-            try:
+            if chunks_to_add:
                 db.add_all(chunks_to_add)
                 db.commit()
                 logger.info(
@@ -826,45 +932,64 @@ class RAGService:
                     patient_id[:8],
                     len(chunks_to_add),
                 )
-            finally:
-                db.close()
+            else:
+                logger.debug(
+                    "No new chunks for document %s (all content already exists)",
+                    doc_id,
+                )
+        except Exception as exc:
+            logger.error("ingest_patient_document failed: %s", exc, exc_info=True)
+            db.rollback()
+        finally:
+            db.close()
 
     def retrieve_patient_history(
         self,
         patient_id: str,
         query: str,
         n_results: int = 5,
-    ) -> list[dict]:
-        """Retrieve relevant past content for a specific patient. (Stub — Task 9.)"""
+    ) -> list[dict] | None:
+        """Retrieve relevant past content for a specific patient using cosine similarity.
+
+        INVARIANT: always filters by patient_id and is_current=True — no exceptions.
+        Returns None when the service is not initialized (graceful degradation).
+        """
         if not self._initialized or self.embedder is None:
-            return []
+            return None
 
         query_embedding = self.embed(query)
         if query_embedding is None:
-            return []
+            return None
 
         db = SessionLocal()
         try:
             results = (
                 db.query(PatientRAGChunk)
-                .filter(PatientRAGChunk.patient_id == patient_id)
+                .filter(
+                    PatientRAGChunk.patient_id == patient_id,
+                    PatientRAGChunk.is_current.is_(True),
+                )
                 .order_by(PatientRAGChunk.embedding.cosine_distance(query_embedding))
                 .limit(n_results)
                 .all()
             )
 
-            output = []
+            output: list[dict] = []
             for chunk in results:
-                meta = chunk.metadata_json or {}
-                meta["type"] = chunk.chunk_type
+                meta = dict(chunk.metadata_json or {})
+                meta["patient_id"] = patient_id
+                meta["chunk_type"] = chunk.chunk_type
                 output.append(
                     {
                         "text": chunk.content,
                         "metadata": meta,
-                        "distance": 0,
+                        "ranking_method": "cosine",
                     }
                 )
             return output
+        except Exception as exc:
+            logger.error("retrieve_patient_history failed: %s", exc, exc_info=True)
+            return None
         finally:
             db.close()
 
@@ -876,7 +1001,13 @@ class RAGService:
         n_results: int = 5,
     ) -> str:
         """Build personalized RAG context combining clinical knowledge + patient history.
-        (Stub — Task 9.)
+
+        Sections:
+          ### Clinical Knowledge  — from get_chat_context() (knowledge_chunks table)
+          ### Your Previous Check-ins — from retrieve_patient_history() (patient_rag_chunks)
+
+        Falls back gracefully: if clinical knowledge is empty, only patient history is
+        included (and vice versa). Returns "" if both are empty.
         """
         clinical_context = self.get_chat_context(
             user_message=user_message,
@@ -890,21 +1021,33 @@ class RAGService:
             n_results=3,
         )
 
-        parts = []
+        parts: list[str] = []
+
         if clinical_context:
             parts.append("### Clinical Knowledge\n" + clinical_context)
 
         if patient_docs:
-            history_parts = []
+            history_parts: list[str] = []
             for doc in patient_docs:
                 meta = doc.get("metadata", {})
-                doc_type = meta.get("type", "")
-                if doc_type == "screening_text":
+                chunk_type = meta.get("chunk_type", "")
+                if chunk_type == "screening_text":
                     severity = meta.get("severity_level", "unknown")
-                    history_parts.append(f"[Previous check-in, severity={severity}]\n{doc['text'][:300]}")
-                elif doc_type == "symptom_evidence":
+                    history_parts.append(
+                        f"[Previous check-in, severity={severity}]\n{doc['text'][:300]}"
+                    )
+                elif chunk_type == "symptom_evidence":
                     symptom = meta.get("symptom_label", meta.get("symptom", ""))
-                    history_parts.append(f"[Previous detection: {symptom}]\n{doc['text']}")
+                    history_parts.append(
+                        f"[Previous detection: {symptom}]\n{doc['text']}"
+                    )
+                elif chunk_type == "patient_document":
+                    title = meta.get("title", "document")
+                    doc_type = meta.get("doc_type", "")
+                    context_label = f"{title} ({doc_type})" if doc_type else title
+                    history_parts.append(
+                        f"[Patient document: {context_label}]\n{doc['text'][:300]}"
+                    )
 
             if history_parts:
                 parts.append("### Your Previous Check-ins\n" + "\n\n".join(history_parts))
