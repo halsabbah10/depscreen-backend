@@ -15,10 +15,11 @@ Design principles:
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import tempfile
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -111,10 +112,8 @@ def _docling_pdf(raw_bytes: bytes, filename: str) -> ExtractionResult | None:
         has_tables = "|" in text
 
         page_count: int | None = None
-        try:
+        with contextlib.suppress(Exception):
             page_count = len(doc.pages) if hasattr(doc, "pages") else None
-        except Exception:
-            pass
 
         return ExtractionResult(
             text=text.strip(),
@@ -129,10 +128,8 @@ def _docling_pdf(raw_bytes: bytes, filename: str) -> ExtractionResult | None:
 
     finally:
         if tmp_path and os.path.exists(tmp_path):
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(tmp_path)
-            except OSError:
-                pass
 
 
 def _pdfplumber_pdf(raw_bytes: bytes, filename: str) -> ExtractionResult | None:
@@ -197,10 +194,8 @@ def _extract_docx(raw_bytes: bytes, filename: str) -> ExtractionResult | None:
         has_tables = "|" in text
 
         page_count: int | None = None
-        try:
+        with contextlib.suppress(Exception):
             page_count = len(doc.pages) if hasattr(doc, "pages") else None
-        except Exception:
-            pass
 
         return ExtractionResult(
             text=text.strip(),
@@ -215,10 +210,8 @@ def _extract_docx(raw_bytes: bytes, filename: str) -> ExtractionResult | None:
 
     finally:
         if tmp_path and os.path.exists(tmp_path):
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(tmp_path)
-            except OSError:
-                pass
 
 
 def _extract_text_file(raw_bytes: bytes) -> ExtractionResult | None:

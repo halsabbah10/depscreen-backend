@@ -9,7 +9,7 @@ Requires authentication — screenings are always attributed to a patient.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -24,11 +24,11 @@ from app.schemas.analysis import (
     ScreeningResponse,
 )
 from app.services.auth import get_current_user, log_audit
+from app.services.container import get_rag_service
 from app.services.decision import DecisionService
 from app.services.inference import ModelService
 from app.services.llm import LLMService
 from app.services.llm_verification import VerificationService
-from app.services.container import get_rag_service
 from app.services.rag import RAGService
 
 router = APIRouter()
@@ -92,7 +92,7 @@ async def screen_text(
 
     text = body.text
     screening_id = str(uuid4())
-    created_at = datetime.utcnow()
+    created_at = datetime.now(UTC)
 
     logger.info(f"Screening {screening_id} started for patient {current_user.id[:8]} ({len(text)} chars)")
 
@@ -103,7 +103,7 @@ async def screen_text(
         )
 
     # Deduplication guard: reject if the same patient submitted another screening within 60 seconds
-    recent_cutoff = datetime.utcnow() - timedelta(seconds=60)
+    recent_cutoff = datetime.now(UTC) - timedelta(seconds=60)
     recent = (
         db.query(Screening)
         .filter(

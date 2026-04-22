@@ -10,7 +10,7 @@ Single source of truth for all region-specific content:
 """
 
 import re
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 
 # ── Country / Region ─────────────────────────────────────────────────────────
 
@@ -272,7 +272,7 @@ def validate_cpr(cpr: str, strict_check_digit: bool = False) -> bool:
 
     # Year prefix is 2 digits — we can't fully infer century without more context,
     # but we can reject implausible years (> current year if assumed 20XX)
-    current_year_2digit = datetime.utcnow().year % 100
+    current_year_2digit = datetime.now(UTC).year % 100
     # Allow 19XX or 20XX — both are plausible for a living patient
     if year_prefix > current_year_2digit and year_prefix < (current_year_2digit + 10):
         # Could be near future — reject
@@ -302,7 +302,7 @@ def extract_dob_from_cpr(cpr: str) -> tuple[int, int] | None:
     yy = int(digits[:2])
     mm = int(digits[2:4])
 
-    current_year_full = datetime.utcnow().year
+    current_year_full = datetime.now(UTC).year
     current_yy = current_year_full % 100
 
     # If YY is in the future 2-digit window, it must be last century

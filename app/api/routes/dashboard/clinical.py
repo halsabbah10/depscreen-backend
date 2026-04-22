@@ -2,7 +2,7 @@
 Patient diagnoses and medications CRUD endpoints.
 """
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from uuid import uuid4
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
@@ -133,7 +133,7 @@ async def update_diagnosis(
         )
 
     dx.status = status
-    dx.updated_at = datetime.utcnow()
+    dx.updated_at = datetime.now(UTC)
     db.commit()
     db.refresh(dx)
 

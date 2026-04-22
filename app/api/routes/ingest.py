@@ -12,7 +12,7 @@ Every method runs: DL classification → LLM verification → Decision → RAG e
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -89,7 +89,7 @@ async def _run_full_pipeline(
     rag_service: RAGService = services["rag"]
 
     screening_id = str(uuid4())
-    created_at = datetime.utcnow()
+    created_at = datetime.now(UTC)
 
     # Step 1: DL symptom detection
     symptom_analysis = await model_service.predict_symptoms(text)

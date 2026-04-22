@@ -2,7 +2,7 @@
 Appointment CRUD endpoints.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -79,7 +79,7 @@ async def list_appointments(
         # Default: upcoming non-terminal appointments
         query = query.filter(
             Appointment.status.in_(["scheduled", "confirmed"]),
-            Appointment.scheduled_at >= datetime.utcnow(),
+            Appointment.scheduled_at >= datetime.now(UTC),
         )
 
     appointments = query.order_by(Appointment.scheduled_at).all()
@@ -192,7 +192,7 @@ async def update_appointment_status(
         )
 
     appt.status = payload.status
-    appt.updated_at = datetime.utcnow()
+    appt.updated_at = datetime.now(UTC)
     db.commit()
     db.refresh(appt)
 
@@ -224,7 +224,7 @@ async def cancel_appointment(
         )
 
     appt.status = "cancelled"
-    appt.updated_at = datetime.utcnow()
+    appt.updated_at = datetime.now(UTC)
     db.commit()
     db.refresh(appt)
 

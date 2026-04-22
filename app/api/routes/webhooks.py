@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
@@ -114,7 +114,7 @@ async def resend_webhook(
     events.append(
         {
             "type": event_type,
-            "at": datetime.utcnow().isoformat(),
+            "at": datetime.now(UTC).isoformat(),
             "raw": {
                 # Keep only the fields we actually want to retain — avoid storing PII
                 # we don't need. The `to` and subject are already on the row.
@@ -126,14 +126,14 @@ async def resend_webhook(
         }
     )
     row.events = events
-    row.last_event_at = datetime.utcnow()
+    row.last_event_at = datetime.now(UTC)
 
     # Monotonic status update
     new_status = _EVENT_TO_STATUS.get(event_type)
     if new_status and _STATUS_RANK.get(new_status, -1) >= _STATUS_RANK.get(row.status or "queued", -1):
         row.status = new_status
 
-    row.updated_at = datetime.utcnow()
+    row.updated_at = datetime.now(UTC)
     db.commit()
 
     logger.info(f"Resend webhook processed: email_id={resend_email_id} event={event_type} -> status={row.status}")

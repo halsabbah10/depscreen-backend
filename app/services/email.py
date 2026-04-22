@@ -17,7 +17,7 @@ Design principles:
 """
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import resend
@@ -249,7 +249,7 @@ class EmailService:
                     row.status = status
                 if error_message:
                     row.error_message = error_message
-                row.updated_at = datetime.utcnow()
+                row.updated_at = datetime.now(UTC)
                 db.commit()
             finally:
                 db.close()

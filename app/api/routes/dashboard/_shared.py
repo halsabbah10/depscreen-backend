@@ -18,7 +18,7 @@ from app.services.rag import RAGService
 logger = logging.getLogger(__name__)
 
 
-def _get_rag() -> "RAGService | None":
+def _get_rag() -> RAGService | None:
     return get_rag_service()
 
 

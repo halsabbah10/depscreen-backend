@@ -2,8 +2,8 @@
 Dashboard stats, patient list, full patient profile, and PDF summary endpoints.
 """
 
+from datetime import UTC, datetime, timedelta
 from datetime import date as _date
-from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import desc, func
@@ -59,7 +59,7 @@ async def get_dashboard_stats(
     # 2. All five metrics from one aggregation row. `func.sum(case(...))`
     # counts rows matching a predicate — same semantics as `COUNT(*) WHERE
     # predicate` but in a single pass over the screenings table.
-    week_ago = datetime.utcnow() - timedelta(days=7)
+    week_ago = datetime.now(UTC) - timedelta(days=7)
     agg = (
         db.query(
             func.count(Screening.id).label("total"),
@@ -224,7 +224,7 @@ async def get_patient_full_profile(
         .filter(
             Appointment.patient_id == patient_id,
             Appointment.status.in_(["scheduled", "confirmed"]),
-            Appointment.scheduled_at >= datetime.utcnow(),
+            Appointment.scheduled_at >= datetime.now(UTC),
         )
         .scalar_subquery()
     )
@@ -438,7 +438,7 @@ async def download_patient_summary_pdf(
     buf = build_patient_summary_pdf(patient_dict, export_dict, clinician_name=current_user.full_name)
     log_audit(db, current_user.id, "patient_summary_pdf", resource_type="patient", resource_id=patient_id)
 
-    filename = f"depscreen-summary-{patient.full_name.replace(' ', '-')}-{datetime.utcnow().strftime('%Y%m%d')}.pdf"
+    filename = f"depscreen-summary-{patient.full_name.replace(' ', '-')}-{datetime.now(UTC).strftime('%Y%m%d')}.pdf"
     return StreamingResponse(
         buf,
         media_type="application/pdf",

@@ -59,8 +59,7 @@ init_sentry(
 )
 
 # Module-level RAGService instance initialized during lifespan startup.
-# Typed as a string forward-reference to avoid a circular import at module load.
-_rag_service_instance: "RAGService | None" = None
+_rag_service_instance = None  # RAGService instance, set during lifespan
 
 
 @asynccontextmanager

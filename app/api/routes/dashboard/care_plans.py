@@ -2,7 +2,7 @@
 Care plan CRUD and care-plan-templates endpoints.
 """
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from uuid import uuid4
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
@@ -210,7 +210,7 @@ async def update_care_plan(
     if description is not None:
         cp.description = description
 
-    cp.updated_at = datetime.utcnow()
+    cp.updated_at = datetime.now(UTC)
 
     # In-app notification for the patient
     db.add(

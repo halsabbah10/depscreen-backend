@@ -12,7 +12,7 @@ need full identifiers to personalize responses.
 """
 
 import logging
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
@@ -295,7 +295,7 @@ class PatientContextService:
                 .filter(
                     Appointment.patient_id == user.id,
                     Appointment.status.in_(["scheduled", "confirmed"]),
-                    Appointment.scheduled_at >= datetime.utcnow(),
+                    Appointment.scheduled_at >= datetime.now(UTC),
                 )
                 .order_by(Appointment.scheduled_at)
                 .limit(3)

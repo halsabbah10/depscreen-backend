@@ -7,7 +7,7 @@ allergies, diagnoses, screening schedules, and onboarding.
 """
 
 import logging
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Optional
 from uuid import uuid4
 
@@ -551,7 +551,7 @@ async def get_my_symptom_trends(
     Returns a timeseries of screenings with severity, symptom count,
     and which specific symptoms were detected at each point.
     """
-    start_date = datetime.utcnow() - timedelta(days=days)
+    start_date = datetime.now(UTC) - timedelta(days=days)
     screenings = (
         db.query(Screening)
         .filter(
@@ -1097,7 +1097,7 @@ async def create_or_update_screening_schedule(
         s.is_active = False
 
     # Calculate next_due_at
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     if body.frequency == "weekly":
         days_ahead = (body.day_of_week - now.weekday()) % 7
         if days_ahead == 0:
@@ -1347,7 +1347,7 @@ async def export_my_data(
     log_audit(db, current_user.id, "data_exported", resource_type="user")
 
     return {
-        "exported_at": datetime.utcnow().isoformat(),
+        "exported_at": datetime.now(UTC).isoformat(),
         "user": {
             "id": current_user.id,
             "email": current_user.email,
@@ -1497,7 +1497,7 @@ async def export_my_data_pdf(
     buf = build_patient_export_pdf(patient_dict, export_dict)
     log_audit(db, current_user.id, "data_exported_pdf", resource_type="user")
 
-    filename = f"depscreen-my-record-{datetime.utcnow().strftime('%Y%m%d')}.pdf"
+    filename = f"depscreen-my-record-{datetime.now(UTC).strftime('%Y%m%d')}.pdf"
     return StreamingResponse(
         buf,
         media_type="application/pdf",
@@ -1690,7 +1690,7 @@ async def list_my_appointments(
     elif not status:
         query = query.filter(
             Appointment.status.in_(["scheduled", "confirmed"]),
-            Appointment.scheduled_at >= datetime.utcnow(),
+            Appointment.scheduled_at >= datetime.now(UTC),
         )
 
     results = []
@@ -1866,7 +1866,7 @@ async def post_clinician_message(
         content=body.content.strip(),
     )
     db.add(msg)
-    conv.updated_at = datetime.utcnow()
+    conv.updated_at = datetime.now(UTC)
 
     # Notify clinician
     db.add(

@@ -207,7 +207,7 @@ def test_archive_conversation_soft_deletes(client, patient_headers, db):
 
 
 def test_get_messages_returns_chronological(client, patient_user, patient_headers, db):
-    from datetime import datetime, timedelta
+    from datetime import UTC, datetime, timedelta
 
     from app.models.db import ChatMessage, Conversation
 
@@ -221,7 +221,7 @@ def test_get_messages_returns_chronological(client, patient_user, patient_header
             is_active=True,
         )
     )
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     # Seed out-of-order so we can prove the endpoint sorts
     db.add(
         ChatMessage(

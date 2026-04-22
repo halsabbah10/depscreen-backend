@@ -127,12 +127,13 @@ async def login(
     settings: Settings = Depends(get_settings),
 ):
     """Authenticate and receive JWT tokens."""
+    from datetime import UTC
     from datetime import datetime as _dt
 
     user = authenticate_user(body.email, body.password, db)
 
     # Track last_login_at for audit / clinician view
-    user.last_login_at = _dt.utcnow()
+    user.last_login_at = _dt.now(UTC)
     db.commit()
 
     access_token = create_access_token(user.id, user.role, settings)

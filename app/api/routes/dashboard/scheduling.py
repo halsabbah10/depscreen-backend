@@ -2,7 +2,7 @@
 Patient screening schedule CRUD endpoints.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -103,7 +103,7 @@ async def assign_patient_screening_schedule(
     for s in existing:
         s.is_active = False
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     if body.frequency == "weekly":
         days_ahead = (body.day_of_week - now.weekday()) % 7
         if days_ahead == 0:

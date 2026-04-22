@@ -2,7 +2,7 @@
 Clinician-to-patient notifications and direct messages endpoints.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from fastapi import APIRouter, Body, Depends, Request
@@ -171,7 +171,7 @@ async def post_patient_message(
         content=body.content.strip(),
     )
     db.add(msg)
-    conv.updated_at = datetime.utcnow()
+    conv.updated_at = datetime.now(UTC)
 
     # Notify patient
     db.add(

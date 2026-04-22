@@ -22,15 +22,15 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from app.services.rag import RAGService
 
-_rag_service: "RAGService | None" = None
+_rag_service: RAGService | None = None
 
 
-def set_rag_service(service: "RAGService") -> None:
+def set_rag_service(service: RAGService) -> None:
     """Register the singleton RAGService instance (called once at startup)."""
     global _rag_service
     _rag_service = service
 
 
-def get_rag_service() -> "RAGService | None":
+def get_rag_service() -> RAGService | None:
     """Return the singleton RAGService instance, or None if not yet initialized."""
     return _rag_service

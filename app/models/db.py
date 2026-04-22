@@ -9,7 +9,7 @@ Tables:
 Uses SQLAlchemy with PostgreSQL + pgvector. SQLite is not supported.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from pgvector.sqlalchemy import Vector
@@ -25,6 +25,8 @@ from sqlalchemy import (
     String,
     Text,
     create_engine,
+)
+from sqlalchemy import (
     text as sa_text,
 )
 from sqlalchemy.dialects.postgresql import TSVECTOR as TSVector
@@ -110,8 +112,8 @@ class User(Base):
 
     # Tracking
     last_login_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
     # Relationships
     patients = relationship("User", backref="clinician", remote_side=[id])
@@ -134,7 +136,7 @@ class Screening(Base):
 
     id = Column(String(36), primary_key=True, index=True)
     patient_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC), index=True)
 
     # Input
     text = Column(Text, nullable=False)
@@ -189,7 +191,7 @@ class ChatMessage(Base):
     conversation_id = Column(String(36), ForeignKey("conversations.id"), nullable=True, index=True)
     role = Column(String(20), nullable=False)  # "user", "assistant", "clinician"
     content = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
     # Relationships
     screening = relationship("Screening", back_populates="chat_messages")
@@ -211,8 +213,8 @@ class Conversation(Base):
     linked_screening_id = Column(String(36), nullable=True)  # Optional screening context
     linked_clinician_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)  # For clinician-direct
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
     # Relationships
     messages = relationship("ChatMessage", back_populates="conversation", cascade="all, delete-orphan")
@@ -234,7 +236,7 @@ class PatientDocument(Base):
     file_size = Column(Integer, nullable=True)  # bytes
     processing_status = Column(String(20), default="ready")  # processing, ready, failed
     processing_error = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
 
 # ── Emergency Contacts ────────────────────────────────────────────────────────
@@ -249,7 +251,7 @@ class EmergencyContact(Base):
     phone = Column(String(20), nullable=False)
     relation = Column(String(50), nullable=False)
     is_primary = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
     patient = relationship("User", back_populates="emergency_contacts")
 
@@ -270,8 +272,8 @@ class Medication(Base):
     prescribed_by = Column(String(255), nullable=True)  # clinician name or external
     notes = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
     patient = relationship("User", back_populates="medications")
 
@@ -290,7 +292,7 @@ class Allergy(Base):
     reaction = Column(Text, nullable=True)  # description of allergic reaction
     diagnosed_date = Column(Date, nullable=True)
     notes = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
     patient = relationship("User", back_populates="allergies")
 
@@ -309,8 +311,8 @@ class Diagnosis(Base):
     status = Column(String(50), default="active")  # active, remission, resolved
     diagnosed_by = Column(String(255), nullable=True)  # clinician name or external
     notes = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
     patient = relationship("User", back_populates="diagnoses")
 
@@ -332,8 +334,8 @@ class ScreeningSchedule(Base):
     last_reminder_sent_at = Column(DateTime, nullable=True)  # de-dupe reminder emails
     assigned_by = Column(String(36), ForeignKey("users.id"), nullable=True)
     is_active = Column(Boolean, default=True, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
     patient = relationship("User", back_populates="screening_schedules", foreign_keys=[patient_id])
     assigned_clinician = relationship("User", foreign_keys=[assigned_by])
@@ -355,8 +357,8 @@ class Appointment(Base):
     notes = Column(Text, nullable=True)
     location = Column(String(255), nullable=True)
     reminder_sent_at = Column(DateTime, nullable=True)  # de-dupe 24h reminder emails
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
     patient = relationship("User", foreign_keys=[patient_id])
     clinician = relationship("User", foreign_keys=[clinician_id])
@@ -377,7 +379,7 @@ class Notification(Base):
     message = Column(Text, nullable=False)
     link = Column(String(500), nullable=True)  # Frontend route to navigate to
     is_read = Column(Boolean, default=False, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC), index=True)
 
     user = relationship("User", back_populates="notifications")
 
@@ -398,8 +400,8 @@ class CarePlan(Base):
     interventions = Column(JSON, nullable=True)  # [{name, frequency, instructions, assigned_date}]
     review_date = Column(Date, nullable=True)
     status = Column(String(50), default="active", index=True)  # active, review_needed, completed, archived
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
     patient = relationship("User", foreign_keys=[patient_id])
     clinician = relationship("User", foreign_keys=[clinician_id])
@@ -419,7 +421,7 @@ class AuditLog(Base):
     resource_id = Column(String(36), nullable=True)
     ip_address = Column(String(45), nullable=True)
     details = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC), index=True)
 
 
 # ── Email Deliveries (Resend webhook tracking) ──────────────────────────────
@@ -448,8 +450,8 @@ class EmailDelivery(Base):
     last_event_at = Column(DateTime, nullable=True)
     events = Column(JSON, nullable=True)  # list of {type, at, raw}
     error_message = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC), nullable=False, index=True)
+    updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC), nullable=False)
 
 
 # ── RAG Vector Chunks ───────────────────────────────────────────────────────
@@ -476,8 +478,8 @@ class KnowledgeChunk(Base):
     metadata_json = Column(JSON, nullable=True)
     is_current = Column(Boolean, default=True, server_default=sa_text("true"))
     document_version = Column(String(50), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
     parent = relationship("KnowledgeChunk", remote_side=[id], lazy="select")
 
@@ -504,8 +506,8 @@ class PatientRAGChunk(Base):
     token_count = Column(Integer)
     embedding = Column(Vector(1024))
     metadata_json = Column(JSON, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
     parent = relationship("PatientRAGChunk", remote_side=[id], lazy="select")
     patient = relationship("User", foreign_keys=[patient_id], lazy="select")

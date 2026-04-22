@@ -8,7 +8,7 @@ limiter pattern (additive security, not a hard dependency).
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ async def deny_token(jti: str, expires_at: datetime) -> None:
     if client is None:
         return
 
-    ttl = int((expires_at - datetime.utcnow()).total_seconds())
+    ttl = int((expires_at - datetime.now(UTC)).total_seconds())
     if ttl <= 0:
         return  # Already expired, nothing to deny
 

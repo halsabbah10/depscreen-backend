@@ -7,7 +7,7 @@ path AND guard the behavior so a future "simplification" can't regress it.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from app.models.db import Notification, Screening, User
@@ -32,7 +32,7 @@ def _seed_screening(
         final_prediction="some_indicators",
         final_confidence=0.7,
         flagged_for_review=flagged,
-        created_at=created_at or datetime.utcnow(),
+        created_at=created_at or datetime.now(UTC),
     )
     db.add(s)
     db.commit()
@@ -80,7 +80,7 @@ def test_dashboard_stats_aggregates_severity_distribution(
     """Two mild, one moderate, one severe (flagged), one this-week —
     the aggregation must return each count correctly."""
     patient_id = linked_patient.id
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
 
     _seed_screening(db, patient_id=patient_id, severity="mild", created_at=now - timedelta(days=20))
     _seed_screening(db, patient_id=patient_id, severity="mild", created_at=now - timedelta(days=15))
@@ -150,7 +150,7 @@ def test_dashboard_patients_returns_linked_patients_with_latest_screening(
 ):
     """Multiple screenings per patient — must return ONLY the latest row's
     severity / symptom_count in the summary."""
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     _seed_screening(
         db,
         patient_id=linked_patient.id,

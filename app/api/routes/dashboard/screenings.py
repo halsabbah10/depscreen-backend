@@ -2,7 +2,7 @@
 Screening list, detail, triage, notes, trends, and patient document endpoints.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Request, UploadFile
@@ -255,7 +255,7 @@ async def update_triage_status(
 
     screening.triage_status = status
     screening.reviewed_by = current_user.id
-    screening.reviewed_at = datetime.utcnow()
+    screening.reviewed_at = datetime.now(UTC)
 
     if next_action:
         screening.next_action = next_action
@@ -282,7 +282,7 @@ async def get_patient_trends(
     if patient.clinician_id != current_user.id:
         raise HTTPException(status_code=403, detail="This patient is not assigned to you")
 
-    start_date = datetime.utcnow() - timedelta(days=days)
+    start_date = datetime.now(UTC) - timedelta(days=days)
     screenings = (
         db.query(Screening)
         .filter(Screening.patient_id == patient_id, Screening.created_at >= start_date)

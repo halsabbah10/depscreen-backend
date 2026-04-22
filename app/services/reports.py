@@ -13,7 +13,7 @@ All returns are `BytesIO` objects ready to hand to `StreamingResponse`.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from io import BytesIO
 from typing import Any
 
@@ -172,7 +172,7 @@ def _draw_footer(canvas, doc):
     canvas.drawCentredString(
         A4[0] / 2,
         0.8 * cm,
-        f"Generated {datetime.utcnow().strftime('%d/%m/%Y %H:%M')} UTC · Page {doc.page}",
+        f"Generated {datetime.now(UTC).strftime('%d/%m/%Y %H:%M')} UTC · Page {doc.page}",
     )
     canvas.restoreState()
 
@@ -415,7 +415,7 @@ def build_patient_export_pdf(patient: dict, export: dict) -> BytesIO:
         Paragraph(
             f"A complete export of what we have on file for "
             f"{_safe(patient.get('full_name'))}. Generated "
-            f"{_format_date(datetime.utcnow())}.",
+            f"{_format_date(datetime.now(UTC))}.",
             s["subtitle"],
         )
     )
