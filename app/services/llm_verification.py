@@ -8,9 +8,7 @@ Provides three verification layers (run in parallel):
 """
 
 import asyncio
-import json
 import logging
-import re
 
 from openai import AsyncOpenAI
 
@@ -23,37 +21,9 @@ from app.schemas.analysis import (
     PostSymptomSummary,
     VerificationReport,
 )
+from app.utils.json_extract import extract_json
 
 logger = logging.getLogger(__name__)
-
-
-def extract_json(text: str) -> dict:
-    """Extract JSON from LLM response that may contain <think> tags, markdown fences, or preamble."""
-    if not text:
-        raise ValueError("Empty response from LLM")
-    cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
-    # Strip markdown code fences (```json ... ``` or ``` ... ```)
-    cleaned = re.sub(r"```(?:json)?\s*\n?", "", cleaned).strip()
-    cleaned = cleaned.rstrip("`").strip()
-    try:
-        return json.loads(cleaned)
-    except json.JSONDecodeError:
-        pass
-    depth = 0
-    start = None
-    for i, ch in enumerate(cleaned):
-        if ch == "{":
-            if depth == 0:
-                start = i
-            depth += 1
-        elif ch == "}":
-            depth -= 1
-            if depth == 0 and start is not None:
-                try:
-                    return json.loads(cleaned[start : i + 1])
-                except json.JSONDecodeError:
-                    start = None
-    raise ValueError(f"No valid JSON found in LLM response: {text[:200]}")
 
 
 class VerificationService:
@@ -169,8 +139,9 @@ Respond in JSON:
                         {"role": "user", "content": prompt},
                     ],
                     temperature=0.2,
-                    max_tokens=400,
+                    max_tokens=800,
                     timeout=60,
+                    response_format={"type": "json_object"},
                 )
 
             response = await _call_evidence()
@@ -211,8 +182,9 @@ Respond in JSON:
                         {"role": "user", "content": prompt},
                     ],
                     temperature=0.2,
-                    max_tokens=400,
+                    max_tokens=800,
                     timeout=60,
+                    response_format={"type": "json_object"},
                 )
 
             response = await _call_adversarial()
@@ -263,8 +235,9 @@ Respond in JSON:
                         {"role": "user", "content": prompt},
                     ],
                     temperature=0.2,
-                    max_tokens=400,
+                    max_tokens=800,
                     timeout=60,
+                    response_format={"type": "json_object"},
                 )
 
             response = await _call_confidence()

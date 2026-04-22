@@ -5,9 +5,7 @@ Generates per-symptom clinical explanations enriched with RAG context.
 Uses OpenAI-compatible API format.
 """
 
-import json
 import logging
-import re
 
 from openai import AsyncOpenAI
 
@@ -15,37 +13,9 @@ from app.core import localization
 from app.core.config import Settings
 from app.middleware.llm_resilience import llm_retry
 from app.schemas.analysis import ExplanationReport, PostSymptomSummary
+from app.utils.json_extract import extract_json
 
 logger = logging.getLogger(__name__)
-
-
-def extract_json(text: str) -> dict:
-    """Extract JSON from LLM response that may contain <think> tags, markdown fences, or preamble."""
-    if not text:
-        raise ValueError("Empty response from LLM")
-    cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
-    # Strip markdown code fences (```json ... ``` or ``` ... ```)
-    cleaned = re.sub(r"```(?:json)?\s*\n?", "", cleaned).strip()
-    cleaned = cleaned.rstrip("`").strip()
-    try:
-        return json.loads(cleaned)
-    except json.JSONDecodeError:
-        pass
-    depth = 0
-    start = None
-    for i, ch in enumerate(cleaned):
-        if ch == "{":
-            if depth == 0:
-                start = i
-            depth += 1
-        elif ch == "}":
-            depth -= 1
-            if depth == 0 and start is not None:
-                try:
-                    return json.loads(cleaned[start : i + 1])
-                except json.JSONDecodeError:
-                    start = None
-    raise ValueError(f"No valid JSON found in LLM response: {text[:200]}")
 
 
 # Localized safety content (Bahrain)
@@ -111,8 +81,9 @@ class LLMService:
                         {"role": "user", "content": prompt},
                     ],
                     temperature=0.3,
-                    max_tokens=1200,
+                    max_tokens=1800,
                     timeout=60,
+                    response_format={"type": "json_object"},
                 )
 
             response = await _call()

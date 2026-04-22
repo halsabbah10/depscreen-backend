@@ -94,10 +94,18 @@ async def _run_full_pipeline(
     # Step 1: DL symptom detection
     symptom_analysis = await model_service.predict_symptoms(text)
 
-    # Step 2: LLM verification
-    verification = await verification_service.verify_prediction(
-        text=text,
-        symptom_analysis=symptom_analysis,
+    # Steps 2+4 in parallel — both only depend on Step 1
+    async def _rag_retrieve() -> dict | None:
+        if symptom_analysis.dsm5_criteria_met and rag_service.is_initialized:
+            return await asyncio.to_thread(
+                rag_service.retrieve_for_symptoms,
+                symptom_analysis.dsm5_criteria_met,
+            )
+        return None
+
+    verification, rag_context_data = await asyncio.gather(
+        verification_service.verify_prediction(text=text, symptom_analysis=symptom_analysis),
+        _rag_retrieve(),
     )
 
     # Step 3: Decision
@@ -105,16 +113,14 @@ async def _run_full_pipeline(
         symptom_analysis, verification
     )
 
-    # Step 4: RAG retrieval
-    rag_context_data = None
+    # Step 4 (post-processing): format RAG context for LLM prompt
     rag_context_str = None
-    if symptom_analysis.dsm5_criteria_met and rag_service.is_initialized:
-        rag_context_data = rag_service.retrieve_for_symptoms(symptom_analysis.dsm5_criteria_met)
+    if rag_context_data:
         rag_parts = []
         for symptom, docs in rag_context_data.items():
             for doc in docs:
                 rag_parts.append(f"[{symptom}] {doc['text'][:300]}")
-        rag_context_str = "\n\n".join(rag_parts[:10]) if rag_parts else None
+        rag_context_str = "\n\n".join(rag_parts[:5]) if rag_parts else None
 
     # Step 5: LLM explanation
     verification_summary = decision_service.get_verification_summary(verification)

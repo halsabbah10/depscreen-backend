@@ -8,6 +8,7 @@ persists results to DB, and ingests into patient RAG.
 Requires authentication — screenings are always attributed to a patient.
 """
 
+import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
@@ -122,23 +123,43 @@ async def screen_text(
         f"severity={symptom_analysis.severity_level}"
     )
 
-    # Step 1.5: Retrieve DSM-5 criteria for verification grounding
-    dsm5_context = None
-    if symptom_analysis.dsm5_criteria_met and rag_service and rag_service.is_initialized:
-        dsm5_context = {}
-        for symptom in symptom_analysis.dsm5_criteria_met[:5]:  # Cap at 5 symptoms
-            docs = rag_service.retrieve(
-                query=f"DSM-5 diagnostic criteria for {symptom}",
-                n_results=2,
-                category="dsm5_criteria",
-                symptom=symptom,
-            )
-            if docs:
-                dsm5_context[symptom] = docs
-        if dsm5_context:
-            logger.info(f"  Step 1.5 — RAG: DSM-5 criteria for {len(dsm5_context)} symptoms")
+    # Steps 1.5 + 4: RAG retrieval (DSM-5 criteria + symptom context) in parallel
+    async def _dsm5_retrieve() -> dict | None:
+        if symptom_analysis.dsm5_criteria_met and rag_service and rag_service.is_initialized:
 
-    # Step 2: LLM verification
+            def _fetch():
+                ctx = {}
+                for symptom in symptom_analysis.dsm5_criteria_met[:5]:
+                    docs = rag_service.retrieve(
+                        query=f"DSM-5 diagnostic criteria for {symptom}",
+                        n_results=2,
+                        category="dsm5_criteria",
+                        symptom=symptom,
+                    )
+                    if docs:
+                        ctx[symptom] = docs
+                return ctx or None
+
+            return await asyncio.to_thread(_fetch)
+        return None
+
+    async def _rag_retrieve() -> dict | None:
+        if symptom_analysis.dsm5_criteria_met and rag_service and rag_service.is_initialized:
+            return await asyncio.to_thread(
+                rag_service.retrieve_for_symptoms,
+                symptom_analysis.dsm5_criteria_met,
+            )
+        return None
+
+    dsm5_context, rag_context_data = await asyncio.gather(
+        _dsm5_retrieve(),
+        _rag_retrieve(),
+    )
+
+    if dsm5_context:
+        logger.info(f"  Step 1.5 — RAG: DSM-5 criteria for {len(dsm5_context)} symptoms")
+
+    # Step 2: LLM verification (uses DSM-5 context from Step 1.5)
     verification = await verification_service.verify_prediction(
         text=text,
         symptom_analysis=symptom_analysis,
@@ -156,17 +177,14 @@ async def screen_text(
     )
     logger.info(f"  Step 3 — Decision: {final_prediction} ({final_confidence:.2%}), flagged={flagged}")
 
-    # Step 4: RAG retrieval for detected symptoms
-    rag_context_data = None
+    # Step 4 (post-processing): format RAG context for LLM prompt
     rag_context_str = None
-    if symptom_analysis.dsm5_criteria_met:
-        rag_context_data = rag_service.retrieve_for_symptoms(symptom_analysis.dsm5_criteria_met)
-        # Flatten for LLM prompt
+    if rag_context_data:
         rag_parts = []
         for symptom, docs in rag_context_data.items():
             for doc in docs:
                 rag_parts.append(f"[{symptom}] {doc['text'][:300]}")
-        rag_context_str = "\n\n".join(rag_parts[:10]) if rag_parts else None
+        rag_context_str = "\n\n".join(rag_parts[:5]) if rag_parts else None
         logger.info(f"  Step 4 — RAG: retrieved context for {len(rag_context_data)} symptoms")
 
     # Step 4.5: Assemble structured patient context
