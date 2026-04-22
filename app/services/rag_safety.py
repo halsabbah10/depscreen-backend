@@ -34,9 +34,7 @@ def filter_by_relevance(results: list[dict], threshold: float = 0.35) -> list[di
     filtered = []
     for r in results:
         score = r.get("reranker_score")
-        if score is None:
-            filtered.append(r)
-        elif score >= threshold:
+        if score is None or score >= threshold:
             filtered.append(r)
         else:
             logger.debug(f"Filtered chunk {r.get('id', '?')}: score {score:.3f} < {threshold}")

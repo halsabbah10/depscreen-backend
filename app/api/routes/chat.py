@@ -33,7 +33,6 @@ from app.services.auth import get_current_user, log_audit
 from app.services.chat import ChatService
 from app.services.container import get_rag_service
 from app.services.llm import LLMService
-from app.services.rag import RAGService
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -475,8 +474,9 @@ async def send_conversation_message(
 
         # Check if we should generate a chat summary
         try:
+            from sqlalchemy import func as sa_func  # noqa: I001
+
             from app.services.chat_summary import should_trigger_summary, generate_and_ingest_summary
-            from sqlalchemy import func as sa_func
 
             if conversation_id:  # Only for conversations, not one-off chats
                 total_messages = db.query(ChatMessage).filter_by(
@@ -497,7 +497,6 @@ async def send_conversation_message(
                         for m in reversed(recent)
                     ]
 
-                    from app.services.container import get_rag_service
                     _rag = get_rag_service()
                     await generate_and_ingest_summary(
                         patient_id=current_user.id,

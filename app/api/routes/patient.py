@@ -11,7 +11,7 @@ from datetime import date, datetime, timedelta
 from typing import Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Request, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
@@ -83,11 +83,46 @@ class EmergencyContactRequest(BaseModel):
     is_primary: bool = False
 
 
-PATIENT_DOC_TYPES = ["phq9", "gad7", "medication_list", "journal_entry", "previous_diagnosis"]
+PATIENT_DOC_TYPES = [
+    "phq9", "gad7", "medication_list", "journal_entry", "previous_diagnosis",
+    "medical_report", "therapy_notes", "mood_diary", "sleep_log",
+    "wellness_plan", "cpr_id", "passport", "insurance_card", "other",
+]
 
 
 def _get_rag() -> "RAGService | None":
     return get_rag_service()
+
+
+async def _ingest_document_background(patient_id: str, doc_id: str, doc_type: str, title: str, content: str):
+    """Background task: embed document into patient RAG and update status."""
+    from app.models.db import PatientDocument, SessionLocal
+    from app.services.container import get_rag_service
+
+    rag = get_rag_service()
+    db = SessionLocal()
+    try:
+        if rag and rag.is_initialized:
+            rag.ingest_patient_document(
+                patient_id=patient_id,
+                doc_id=doc_id,
+                doc_type=doc_type,
+                title=title,
+                content=content,
+            )
+        doc = db.query(PatientDocument).filter_by(id=doc_id).first()
+        if doc:
+            doc.processing_status = "ready"
+            db.commit()
+    except Exception as e:
+        logger.error(f"Document ingestion failed for {doc_id}: {e}")
+        doc = db.query(PatientDocument).filter_by(id=doc_id).first()
+        if doc:
+            doc.processing_status = "failed"
+            doc.processing_error = str(e)[:500]
+            db.commit()
+    finally:
+        db.close()
 
 
 # ── Profile Management ────────────────────────────────────────────────────────
@@ -283,11 +318,19 @@ async def upload_my_document(
     Document is saved to DB and ingested into the patient's personal RAG
     collection for personalized chatbot responses.
     """
+    from app.services.rag_safety import sanitize_identity_document, should_ingest_to_rag
+
     if body.doc_type not in PATIENT_DOC_TYPES:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid doc_type for patients. Must be one of: {', '.join(PATIENT_DOC_TYPES)}",
         )
+
+    content = body.content
+
+    # Sanitize identity documents
+    if body.doc_type in ("cpr_id", "passport", "insurance_card"):
+        content = sanitize_identity_document(content, body.doc_type)
 
     doc_id = str(uuid4())
     doc = PatientDocument(
@@ -296,19 +339,19 @@ async def upload_my_document(
         uploaded_by=current_user.id,
         doc_type=body.doc_type,
         title=body.title,
-        content=body.content,
+        content=content,
     )
     db.add(doc)
     db.commit()
 
-    # Ingest into RAG
-    if rag and rag.is_initialized:
+    # Only ingest to RAG if doc type is not excluded
+    if should_ingest_to_rag(body.doc_type) and rag and rag.is_initialized:
         rag.ingest_patient_document(
             patient_id=current_user.id,
             doc_id=doc_id,
             doc_type=body.doc_type,
             title=body.title,
-            content=body.content,
+            content=content,
         )
 
     log_audit(db, current_user.id, "document_uploaded", resource_type="document", resource_id=doc_id)
@@ -320,6 +363,7 @@ async def upload_my_document(
 @limiter.limit("20/minute")
 async def upload_my_document_file(
     request: Request,
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     title: str = Query(..., min_length=1, max_length=255),
     doc_type: str = Query(...),
@@ -327,14 +371,15 @@ async def upload_my_document_file(
     rag: RAGService = Depends(_get_rag),
     db: Session = Depends(get_db),
 ):
-    """Upload a file (PDF or text) directly. PDFs are parsed automatically.
+    """Upload a document file (PDF, DOCX, TXT, MD, CSV).
 
-    Accepts multipart/form-data. For PDFs we run Docling (with pdfplumber
-    fallback); for .txt we decode as UTF-8. Other formats are rejected.
-    Extracted text goes through the same DB + RAG pipeline as the JSON
-    upload endpoint.
+    Accepts multipart/form-data. PDFs are extracted via Docling (with
+    pdfplumber fallback); DOCX via Docling; text formats are decoded as
+    UTF-8. Identity documents are PII-sanitized. RAG-eligible documents
+    are ingested asynchronously in the background.
     """
-    from app.services.pdf_extractor import PDFExtractionError, extract_text_from_pdf_bytes
+    from app.services.document_extractor import extract_text
+    from app.services.rag_safety import sanitize_identity_document, should_ingest_to_rag
 
     if doc_type not in PATIENT_DOC_TYPES:
         raise HTTPException(
@@ -346,32 +391,34 @@ async def upload_my_document_file(
     max_upload_bytes = 10 * 1024 * 1024  # 10 MB
     if len(raw) > max_upload_bytes:
         raise HTTPException(status_code=413, detail="File exceeds 10 MB limit")
-    filename = (file.filename or "").lower()
-    content_type = (file.content_type or "").lower()
 
-    is_pdf = filename.endswith(".pdf") or content_type == "application/pdf"
-    is_text = filename.endswith(".txt") or content_type.startswith("text/")
+    SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt", ".md", ".csv"}
+    filename_lower = (file.filename or "").lower()
+    file_ext = "." + filename_lower.rsplit(".", 1)[-1] if "." in filename_lower else ""
 
-    if is_pdf:
-        try:
-            content = await extract_text_from_pdf_bytes(raw)
-        except PDFExtractionError as e:
-            raise HTTPException(status_code=400, detail=str(e))
-    elif is_text:
-        try:
-            content = raw.decode("utf-8", errors="replace").strip()
-        except Exception:
-            raise HTTPException(status_code=400, detail="Could not read this text file.")
-        if len(content) < 10:
-            raise HTTPException(status_code=400, detail="This file seems empty. Please add some content.")
-    else:
+    if file_ext not in SUPPORTED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
-            detail="Only PDF (.pdf) and plain-text (.txt) files are supported here. For other formats, paste the content manually.",
+            detail=f"Supported formats: {', '.join(sorted(SUPPORTED_EXTENSIONS))}",
         )
+
+    result = extract_text(raw, filename_lower)
+    if result is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Could not extract text from this document. The file may be damaged or in an unsupported format.",
+        )
+    content = result.text
+
+    if len(content) < 10:
+        raise HTTPException(status_code=400, detail="This file seems empty. Please add some content.")
 
     if len(content) > 100_000:
         content = content[:100_000]
+
+    # Sanitize identity documents
+    if doc_type in ("cpr_id", "passport", "insurance_card"):
+        content = sanitize_identity_document(content, doc_type)
 
     doc_id = str(uuid4())
     doc = PatientDocument(
@@ -381,12 +428,15 @@ async def upload_my_document_file(
         doc_type=doc_type,
         title=title,
         content=content,
+        processing_status="processing" if should_ingest_to_rag(doc_type) else "ready",
     )
     db.add(doc)
     db.commit()
 
-    if rag and rag.is_initialized:
-        rag.ingest_patient_document(
+    # Background RAG ingestion
+    if should_ingest_to_rag(doc_type) and rag and rag.is_initialized:
+        background_tasks.add_task(
+            _ingest_document_background,
             patient_id=current_user.id,
             doc_id=doc_id,
             doc_type=doc_type,
@@ -403,10 +453,9 @@ async def upload_my_document_file(
     )
 
     return {
-        "status": "uploaded",
+        "status": "processing" if should_ingest_to_rag(doc_type) else "ready",
         "document_id": doc_id,
         "extracted_chars": len(content),
-        "source": "pdf" if is_pdf else "text",
     }
 
 
