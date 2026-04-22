@@ -21,7 +21,8 @@ from typing import Any
 
 import yaml
 from sentence_transformers import CrossEncoder, SentenceTransformer
-from sqlalchemy import func, text
+from sqlalchemy import cast, func, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
@@ -499,6 +500,36 @@ class RAGService:
         finally:
             db.close()
 
+    def retrieve_light(
+        self,
+        query: str,
+        n_results: int = 5,
+        category: str | None = None,
+        symptom: str | None = None,
+    ) -> list[dict] | None:
+        """Lightweight retrieval: dense search only (no BM25, no RRF, no reranker).
+
+        Designed for chat where latency matters and the corpus is small enough
+        that cosine similarity alone is sufficient.
+        """
+        if not self._initialized:
+            return None
+
+        query_embedding = self.embed(query)
+        if query_embedding is None:
+            logger.warning("Embedding failed for query in retrieve_light")
+            return None
+
+        db = SessionLocal()
+        try:
+            results = self._dense_search(db, query_embedding, n_results, category, symptom)
+            return results
+        except Exception as exc:
+            logger.error("Light retrieval failed: %s", exc, exc_info=True)
+            return None
+        finally:
+            db.close()
+
     def _dense_search(
         self,
         db: Session,
@@ -513,7 +544,7 @@ class RAGService:
         if category:
             q = q.filter(KnowledgeChunk.category == category)
         if symptom:
-            q = q.filter(KnowledgeChunk.symptoms.contains([symptom]))
+            q = q.filter(cast(KnowledgeChunk.symptoms, JSONB).contains([symptom]))
 
         results = q.order_by(KnowledgeChunk.embedding.cosine_distance(query_embedding)).limit(top_k).all()
 
@@ -556,7 +587,7 @@ class RAGService:
             if category:
                 q = q.filter(KnowledgeChunk.category == category)
             if symptom:
-                q = q.filter(KnowledgeChunk.symptoms.contains([symptom]))
+                q = q.filter(cast(KnowledgeChunk.symptoms, JSONB).contains([symptom]))
 
             results = q.order_by(func.ts_rank_cd(KnowledgeChunk.search_vector, ts_query).desc()).limit(top_k).all()
 
@@ -713,11 +744,11 @@ class RAGService:
         if not self._initialized:
             return ""
 
-        docs = self.retrieve(user_message, n_results=n_results) or []
+        docs = self.retrieve_light(user_message, n_results=n_results) or []
 
         for symptom in detected_symptoms[:3]:
             symptom_docs = (
-                self.retrieve(
+                self.retrieve_light(
                     query=f"{symptom} information and guidance",
                     n_results=2,
                     symptom=symptom,

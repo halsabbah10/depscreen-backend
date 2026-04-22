@@ -369,6 +369,7 @@ class ChatService:
                         ],
                         temperature=0.4,
                         max_tokens=600,
+                        reasoning_effort="none",
                     )
 
                 response = await _call_chat()
@@ -493,6 +494,7 @@ class ChatService:
                 temperature=0.4,
                 max_tokens=600,
                 stream=True,
+                reasoning_effort="none",
             )
             async for chunk in stream:
                 if chunk.choices and chunk.choices[0].delta.content:

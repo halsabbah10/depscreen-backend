@@ -499,7 +499,7 @@ class ConversationResponse(BaseModel):
     linked_screening_id: str | None = None
     is_active: bool
     created_at: datetime
-    updated_at: datetime
+    updated_at: datetime | None = None
     message_count: int = 0
 
 

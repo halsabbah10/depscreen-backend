@@ -437,6 +437,7 @@ async def send_conversation_message(
                         ],
                         temperature=0.4,
                         max_tokens=600,
+                        reasoning_effort="none",
                     )
 
                 response = await _call_standalone()
@@ -749,6 +750,7 @@ async def send_conversation_message_stream(
                         temperature=0.4,
                         max_tokens=600,
                         stream=True,
+                        reasoning_effort="none",
                     )
                     async for chunk in stream:
                         if chunk.choices and chunk.choices[0].delta.content:
