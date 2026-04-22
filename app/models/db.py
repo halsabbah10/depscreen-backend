@@ -27,8 +27,7 @@ from sqlalchemy import (
     create_engine,
 )
 from sqlalchemy.dialects.postgresql import TSVECTOR as TSVector
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, relationship, sessionmaker
 
 from app.core.config import get_settings
 
@@ -58,7 +57,8 @@ pool_config: dict = (
 
 engine = create_engine(settings.database_url, **pool_config)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
+class Base(DeclarativeBase):
+    pass
 
 
 # ── Users ─────────────────────────────────────────────────────────────────────
