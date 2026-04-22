@@ -389,7 +389,8 @@ async def send_conversation_message(
             patient_profile = ""
             try:
                 patient_profile = chat_service.patient_context.build_context(
-                    current_user, db,
+                    current_user,
+                    db,
                     sections=["demographics", "medications", "allergies", "diagnoses", "care_plan", "screenings"],
                     include_pii=False,
                 )
@@ -479,18 +480,24 @@ async def send_conversation_message(
             from app.services.chat_summary import should_trigger_summary, generate_and_ingest_summary
 
             if conversation_id:  # Only for conversations, not one-off chats
-                total_messages = db.query(ChatMessage).filter_by(
-                    conversation_id=conversation_id
-                ).count()
-                substantive_messages = db.query(ChatMessage).filter(
-                    ChatMessage.conversation_id == conversation_id,
-                    sa_func.length(ChatMessage.content) > 20,
-                ).count()
+                total_messages = db.query(ChatMessage).filter_by(conversation_id=conversation_id).count()
+                substantive_messages = (
+                    db.query(ChatMessage)
+                    .filter(
+                        ChatMessage.conversation_id == conversation_id,
+                        sa_func.length(ChatMessage.content) > 20,
+                    )
+                    .count()
+                )
 
                 if should_trigger_summary(total_messages, substantive_messages):
-                    recent = db.query(ChatMessage).filter_by(
-                        conversation_id=conversation_id
-                    ).order_by(ChatMessage.created_at.desc()).limit(20).all()
+                    recent = (
+                        db.query(ChatMessage)
+                        .filter_by(conversation_id=conversation_id)
+                        .order_by(ChatMessage.created_at.desc())
+                        .limit(20)
+                        .all()
+                    )
 
                     messages_for_summary = [
                         {"role": m.role, "content": m.content, "created_at": str(m.created_at)}
@@ -652,7 +659,8 @@ async def send_conversation_message_stream(
     patient_profile = ""
     try:
         patient_profile = chat_service.patient_context.build_context(
-            current_user, db,
+            current_user,
+            db,
             sections=["demographics", "medications", "allergies", "diagnoses", "care_plan", "screenings"],
             include_pii=False,
         )

@@ -16,19 +16,61 @@ logger = logging.getLogger(__name__)
 
 CLINICAL_KEYWORDS = [
     # Symptoms
-    "sad", "empty", "hopeless", "sleep", "insomnia", "tired", "fatigue",
-    "appetite", "weight", "concentration", "worthless", "guilty", "suicid",
-    "anxious", "anxiety", "panic", "worry", "numb", "crying",
+    "sad",
+    "empty",
+    "hopeless",
+    "sleep",
+    "insomnia",
+    "tired",
+    "fatigue",
+    "appetite",
+    "weight",
+    "concentration",
+    "worthless",
+    "guilty",
+    "suicid",
+    "anxious",
+    "anxiety",
+    "panic",
+    "worry",
+    "numb",
+    "crying",
     # Medications
-    "sertraline", "fluoxetine", "escitalopram", "paroxetine", "citalopram",
-    "venlafaxine", "duloxetine", "bupropion", "mirtazapine", "medication",
-    "dosage", "dose", "side effect", "nauseous", "nausea",
+    "sertraline",
+    "fluoxetine",
+    "escitalopram",
+    "paroxetine",
+    "citalopram",
+    "venlafaxine",
+    "duloxetine",
+    "bupropion",
+    "mirtazapine",
+    "medication",
+    "dosage",
+    "dose",
+    "side effect",
+    "nauseous",
+    "nausea",
     # Coping
-    "exercise", "walk", "therapy", "therapist", "meditation", "breathing",
-    "journal", "routine", "schedule",
+    "exercise",
+    "walk",
+    "therapy",
+    "therapist",
+    "meditation",
+    "breathing",
+    "journal",
+    "routine",
+    "schedule",
     # Mood changes
-    "better", "worse", "improving", "struggling", "difficult", "progress",
-    "relapse", "setback", "breakthrough",
+    "better",
+    "worse",
+    "improving",
+    "struggling",
+    "difficult",
+    "progress",
+    "relapse",
+    "setback",
+    "breakthrough",
 ]
 
 
@@ -89,9 +131,7 @@ async def _llm_structure_summary(extracted: list[str], rag_service) -> str | Non
                         "- Use the patient's own words where possible.\n"
                         "- Organize by theme: symptoms, medication feedback, coping strategies, mood changes.\n"
                         "- Skip themes with no relevant excerpts.\n\n"
-                        "EXCERPTS:\n"
-                        + "\n".join(f"- {s}" for s in extracted)
-                        + "\n\nSTRUCTURED SUMMARY:"
+                        "EXCERPTS:\n" + "\n".join(f"- {s}" for s in extracted) + "\n\nSTRUCTURED SUMMARY:"
                     ),
                 }
             ],

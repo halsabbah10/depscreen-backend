@@ -395,7 +395,7 @@ class RAGService:
         # Standard YAML frontmatter
         match = re.match(r"^---\s*\n.*?\n---\s*\n?", content, re.DOTALL)
         if match:
-            body = content[match.end():]
+            body = content[match.end() :]
             return body.lstrip("\n")
 
         # Legacy format: strip first "key: value" line
@@ -515,11 +515,7 @@ class RAGService:
         if symptom:
             q = q.filter(KnowledgeChunk.symptoms.contains([symptom]))
 
-        results = (
-            q.order_by(KnowledgeChunk.embedding.cosine_distance(query_embedding))
-            .limit(top_k)
-            .all()
-        )
+        results = q.order_by(KnowledgeChunk.embedding.cosine_distance(query_embedding)).limit(top_k).all()
 
         return [
             {
@@ -562,11 +558,7 @@ class RAGService:
             if symptom:
                 q = q.filter(KnowledgeChunk.symptoms.contains([symptom]))
 
-            results = (
-                q.order_by(func.ts_rank_cd(KnowledgeChunk.search_vector, ts_query).desc())
-                .limit(top_k)
-                .all()
-            )
+            results = q.order_by(func.ts_rank_cd(KnowledgeChunk.search_vector, ts_query).desc()).limit(top_k).all()
 
             return [
                 {
@@ -688,16 +680,22 @@ class RAGService:
 
         results: dict[str, list[dict]] = {}
         for symptom in symptoms:
-            criteria_docs = self.retrieve(
-                query=f"DSM-5 criterion for {symptom}",
-                n_results=2,
-                symptom=symptom,
-            ) or []
-            coping_docs = self.retrieve(
-                query=f"coping strategies for {symptom}",
-                n_results=2,
-                category="coping_strategies",
-            ) or []
+            criteria_docs = (
+                self.retrieve(
+                    query=f"DSM-5 criterion for {symptom}",
+                    n_results=2,
+                    symptom=symptom,
+                )
+                or []
+            )
+            coping_docs = (
+                self.retrieve(
+                    query=f"coping strategies for {symptom}",
+                    n_results=2,
+                    category="coping_strategies",
+                )
+                or []
+            )
             results[symptom] = criteria_docs + coping_docs
         return results
 
@@ -718,11 +716,14 @@ class RAGService:
         docs = self.retrieve(user_message, n_results=n_results) or []
 
         for symptom in detected_symptoms[:3]:
-            symptom_docs = self.retrieve(
-                query=f"{symptom} information and guidance",
-                n_results=2,
-                symptom=symptom,
-            ) or []
+            symptom_docs = (
+                self.retrieve(
+                    query=f"{symptom} information and guidance",
+                    n_results=2,
+                    symptom=symptom,
+                )
+                or []
+            )
             docs.extend(symptom_docs)
 
         # Deduplicate by chunk id (fall back to text prefix for docs without id)
@@ -834,9 +835,7 @@ class RAGService:
                                 "patient_id": patient_id,
                                 "severity_level": severity_level,
                                 "symptom_count": len(symptoms_detected),
-                                "symptoms": ",".join(
-                                    d.get("symptom", "") for d in symptoms_detected
-                                ),
+                                "symptoms": ",".join(d.get("symptom", "") for d in symptoms_detected),
                             },
                             embedding=screening_embedding,
                         )
@@ -1067,21 +1066,15 @@ class RAGService:
                 chunk_type = meta.get("chunk_type", "")
                 if chunk_type == "screening_text":
                     severity = meta.get("severity_level", "unknown")
-                    history_parts.append(
-                        f"[Previous check-in, severity={severity}]\n{doc['text'][:300]}"
-                    )
+                    history_parts.append(f"[Previous check-in, severity={severity}]\n{doc['text'][:300]}")
                 elif chunk_type == "symptom_evidence":
                     symptom = meta.get("symptom_label", meta.get("symptom", ""))
-                    history_parts.append(
-                        f"[Previous detection: {symptom}]\n{doc['text']}"
-                    )
+                    history_parts.append(f"[Previous detection: {symptom}]\n{doc['text']}")
                 elif chunk_type == "patient_document":
                     title = meta.get("title", "document")
                     doc_type = meta.get("doc_type", "")
                     context_label = f"{title} ({doc_type})" if doc_type else title
-                    history_parts.append(
-                        f"[Patient document: {context_label}]\n{doc['text'][:300]}"
-                    )
+                    history_parts.append(f"[Patient document: {context_label}]\n{doc['text'][:300]}")
 
             if history_parts:
                 parts.append("### Your Previous Check-ins\n" + "\n\n".join(history_parts))

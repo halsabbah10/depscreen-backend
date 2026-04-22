@@ -26,6 +26,7 @@ class TestSafetyModuleIntegration:
             should_ingest_to_rag,
             wrap_retrieved_context,
         )
+
         assert len(GROUNDING_INSTRUCTIONS) > 100
         assert callable(filter_by_relevance)
         assert callable(sanitize_for_ingestion)
@@ -84,7 +85,11 @@ class TestChatSummaryIntegration:
 
         messages = [
             {"role": "user", "content": "I've been taking sertraline for 2 weeks now", "created_at": "2026-04-22"},
-            {"role": "user", "content": "The fatigue is getting better but I still have insomnia", "created_at": "2026-04-22"},
+            {
+                "role": "user",
+                "content": "The fatigue is getting better but I still have insomnia",
+                "created_at": "2026-04-22",
+            },
             {"role": "user", "content": "ok", "created_at": "2026-04-22"},
         ]
         extracted = extract_clinical_sentences(messages)

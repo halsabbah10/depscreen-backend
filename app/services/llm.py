@@ -96,7 +96,9 @@ class LLMService:
             rag_context: Clinical context retrieved via RAG (optional)
             patient_context: Structured patient context (demographics, meds, etc.)
         """
-        prompt = self._build_explanation_prompt(text, symptom_analysis, verification_summary, rag_context, patient_context)
+        prompt = self._build_explanation_prompt(
+            text, symptom_analysis, verification_summary, rag_context, patient_context
+        )
 
         try:
 
@@ -159,12 +161,14 @@ class LLMService:
             if rag_context and isinstance(rag_context, str) and len(rag_context) > 50:
                 try:
                     from app.services.container import get_rag_service
+
                     rag = get_rag_service()
-                    if rag and hasattr(rag, 'verify_claim') and rag._nli_model is not None:
+                    if rag and hasattr(rag, "verify_claim") and rag._nli_model is not None:
                         import re as _re
+
                         # Check symptom_explanations for dosage patterns
-                        if hasattr(result, 'symptom_explanations') and isinstance(result.symptom_explanations, dict):
-                            dosage_pattern = _re.compile(r'\d+\s*mg|\d+\s*milligram', _re.IGNORECASE)
+                        if hasattr(result, "symptom_explanations") and isinstance(result.symptom_explanations, dict):
+                            dosage_pattern = _re.compile(r"\d+\s*mg|\d+\s*milligram", _re.IGNORECASE)
                             for symptom, explanation_text in result.symptom_explanations.items():
                                 if isinstance(explanation_text, str) and dosage_pattern.search(explanation_text):
                                     nli_result = rag.verify_claim(
@@ -250,6 +254,7 @@ don't be so gentle that you're vague. Both the patient and their clinician
 benefit from a clear, warm, substantive explanation."""
 
         from app.services.rag_safety import GROUNDING_INSTRUCTIONS
+
         return base_prompt + "\n\n" + GROUNDING_INSTRUCTIONS
 
     def _build_explanation_prompt(

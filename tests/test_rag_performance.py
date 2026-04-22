@@ -4,7 +4,6 @@ import time
 
 
 class TestRetrievalPerformance:
-
     def test_single_retrieval_latency(self):
         """Single retrieval completes within budget."""
         from app.core.config import get_settings

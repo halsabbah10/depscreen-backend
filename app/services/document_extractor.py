@@ -151,9 +151,7 @@ def _pdfplumber_pdf(raw_bytes: bytes, filename: str) -> ExtractionResult | None:
                     has_tables = True
 
             if not pages_text:
-                logger.warning(
-                    "document_extractor: pdfplumber found no extractable text in '%s'", filename
-                )
+                logger.warning("document_extractor: pdfplumber found no extractable text in '%s'", filename)
                 return None
 
             return ExtractionResult(

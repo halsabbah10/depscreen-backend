@@ -28,9 +28,9 @@ BACKEND_DIR = Path(__file__).parent.parent.parent
 
 def run_gate(name: str, command: list[str], timeout: int = 600) -> bool:
     """Run a gate command and return pass/fail."""
-    logger.info(f"\n{'='*60}")
+    logger.info(f"\n{'=' * 60}")
     logger.info(f"GATE: {name}")
-    logger.info(f"{'='*60}")
+    logger.info(f"{'=' * 60}")
     try:
         result = subprocess.run(command, capture_output=True, text=True, cwd=str(BACKEND_DIR), timeout=timeout)  # noqa: S603
         if result.returncode == 0:
@@ -61,13 +61,25 @@ def main():
     # Gate 5: Safety layer tests
     gates["5. Safety Layers"] = run_gate(
         "Safety Layers",
-        [sys.executable, "-m", "pytest", "tests/test_rag_safety.py", "tests/test_rag_degradation.py", "-v", "--tb=short"],
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "tests/test_rag_safety.py",
+            "tests/test_rag_degradation.py",
+            "-v",
+            "--tb=short",
+        ],
     )
 
     # Gate 6: Import check (can we import everything?)
     gates["6. Import Check"] = run_gate(
         "Import Check",
-        [sys.executable, "-c", "from app.services.rag import RAGService; from app.services.rag_safety import filter_by_relevance; from app.services.chat_summary import extract_clinical_sentences; print('All imports OK')"],
+        [
+            sys.executable,
+            "-c",
+            "from app.services.rag import RAGService; from app.services.rag_safety import filter_by_relevance; from app.services.chat_summary import extract_clinical_sentences; print('All imports OK')",
+        ],
     )
 
     # Gate 8: E2E pipeline tests
@@ -79,13 +91,21 @@ def main():
     # Gate: Full test suite
     gates["Full Test Suite"] = run_gate(
         "Full Test Suite",
-        [sys.executable, "-m", "pytest", "tests/", "--ignore=tests/test_rag_integration.py", "--ignore=tests/test_patient_isolation.py", "-q"],
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "tests/",
+            "--ignore=tests/test_rag_integration.py",
+            "--ignore=tests/test_patient_isolation.py",
+            "-q",
+        ],
     )
 
     # Report
-    logger.info(f"\n{'='*60}")
+    logger.info(f"\n{'=' * 60}")
     logger.info("VERIFICATION GATE SUMMARY")
-    logger.info(f"{'='*60}")
+    logger.info(f"{'=' * 60}")
 
     all_pass = True
     for gate_name, passed in gates.items():

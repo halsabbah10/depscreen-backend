@@ -97,10 +97,18 @@ class PatientContextService:
         - Patient Documents
         """
         all_section_names = {
-            "demographics", "medical_identifiers", "social_media",
-            "medications", "allergies", "diagnoses", "screenings",
-            "care_plan", "appointments", "screening_schedule",
-            "emergency_contacts", "documents",
+            "demographics",
+            "medical_identifiers",
+            "social_media",
+            "medications",
+            "allergies",
+            "diagnoses",
+            "screenings",
+            "care_plan",
+            "appointments",
+            "screening_schedule",
+            "emergency_contacts",
+            "documents",
         }
         active_sections = set(sections) if sections else all_section_names
 

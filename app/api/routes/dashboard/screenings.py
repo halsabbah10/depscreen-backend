@@ -31,20 +31,20 @@ router = APIRouter()
 
 # Document types and who can upload them
 CLINICIAN_DOC_TYPES = [
-    "intake_form",      # Clinician completes during intake
-    "session_notes",    # Clinician's clinical observations
-    "treatment_plan",   # Goals, interventions, timeline
+    "intake_form",  # Clinician completes during intake
+    "session_notes",  # Clinician's clinical observations
+    "treatment_plan",  # Goals, interventions, timeline
     "medical_history",  # Reviewed medical history
-    "safety_plan",      # Crisis safety plan
-    "referral_notes",   # Notes from referring provider
+    "safety_plan",  # Crisis safety plan
+    "referral_notes",  # Notes from referring provider
 ]
 
 PATIENT_DOC_TYPES = [
-    "phq9",               # PHQ-9 questionnaire responses
-    "gad7",               # GAD-7 anxiety questionnaire
-    "medication_list",    # Current medications patient is on
-    "journal_entry",      # Personal journal / feelings
-    "previous_diagnosis", # Diagnoses patient is aware of
+    "phq9",  # PHQ-9 questionnaire responses
+    "gad7",  # GAD-7 anxiety questionnaire
+    "medication_list",  # Current medications patient is on
+    "journal_entry",  # Personal journal / feelings
+    "previous_diagnosis",  # Diagnoses patient is aware of
 ]
 
 VALID_DOC_TYPES = CLINICIAN_DOC_TYPES + PATIENT_DOC_TYPES + ["other"]
@@ -501,9 +501,7 @@ async def upload_patient_document_file(
     }
 
 
-async def _ingest_clinician_doc_background(
-    patient_id: str, doc_id: str, doc_type: str, title: str, content: str
-):
+async def _ingest_clinician_doc_background(patient_id: str, doc_id: str, doc_type: str, title: str, content: str):
     """Background task: embed clinician-uploaded document into patient RAG and update status."""
     import logging
 

@@ -124,8 +124,12 @@ class TestDecisionServicePipeline:
             severity_level="severe",
             severity_explanation="Six DSM-5 criteria met including suicidal ideation.",
             dsm5_criteria_met=[
-                "DEPRESSED_MOOD", "SLEEP_ISSUES", "ANHEDONIA",
-                "WORTHLESSNESS", "FATIGUE", "SUICIDAL_THOUGHTS",
+                "DEPRESSED_MOOD",
+                "SLEEP_ISSUES",
+                "ANHEDONIA",
+                "WORTHLESSNESS",
+                "FATIGUE",
+                "SUICIDAL_THOUGHTS",
             ],
         )
         verification = _verification()

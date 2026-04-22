@@ -24,13 +24,15 @@ def _ensure_test_users(user_ids: list[str]):
     try:
         for uid in user_ids:
             if not db.query(User).filter_by(id=uid).first():
-                db.add(User(
-                    id=uid,
-                    email=f"{uid}@test.depscreen.local",
-                    password_hash="$2b$12$testhashtesthasttesthash",
-                    full_name=f"Test User {uid[:8]}",
-                    role="patient",
-                ))
+                db.add(
+                    User(
+                        id=uid,
+                        email=f"{uid}@test.depscreen.local",
+                        password_hash="$2b$12$testhashtesthasttesthash",
+                        full_name=f"Test User {uid[:8]}",
+                        role="patient",
+                    )
+                )
         db.commit()
     finally:
         db.close()
@@ -94,8 +96,7 @@ class TestPatientIsolation:
         if results:
             for r in results:
                 patient_id = r.get("metadata", {}).get("patient_id", "")
-                assert patient_id != "isolation-patient-B", \
-                    "ISOLATION BREACH: Patient A retrieved Patient B's data"
+                assert patient_id != "isolation-patient-B", "ISOLATION BREACH: Patient A retrieved Patient B's data"
 
     def test_patient_b_cannot_see_patient_a_data(self, rag_service):
         results = rag_service.retrieve_patient_history(
@@ -105,8 +106,7 @@ class TestPatientIsolation:
         if results:
             for r in results:
                 patient_id = r.get("metadata", {}).get("patient_id", "")
-                assert patient_id != "isolation-patient-A", \
-                    "ISOLATION BREACH: Patient B retrieved Patient A's data"
+                assert patient_id != "isolation-patient-A", "ISOLATION BREACH: Patient B retrieved Patient A's data"
 
     def test_nonexistent_patient_gets_empty(self, rag_service):
         results = rag_service.retrieve_patient_history(

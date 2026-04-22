@@ -78,10 +78,7 @@ def test_engine():
     # tables are unreachable and safe to skip. This check is dynamic so
     # newly added vector-backed tables are skipped automatically.
     def _has_vector_cols(table) -> bool:
-        return any(
-            "vector" in str(col.type).lower() or "tsvector" in str(col.type).lower()
-            for col in table.columns
-        )
+        return any("vector" in str(col.type).lower() or "tsvector" in str(col.type).lower() for col in table.columns)
 
     tables = [t for t in Base.metadata.tables.values() if not _has_vector_cols(t)]
     Base.metadata.create_all(bind=engine, tables=tables)
@@ -110,8 +107,7 @@ def db(test_engine) -> Generator[Session, None, None]:
         with test_engine.begin() as conn:
             for table in reversed(Base.metadata.sorted_tables):
                 has_vector_cols = any(
-                    "vector" in str(col.type).lower() or "tsvector" in str(col.type).lower()
-                    for col in table.columns
+                    "vector" in str(col.type).lower() or "tsvector" in str(col.type).lower() for col in table.columns
                 )
                 if has_vector_cols:
                     continue

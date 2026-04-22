@@ -71,10 +71,7 @@ def upgrade() -> None:
     """Apply RAG overhaul schema changes."""
 
     # ── conversations ─────────────────────────────────────────────────────────
-    op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_conversations_linked_clinician_id "
-        "ON conversations (linked_clinician_id)"
-    )
+    op.execute("CREATE INDEX IF NOT EXISTS ix_conversations_linked_clinician_id ON conversations (linked_clinician_id)")
 
     # ── knowledge_chunks ──────────────────────────────────────────────────────
 
@@ -92,7 +89,9 @@ def upgrade() -> None:
     op.add_column("knowledge_chunks", sa.Column("source_type", sa.String(50), nullable=True))
     op.add_column("knowledge_chunks", sa.Column("token_count", sa.Integer(), nullable=True))
     op.add_column("knowledge_chunks", sa.Column("metadata_json", sa.JSON(), nullable=True))
-    op.add_column("knowledge_chunks", sa.Column("is_current", sa.Boolean(), server_default=sa.text("true"), nullable=True))
+    op.add_column(
+        "knowledge_chunks", sa.Column("is_current", sa.Boolean(), server_default=sa.text("true"), nullable=True)
+    )
     op.execute("UPDATE knowledge_chunks SET is_current = true WHERE is_current IS NULL")
     op.add_column("knowledge_chunks", sa.Column("document_version", sa.String(50), nullable=True))
     op.add_column("knowledge_chunks", sa.Column("updated_at", sa.DateTime(), nullable=True))
@@ -138,7 +137,9 @@ def upgrade() -> None:
     op.add_column("patient_rag_chunks", sa.Column("source_table", sa.String(50), nullable=True))
     op.add_column("patient_rag_chunks", sa.Column("source_row_id", sa.String(36), nullable=True))
     op.add_column("patient_rag_chunks", sa.Column("content_hash", sa.String(64), nullable=True))
-    op.add_column("patient_rag_chunks", sa.Column("is_current", sa.Boolean(), server_default=sa.text("true"), nullable=True))
+    op.add_column(
+        "patient_rag_chunks", sa.Column("is_current", sa.Boolean(), server_default=sa.text("true"), nullable=True)
+    )
     op.execute("UPDATE patient_rag_chunks SET is_current = true WHERE is_current IS NULL")
     op.add_column("patient_rag_chunks", sa.Column("token_count", sa.Integer(), nullable=True))
     op.add_column("patient_rag_chunks", sa.Column("updated_at", sa.DateTime(), nullable=True))
@@ -228,16 +229,10 @@ def upgrade() -> None:
     """)
 
     # Source sync index — used by event-driven upsert logic to locate existing chunks
-    op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_prc_source "
-        "ON patient_rag_chunks (source_table, source_row_id)"
-    )
+    op.execute("CREATE INDEX IF NOT EXISTS ix_prc_source ON patient_rag_chunks (source_table, source_row_id)")
 
     # Category/subcategory composite — used by knowledge retrieval category filters
-    op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_kc_category "
-        "ON knowledge_chunks (category, subcategory)"
-    )
+    op.execute("CREATE INDEX IF NOT EXISTS ix_kc_category ON knowledge_chunks (category, subcategory)")
 
     # ── Row Level Security on patient_rag_chunks ──────────────────────────────
     # RLS ensures that even a compromised service account can only see rows it
@@ -272,10 +267,7 @@ def downgrade() -> None:
     op.execute("DROP INDEX IF EXISTS ix_screenings_care_plan_id")
     op.execute("DROP INDEX IF EXISTS ix_screenings_reviewed_by")
     # Recreate the composite perf index from fdd8695f0b79
-    op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_screenings_patient_created "
-        "ON screenings (patient_id, created_at DESC)"
-    )
+    op.execute("CREATE INDEX IF NOT EXISTS ix_screenings_patient_created ON screenings (patient_id, created_at DESC)")
 
     # ── patient_documents ────────────────────────────────────────────────────
     op.drop_column("patient_documents", "processing_error")

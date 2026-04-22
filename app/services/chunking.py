@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 # Core dataclass
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class Chunk:
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
@@ -36,6 +37,7 @@ class Chunk:
 # Token estimation
 # ---------------------------------------------------------------------------
 
+
 def estimate_tokens(text: str) -> int:
     """Rough token count: words / 0.75 approximates BPE tokenisation."""
     return int(len(text.split()) / 0.75)
@@ -44,6 +46,7 @@ def estimate_tokens(text: str) -> int:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def chunk_text(
     text: str,
@@ -147,6 +150,7 @@ def chunk_json_entry(entry: dict, template: str = "generic") -> Chunk:
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _split_markdown_sections(text: str) -> list[str]:
     """Split markdown on ``## `` headers, keeping header text with its body."""
     lines = text.splitlines(keepends=True)
@@ -173,6 +177,7 @@ def _split_markdown_sections(text: str) -> list[str]:
 def _split_paragraphs(text: str) -> list[str]:
     """Split text on blank lines (double newlines)."""
     import re
+
     parts = re.split(r"\n\s*\n", text)
     return [p.strip() for p in parts if p.strip()]
 

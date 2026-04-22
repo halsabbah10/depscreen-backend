@@ -173,9 +173,11 @@ async def screen_text(
     patient_context_str = None
     try:
         from app.services.patient_context import PatientContextService
+
         pcs = PatientContextService()
         patient_context_str = pcs.build_context(
-            current_user, db,
+            current_user,
+            db,
             sections=["demographics", "medications", "allergies", "diagnoses", "care_plan"],
             include_pii=False,
         )

@@ -8,7 +8,6 @@ from unittest.mock import MagicMock
 
 
 class TestGracefulDegradation:
-
     def test_reranker_failure_returns_candidates(self):
         """If reranker predict() fails, results still returned with RRF ordering."""
         from app.core.config import get_settings

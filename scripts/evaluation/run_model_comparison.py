@@ -31,6 +31,7 @@ def main():
     # Initialize RAG service
     try:
         import asyncio
+
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
         from app.core.config import get_settings
         from app.services.rag import RAGService
@@ -60,7 +61,13 @@ def main():
             if not retrieved or len(retrieved) == 0:
                 results.append({"query": query_text, "status": "CORRECT_EMPTY", "expected": None})
             else:
-                results.append({"query": query_text, "status": "FALSE_POSITIVE", "top_category": retrieved[0].get("metadata", {}).get("category")})
+                results.append(
+                    {
+                        "query": query_text,
+                        "status": "FALSE_POSITIVE",
+                        "top_category": retrieved[0].get("metadata", {}).get("category"),
+                    }
+                )
             continue
 
         total_relevant += 1
@@ -84,14 +91,18 @@ def main():
     logger.info(f"Total queries: {len(queries)}")
     logger.info(f"Relevant queries: {total_relevant}")
     logger.info(f"Queries with results: {total_with_results}")
-    logger.info(f"Correct top category: {correct_category}/{total_relevant} ({correct_category/max(total_relevant,1)*100:.1f}%)")
+    logger.info(
+        f"Correct top category: {correct_category}/{total_relevant} ({correct_category / max(total_relevant, 1) * 100:.1f}%)"
+    )
 
     # Show failures
     failures = [r for r in results if r["status"] in ("WRONG_CATEGORY", "NO_RESULTS")]
     if failures:
         logger.info(f"\nFailures ({len(failures)}):")
         for f in failures:
-            logger.info(f"  [{f['status']}] {f['query'][:60]}... expected={f.get('expected')}, got={f.get('got', 'N/A')}")
+            logger.info(
+                f"  [{f['status']}] {f['query'][:60]}... expected={f.get('expected')}, got={f.get('got', 'N/A')}"
+            )
 
     # Save results
     output_path = Path(__file__).parent / "model_comparison_results.json"

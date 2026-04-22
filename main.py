@@ -88,6 +88,7 @@ async def lifespan(app: FastAPI):
     # RAG initialization (embedding model eager-loaded, reranker/NLI lazy)
     from app.services.container import set_rag_service
     from app.services.rag import RAGService
+
     global _rag_service_instance
     _rag_service_instance = RAGService(settings)
     try:
@@ -229,14 +230,8 @@ def create_app() -> FastAPI:
             checks["database"] = False
 
         # RAG — informational; does NOT block readiness
-        checks["rag_embedding"] = (
-            _rag_service_instance is not None
-            and _rag_service_instance.embedder is not None
-        )
-        checks["rag_knowledge_base"] = (
-            _rag_service_instance is not None
-            and _rag_service_instance.knowledge_base_loaded
-        )
+        checks["rag_embedding"] = _rag_service_instance is not None and _rag_service_instance.embedder is not None
+        checks["rag_knowledge_base"] = _rag_service_instance is not None and _rag_service_instance.knowledge_base_loaded
 
         # LLM (check API key is set — don't make a test call)
         checks["llm_configured"] = bool(settings.llm_api_key)

@@ -20,13 +20,15 @@ def _ensure_test_users(user_ids: list[str]):
         for uid in user_ids:
             existing = db.query(User).filter_by(id=uid).first()
             if not existing:
-                db.add(User(
-                    id=uid,
-                    email=f"{uid}@test.depscreen.local",
-                    password_hash="$2b$12$testhashtesthasttesthash",
-                    full_name=f"Test User {uid[:8]}",
-                    role="patient",
-                ))
+                db.add(
+                    User(
+                        id=uid,
+                        email=f"{uid}@test.depscreen.local",
+                        password_hash="$2b$12$testhashtesthasttesthash",
+                        full_name=f"Test User {uid[:8]}",
+                        role="patient",
+                    )
+                )
         db.commit()
     finally:
         db.close()
@@ -44,9 +46,13 @@ def rag_service():
     settings.knowledge_base_dir = Path(__file__).parent / "fixtures" / "knowledge_base_mini"
 
     # Create test users for FK constraints on live Postgres
-    _ensure_test_users([
-        "test-patient-001", "test-patient-002", "test-patient-dedup",
-    ])
+    _ensure_test_users(
+        [
+            "test-patient-001",
+            "test-patient-002",
+            "test-patient-dedup",
+        ]
+    )
 
     service = RAGService(settings)
     asyncio.get_event_loop().run_until_complete(service.initialize())
@@ -154,11 +160,7 @@ class TestPatientRAG:
 
         db = SessionLocal()
         try:
-            chunks = (
-                db.query(PatientRAGChunk)
-                .filter_by(patient_id="test-patient-001", is_current=True)
-                .all()
-            )
+            chunks = db.query(PatientRAGChunk).filter_by(patient_id="test-patient-001", is_current=True).all()
             assert len(chunks) >= 2, f"Expected >=2 chunks, got {len(chunks)}"
             assert any(c.chunk_type == "screening_text" for c in chunks)
             assert any(c.chunk_type == "symptom_evidence" for c in chunks)
@@ -237,11 +239,7 @@ class TestPatientRAG:
 
         db = SessionLocal()
         try:
-            chunks = (
-                db.query(PatientRAGChunk)
-                .filter_by(patient_id="test-patient-dedup", is_current=True)
-                .all()
-            )
+            chunks = db.query(PatientRAGChunk).filter_by(patient_id="test-patient-dedup", is_current=True).all()
             texts = [c.content for c in chunks]
             assert texts.count("Exact duplicate text for testing.") == 1, (
                 f"Expected 1 chunk for duplicate text, got {texts.count('Exact duplicate text for testing.')}"
@@ -258,9 +256,7 @@ class TestPatientRAG:
         db = SessionLocal()
         try:
             chunks = (
-                db.query(PatientRAGChunk)
-                .filter_by(source_table="screenings", source_row_id="test-screening-001")
-                .all()
+                db.query(PatientRAGChunk).filter_by(source_table="screenings", source_row_id="test-screening-001").all()
             )
             assert len(chunks) >= 1, "Expected at least one chunk for this source"
             assert all(not c.is_current for c in chunks), (
@@ -272,9 +268,7 @@ class TestPatientRAG:
     def test_invalidated_chunks_excluded_from_retrieval(self, rag_service):
         """After invalidation, chunks from that source no longer appear in retrieval."""
         # test-screening-001 was invalidated in test_invalidate_source
-        results = rag_service.retrieve_patient_history(
-            "test-patient-001", "empty hopeless"
-        )
+        results = rag_service.retrieve_patient_history("test-patient-001", "empty hopeless")
         # Results for this patient should either be empty or contain only current chunks.
         # We can't assert on exact text without knowing order, but we can assert
         # that retrieve respected is_current (it filters it — the implementation contract).

@@ -25,6 +25,7 @@ def main():
     logger.info(f"Loaded {len(relevant_queries)} relevant queries for calibration")
 
     import asyncio
+
     sys.path.insert(0, str(Path(__file__).parent.parent.parent))
     from app.core.config import get_settings
     from app.services.rag import RAGService
@@ -55,6 +56,7 @@ def main():
 
             # Filter by threshold
             from app.services.rag_safety import filter_by_relevance
+
             filtered = filter_by_relevance(results, threshold=threshold)
 
             if not filtered:

@@ -84,9 +84,20 @@ class EmergencyContactRequest(BaseModel):
 
 
 PATIENT_DOC_TYPES = [
-    "phq9", "gad7", "medication_list", "journal_entry", "previous_diagnosis",
-    "medical_report", "therapy_notes", "mood_diary", "sleep_log",
-    "wellness_plan", "cpr_id", "passport", "insurance_card", "other",
+    "phq9",
+    "gad7",
+    "medication_list",
+    "journal_entry",
+    "previous_diagnosis",
+    "medical_report",
+    "therapy_notes",
+    "mood_diary",
+    "sleep_log",
+    "wellness_plan",
+    "cpr_id",
+    "passport",
+    "insurance_card",
+    "other",
 ]
 
 
@@ -288,11 +299,7 @@ async def deactivate_account(
     from app.models.db import PatientRAGChunk
 
     try:
-        rag_cleanup = (
-            db.query(PatientRAGChunk)
-            .filter_by(patient_id=current_user.id)
-            .update({"is_current": False})
-        )
+        rag_cleanup = db.query(PatientRAGChunk).filter_by(patient_id=current_user.id).update({"is_current": False})
         db.commit()
         logger.info(f"Deactivated {rag_cleanup} RAG chunks for patient {current_user.id[:8]}")
     except Exception as e:

@@ -110,9 +110,7 @@ def wrap_retrieved_context(chunk: dict) -> str:
     authority = get_authority_level(category)
 
     return (
-        f'<retrieved_context type="{category}" authority="{authority}" source="{source}">\n'
-        f"{text}\n"
-        f"</retrieved_context>"
+        f'<retrieved_context type="{category}" authority="{authority}" source="{source}">\n{text}\n</retrieved_context>'
     )
 
 
