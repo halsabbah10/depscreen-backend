@@ -283,6 +283,21 @@ async def deactivate_account(
     current_user.is_active = False
     db.commit()
     log_audit(db, current_user.id, "account_deactivated", resource_type="user")
+
+    # Clean up patient RAG data
+    from app.models.db import PatientRAGChunk
+
+    try:
+        rag_cleanup = (
+            db.query(PatientRAGChunk)
+            .filter_by(patient_id=current_user.id)
+            .update({"is_current": False})
+        )
+        db.commit()
+        logger.info(f"Deactivated {rag_cleanup} RAG chunks for patient {current_user.id[:8]}")
+    except Exception as e:
+        logger.warning(f"RAG cleanup on deactivation failed: {e}")
+
     return {"status": "account_deactivated"}
 
 

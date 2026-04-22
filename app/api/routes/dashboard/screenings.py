@@ -5,7 +5,7 @@ Screening list, detail, triage, notes, trends, and patient document endpoints.
 from datetime import datetime, timedelta
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Request, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
@@ -418,3 +418,119 @@ async def list_patient_documents(
         }
         for d in docs
     ]
+
+
+@router.post("/patients/{patient_id}/documents/upload")
+@limiter.limit("30/minute")
+async def upload_patient_document_file(
+    patient_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    title: str = Query(..., min_length=1, max_length=255),
+    doc_type: str = Query(...),
+    current_user: User = Depends(require_clinician()),
+    db: Session = Depends(get_db),
+):
+    """Upload a file (PDF, DOCX, TXT) as a patient document. Clinician access."""
+    from app.services.document_extractor import extract_text
+    from app.services.rag_safety import should_ingest_to_rag
+
+    if doc_type not in VALID_DOC_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid doc_type. Must be one of: {', '.join(VALID_DOC_TYPES)}",
+        )
+
+    # Verify patient exists and belongs to this clinician
+    patient = db.query(User).filter(User.id == patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    if patient.clinician_id != current_user.id:
+        raise HTTPException(status_code=403, detail="This patient is not assigned to you")
+
+    raw = await file.read()
+    if len(raw) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File exceeds 10 MB limit")
+
+    filename = (file.filename or "document.txt").lower()
+    result = extract_text(raw, filename)
+    if result is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Could not extract text from this document. The file may be damaged or in an unsupported format.",
+        )
+    content = result.text
+
+    if len(content) > 100_000:
+        content = content[:100_000]
+
+    doc_id = str(uuid4())
+    doc = PatientDocument(
+        id=doc_id,
+        patient_id=patient_id,
+        uploaded_by=current_user.id,
+        doc_type=doc_type,
+        title=title,
+        content=content,
+        processing_status="processing" if should_ingest_to_rag(doc_type) else "ready",
+    )
+    db.add(doc)
+    db.commit()
+
+    if should_ingest_to_rag(doc_type):
+        from app.services.container import get_rag_service
+
+        rag = get_rag_service()
+        if rag and rag.is_initialized:
+            background_tasks.add_task(
+                _ingest_clinician_doc_background,
+                patient_id=patient_id,
+                doc_id=doc_id,
+                doc_type=doc_type,
+                title=title,
+                content=content,
+            )
+
+    log_audit(db, current_user.id, "document_uploaded_file", resource_type="document", resource_id=doc_id)
+
+    return {
+        "status": "processing" if should_ingest_to_rag(doc_type) else "ready",
+        "document_id": doc_id,
+        "extracted_chars": len(content),
+    }
+
+
+async def _ingest_clinician_doc_background(
+    patient_id: str, doc_id: str, doc_type: str, title: str, content: str
+):
+    """Background task: embed clinician-uploaded document into patient RAG and update status."""
+    import logging
+
+    from app.models.db import PatientDocument, SessionLocal
+    from app.services.container import get_rag_service
+
+    rag = get_rag_service()
+    db = SessionLocal()
+    try:
+        if rag and rag.is_initialized:
+            rag.ingest_patient_document(
+                patient_id=patient_id,
+                doc_id=doc_id,
+                doc_type=doc_type,
+                title=title,
+                content=content,
+            )
+        doc = db.query(PatientDocument).filter_by(id=doc_id).first()
+        if doc:
+            doc.processing_status = "ready"
+            db.commit()
+    except Exception as e:
+        logging.getLogger(__name__).error(f"Clinician doc ingestion failed for {doc_id}: {e}")
+        doc = db.query(PatientDocument).filter_by(id=doc_id).first()
+        if doc:
+            doc.processing_status = "failed"
+            doc.processing_error = str(e)[:500]
+            db.commit()
+    finally:
+        db.close()
