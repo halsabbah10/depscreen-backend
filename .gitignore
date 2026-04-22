@@ -68,6 +68,9 @@ ml/data/redsm5/augmented_v4/
 # PDF artifacts (generated, not source)
 ml/DepScreen_Model_Results.pdf
 
+# Knowledge base source PDFs (fetched at build time)
+ml/knowledge_base/sources/*.pdf
+
 # ChromaDB persistence (legacy, migrated to pgvector)
 data/chromadb/
 
