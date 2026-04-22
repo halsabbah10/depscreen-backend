@@ -92,7 +92,8 @@ def upgrade() -> None:
     op.add_column("knowledge_chunks", sa.Column("source_type", sa.String(50), nullable=True))
     op.add_column("knowledge_chunks", sa.Column("token_count", sa.Integer(), nullable=True))
     op.add_column("knowledge_chunks", sa.Column("metadata_json", sa.JSON(), nullable=True))
-    op.add_column("knowledge_chunks", sa.Column("is_current", sa.Boolean(), nullable=True))
+    op.add_column("knowledge_chunks", sa.Column("is_current", sa.Boolean(), server_default=sa.text("true"), nullable=True))
+    op.execute("UPDATE knowledge_chunks SET is_current = true WHERE is_current IS NULL")
     op.add_column("knowledge_chunks", sa.Column("document_version", sa.String(50), nullable=True))
     op.add_column("knowledge_chunks", sa.Column("updated_at", sa.DateTime(), nullable=True))
 
@@ -134,7 +135,8 @@ def upgrade() -> None:
     op.add_column("patient_rag_chunks", sa.Column("source_table", sa.String(50), nullable=True))
     op.add_column("patient_rag_chunks", sa.Column("source_row_id", sa.String(36), nullable=True))
     op.add_column("patient_rag_chunks", sa.Column("content_hash", sa.String(64), nullable=True))
-    op.add_column("patient_rag_chunks", sa.Column("is_current", sa.Boolean(), nullable=True))
+    op.add_column("patient_rag_chunks", sa.Column("is_current", sa.Boolean(), server_default=sa.text("true"), nullable=True))
+    op.execute("UPDATE patient_rag_chunks SET is_current = true WHERE is_current IS NULL")
     op.add_column("patient_rag_chunks", sa.Column("token_count", sa.Integer(), nullable=True))
     op.add_column("patient_rag_chunks", sa.Column("updated_at", sa.DateTime(), nullable=True))
 

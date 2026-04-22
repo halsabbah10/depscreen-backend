@@ -63,6 +63,7 @@ apscheduler>=3.10.0
 ruff>=0.4.0
 
 # Utilities
+PyYAML>=6.0
 python-dotenv==1.2.2
 # pydantic >=2.11 required by svix>=1.20 (ModelWrapValidatorHandler import)
 # and by fastapi>=0.120. Removing the hard pin lets the resolver pick a

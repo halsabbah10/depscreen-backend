@@ -31,6 +31,7 @@ from app.schemas.analysis import (
 )
 from app.services.auth import get_current_user, log_audit
 from app.services.chat import ChatService
+from app.services.container import get_rag_service
 from app.services.llm import LLMService
 from app.services.rag import RAGService
 
@@ -38,17 +39,14 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 _chat_service = None
-_rag_service = None
 
 
 async def get_chat_service(settings: Settings = Depends(get_settings)):
-    global _chat_service, _rag_service
+    global _chat_service
     if _chat_service is None:
-        _rag_service = RAGService(settings)
-        await _rag_service.initialize()
         # Chat uses Flash tier — latency matters for conversational UX
         llm_service = LLMService(settings, model=settings.llm_model_flash)
-        _chat_service = ChatService(llm_service, _rag_service)
+        _chat_service = ChatService(llm_service, get_rag_service())
     return _chat_service
 
 
@@ -377,8 +375,9 @@ async def send_conversation_message(
                 ]
 
             rag_context = ""
-            if _rag_service and _rag_service.is_initialized:
-                rag_context = _rag_service.get_personalized_chat_context(
+            _rag = get_rag_service()
+            if _rag and _rag.is_initialized:
+                rag_context = _rag.get_personalized_chat_context(
                     patient_id=current_user.id,
                     user_message=body.message,
                     detected_symptoms=detected_symptoms,
@@ -596,8 +595,9 @@ async def send_conversation_message_stream(
 
     rag_context = ""
     try:
-        if _rag_service and _rag_service.is_initialized:
-            rag_context = _rag_service.get_personalized_chat_context(
+        _rag = get_rag_service()
+        if _rag and _rag.is_initialized:
+            rag_context = _rag.get_personalized_chat_context(
                 patient_id=current_user.id,
                 user_message=body.message,
                 detected_symptoms=detected_symptoms,

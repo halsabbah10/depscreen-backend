@@ -26,7 +26,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.models.db import KnowledgeChunk, PatientRAGChunk, SessionLocal
-from app.services.chunking import Chunk, chunk_json_entry, chunk_text
+from app.services.chunking import Chunk, chunk_json_entry, chunk_text, estimate_tokens
 from app.services.document_extractor import extract_text
 
 logger = logging.getLogger(__name__)
@@ -689,13 +689,13 @@ class RAGService:
             ) or []
             docs.extend(symptom_docs)
 
-        # Deduplicate by text prefix
+        # Deduplicate by chunk id (fall back to text prefix for docs without id)
         seen: set[str] = set()
         unique_docs: list[dict] = []
         for doc in docs:
-            key = doc["text"][:100]
-            if key not in seen:
-                seen.add(key)
+            doc_id = doc.get("id", doc["text"][:100])
+            if doc_id not in seen:
+                seen.add(doc_id)
                 unique_docs.append(doc)
 
         if not unique_docs:
@@ -709,22 +709,18 @@ class RAGService:
 
         return "\n\n---\n\n".join(parts)
 
-    def _chunk_exists(self, patient_id: str, content_hash: str) -> bool:
-        """Return True if a current chunk with this hash already exists for this patient."""
-        db = SessionLocal()
-        try:
-            return (
-                db.query(PatientRAGChunk)
-                .filter(
-                    PatientRAGChunk.patient_id == patient_id,
-                    PatientRAGChunk.content_hash == content_hash,
-                    PatientRAGChunk.is_current.is_(True),
-                )
-                .first()
-                is not None
+    def _chunk_exists(self, patient_id: str, content_hash: str, db: Session) -> bool:
+        """Check if a chunk with this content_hash already exists."""
+        return (
+            db.query(PatientRAGChunk)
+            .filter(
+                PatientRAGChunk.patient_id == patient_id,
+                PatientRAGChunk.content_hash == content_hash,
+                PatientRAGChunk.is_current.is_(True),
             )
-        finally:
-            db.close()
+            .first()
+            is not None
+        )
 
     def invalidate_source(self, source_table: str, source_row_id: str) -> None:
         """Mark all chunks with matching source_table/source_row_id as is_current=False.
@@ -782,7 +778,7 @@ class RAGService:
 
             # --- Full screening text ---
             text_hash = hashlib.sha256(text.encode()).hexdigest()
-            if not self._chunk_exists(patient_id, text_hash):
+            if not self._chunk_exists(patient_id, text_hash, db):
                 screening_embedding = self.embed(text)
                 if screening_embedding is not None:
                     chunks_to_add.append(
@@ -797,6 +793,7 @@ class RAGService:
                             source_row_id=screening_id,
                             content_hash=text_hash,
                             is_current=True,
+                            token_count=estimate_tokens(text),
                             metadata_json={
                                 "patient_id": patient_id,
                                 "severity_level": severity_level,
@@ -815,7 +812,7 @@ class RAGService:
                 if not sentence_text:
                     continue
                 sentence_hash = hashlib.sha256(sentence_text.encode()).hexdigest()
-                if self._chunk_exists(patient_id, sentence_hash):
+                if self._chunk_exists(patient_id, sentence_hash, db):
                     continue
                 symptom_embedding = self.embed(sentence_text)
                 if symptom_embedding is None:
@@ -832,6 +829,7 @@ class RAGService:
                         source_row_id=screening_id,
                         content_hash=sentence_hash,
                         is_current=True,
+                        token_count=estimate_tokens(sentence_text),
                         metadata_json={
                             "patient_id": patient_id,
                             "symptom": det.get("symptom", ""),
@@ -893,7 +891,7 @@ class RAGService:
 
             for doc_chunk in doc_chunks:
                 chunk_hash = hashlib.sha256(doc_chunk.content.encode()).hexdigest()
-                if self._chunk_exists(patient_id, chunk_hash):
+                if self._chunk_exists(patient_id, chunk_hash, db):
                     continue
 
                 embedding = self.embed(doc_chunk.content)

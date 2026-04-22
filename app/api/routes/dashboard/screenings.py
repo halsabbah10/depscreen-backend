@@ -370,13 +370,14 @@ async def upload_patient_document(
     db.commit()
 
     # Ingest into RAG
-    rag.ingest_patient_document(
-        patient_id=patient_id,
-        doc_id=doc_id,
-        doc_type=doc_type,
-        title=title,
-        content=content,
-    )
+    if rag and rag.is_initialized:
+        rag.ingest_patient_document(
+            patient_id=patient_id,
+            doc_id=doc_id,
+            doc_type=doc_type,
+            title=title,
+            content=content,
+        )
 
     log_audit(db, current_user.id, "document_uploaded", resource_type="document", resource_id=doc_id)
 

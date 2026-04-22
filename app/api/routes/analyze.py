@@ -28,6 +28,7 @@ from app.services.decision import DecisionService
 from app.services.inference import ModelService
 from app.services.llm import LLMService
 from app.services.llm_verification import VerificationService
+from app.services.container import get_rag_service
 from app.services.rag import RAGService
 
 router = APIRouter()
@@ -38,12 +39,11 @@ _model_service = None
 _llm_service = None
 _verification_service = None
 _decision_service = None
-_rag_service = None
 
 
 async def get_services(settings: Settings = Depends(get_settings)):
     """Initialize and return all service instances."""
-    global _model_service, _llm_service, _verification_service, _decision_service, _rag_service
+    global _model_service, _llm_service, _verification_service, _decision_service
 
     if _model_service is None:
         _model_service = ModelService(settings)
@@ -51,15 +51,13 @@ async def get_services(settings: Settings = Depends(get_settings)):
         _llm_service = LLMService(settings)
         _verification_service = VerificationService(settings)
         _decision_service = DecisionService()
-        _rag_service = RAGService(settings)
-        await _rag_service.initialize()
 
     return {
         "model": _model_service,
         "llm": _llm_service,
         "verification": _verification_service,
         "decision": _decision_service,
-        "rag": _rag_service,
+        "rag": get_rag_service(),
         "settings": settings,
     }
 

@@ -51,6 +51,7 @@ from app.schemas.analysis import (
     ScreeningScheduleResponse,
 )
 from app.services.auth import get_current_user, hash_password, log_audit
+from app.services.container import get_rag_service
 from app.services.rag import RAGService
 
 router = APIRouter()
@@ -84,15 +85,9 @@ class EmergencyContactRequest(BaseModel):
 
 PATIENT_DOC_TYPES = ["phq9", "gad7", "medication_list", "journal_entry", "previous_diagnosis"]
 
-_rag_service = None
 
-
-async def _get_rag(settings: Settings = Depends(get_settings)):
-    global _rag_service
-    if _rag_service is None:
-        _rag_service = RAGService(settings)
-        await _rag_service.initialize()
-    return _rag_service
+def _get_rag() -> "RAGService | None":
+    return get_rag_service()
 
 
 # ── Profile Management ────────────────────────────────────────────────────────
@@ -307,7 +302,7 @@ async def upload_my_document(
     db.commit()
 
     # Ingest into RAG
-    if rag.is_initialized:
+    if rag and rag.is_initialized:
         rag.ingest_patient_document(
             patient_id=current_user.id,
             doc_id=doc_id,
@@ -390,7 +385,7 @@ async def upload_my_document_file(
     db.add(doc)
     db.commit()
 
-    if rag.is_initialized:
+    if rag and rag.is_initialized:
         rag.ingest_patient_document(
             patient_id=current_user.id,
             doc_id=doc_id,

@@ -25,6 +25,7 @@ from sqlalchemy import (
     String,
     Text,
     create_engine,
+    text as sa_text,
 )
 from sqlalchemy.dialects.postgresql import TSVECTOR as TSVector
 from sqlalchemy.orm import DeclarativeBase, relationship, sessionmaker
@@ -473,7 +474,7 @@ class KnowledgeChunk(Base):
     token_count = Column(Integer)
     embedding = Column(Vector(1024))  # gte-large-en-v1.5
     metadata_json = Column(JSON, nullable=True)
-    is_current = Column(Boolean, default=True)
+    is_current = Column(Boolean, default=True, server_default=sa_text("true"))
     document_version = Column(String(50), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -499,7 +500,7 @@ class PatientRAGChunk(Base):
     source_table = Column(String(50))  # screenings, patient_documents, chat_messages
     source_row_id = Column(String(36))  # FK to source row for sync
     content_hash = Column(String(64))  # SHA-256 for dedup
-    is_current = Column(Boolean, default=True)
+    is_current = Column(Boolean, default=True, server_default=sa_text("true"))
     token_count = Column(Integer)
     embedding = Column(Vector(1024))
     metadata_json = Column(JSON, nullable=True)

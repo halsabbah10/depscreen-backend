@@ -2,28 +2,24 @@
 Shared imports, constants, and helpers for the dashboard sub-modules.
 """
 
+from __future__ import annotations
+
 import logging
 
-from fastapi import Depends, HTTPException
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.core.config import Settings, get_settings
 from app.models.db import (
     User,
 )
+from app.services.container import get_rag_service
 from app.services.rag import RAGService
 
 logger = logging.getLogger(__name__)
 
-_rag_service = None
 
-
-async def _get_rag(settings: Settings = Depends(get_settings)):
-    global _rag_service
-    if _rag_service is None:
-        _rag_service = RAGService(settings)
-        await _rag_service.initialize()
-    return _rag_service
+def _get_rag() -> "RAGService | None":
+    return get_rag_service()
 
 
 def _verify_patient_access(db: Session, patient_id: str, clinician_id: str) -> User:
