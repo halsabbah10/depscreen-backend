@@ -1,0 +1,6 @@
+[
+    {"tool": "GAD-7", "range": "0-4", "severity": "minimal anxiety", "clinical_action": "Monitor; no treatment needed"},
+    {"tool": "GAD-7", "range": "5-9", "severity": "mild anxiety", "clinical_action": "Watchful waiting. Consider follow-up assessment. Relaxation techniques."},
+    {"tool": "GAD-7", "range": "10-14", "severity": "moderate anxiety", "clinical_action": "Further evaluation recommended. Consider CBT or medication (SSRI/SNRI). Screen for depression (PHQ-9)."},
+    {"tool": "GAD-7", "range": "15-21", "severity": "severe anxiety", "clinical_action": "Active treatment recommended. Medication and/or therapy. Psychiatric referral if treatment-resistant."}
+]

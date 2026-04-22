@@ -1,0 +1,21 @@
+[
+    {"code": "F32.0", "description": "Major depressive disorder, single episode, mild"},
+    {"code": "F32.1", "description": "Major depressive disorder, single episode, moderate"},
+    {"code": "F32.2", "description": "Major depressive disorder, single episode, severe without psychotic features"},
+    {"code": "F32.3", "description": "Major depressive disorder, single episode, severe with psychotic features"},
+    {"code": "F32.4", "description": "Major depressive disorder, single episode, in partial remission"},
+    {"code": "F32.5", "description": "Major depressive disorder, single episode, in full remission"},
+    {"code": "F32.8", "description": "Other depressive episodes"},
+    {"code": "F32.9", "description": "Major depressive disorder, single episode, unspecified"},
+    {"code": "F32.A", "description": "Depression, unspecified"},
+    {"code": "F33.0", "description": "Major depressive disorder, recurrent, mild"},
+    {"code": "F33.1", "description": "Major depressive disorder, recurrent, moderate"},
+    {"code": "F33.2", "description": "Major depressive disorder, recurrent, severe without psychotic features"},
+    {"code": "F33.3", "description": "Major depressive disorder, recurrent, severe with psychotic features"},
+    {"code": "F33.40", "description": "Major depressive disorder, recurrent, in remission, unspecified"},
+    {"code": "F33.41", "description": "Major depressive disorder, recurrent, in partial remission"},
+    {"code": "F33.42", "description": "Major depressive disorder, recurrent, in full remission"},
+    {"code": "F33.8", "description": "Other recurrent depressive disorders"},
+    {"code": "F33.9", "description": "Major depressive disorder, recurrent, unspecified"},
+    {"code": "F34.1", "description": "Dysthymic disorder (persistent depressive disorder)"}
+]

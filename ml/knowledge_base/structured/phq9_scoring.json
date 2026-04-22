@@ -1,0 +1,7 @@
+[
+    {"tool": "PHQ-9", "range": "0-4", "severity": "minimal", "clinical_action": "Monitor; no treatment needed. Repeat PHQ-9 if risk factors present.", "response_definition": "N/A"},
+    {"tool": "PHQ-9", "range": "5-9", "severity": "mild", "clinical_action": "Watchful waiting. Repeat PHQ-9 at follow-up. Consider guided self-help.", "response_definition": "N/A"},
+    {"tool": "PHQ-9", "range": "10-14", "severity": "moderate", "clinical_action": "Treatment plan recommended. Consider counseling (CBT, IPT) or medication (SSRI/SNRI).", "response_definition": "Score reduction >=50% from baseline = treatment response"},
+    {"tool": "PHQ-9", "range": "15-19", "severity": "moderately severe", "clinical_action": "Active treatment with medication and/or psychotherapy strongly recommended.", "response_definition": "Score <5 = remission"},
+    {"tool": "PHQ-9", "range": "20-27", "severity": "severe", "clinical_action": "Immediate treatment initiation. Combined medication + therapy. Consider psychiatric referral. Assess suicide risk.", "response_definition": "Score change >=6 points = clinically meaningful change"}
+]

@@ -1,0 +1,5 @@
+[
+    {"level": "low", "indicators": "Wish to be dead, no suicidal thoughts", "action": "Outpatient referral, safety planning, follow-up within 1 week"},
+    {"level": "moderate", "indicators": "Suicidal thoughts without plan or intent", "action": "Safety planning, restrict access to means, frequent follow-up, consider higher level of care"},
+    {"level": "high", "indicators": "Suicidal thoughts with plan, intent, or recent attempt", "action": "Immediate psychiatric evaluation, consider hospitalization, 24/7 crisis support, restrict access to lethal means"}
+]

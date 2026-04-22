@@ -1,0 +1,23 @@
+{
+    "phq9_severity": [
+        {"min_score": 0, "max_score": 4, "severity": "none", "dsm5_equivalent": "No depression indicated"},
+        {"min_score": 5, "max_score": 9, "severity": "mild", "dsm5_equivalent": "Subthreshold depressive symptoms"},
+        {"min_score": 10, "max_score": 14, "severity": "moderate", "dsm5_equivalent": "Major depression, moderate"},
+        {"min_score": 15, "max_score": 19, "severity": "moderately_severe", "dsm5_equivalent": "Major depression, moderately severe"},
+        {"min_score": 20, "max_score": 27, "severity": "severe", "dsm5_equivalent": "Major depression, severe"}
+    ],
+    "dsm5_symptom_count_severity": [
+        {"min_symptoms": 0, "max_symptoms": 1, "severity": "none", "description": "Does not meet MDD criteria"},
+        {"min_symptoms": 2, "max_symptoms": 4, "severity": "some_indicators", "description": "Subthreshold symptoms present"},
+        {"min_symptoms": 5, "max_symptoms": 6, "severity": "moderate", "description": "Meets MDD criteria — moderate"},
+        {"min_symptoms": 7, "max_symptoms": 8, "severity": "moderately_severe", "description": "Meets MDD criteria — moderately severe"},
+        {"min_symptoms": 9, "max_symptoms": 9, "severity": "severe", "description": "Meets MDD criteria — severe (all symptoms)"}
+    ],
+    "clinical_thresholds": {
+        "suicidal_ideation_always_flag": true,
+        "suicidal_ideation_dl_threshold": 0.15,
+        "treatment_response_phq9_reduction": 0.50,
+        "remission_phq9_score": 5,
+        "clinically_meaningful_change": 6
+    }
+}
