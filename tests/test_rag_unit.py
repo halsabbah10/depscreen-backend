@@ -128,3 +128,50 @@ class TestAdaptiveChunking:
         from app.services.chunking import chunk_text
         assert chunk_text("", source_type="text") == []
         assert chunk_text("   ", source_type="text") == []
+
+
+class TestRAGServiceInit:
+    """Tests for RAGService frontmatter helpers and properties."""
+
+    def test_frontmatter_extraction(self):
+        """YAML frontmatter is extracted correctly."""
+        from app.services.rag import RAGService
+        from app.core.config import get_settings
+        rag = RAGService(get_settings())
+
+        content = '---\ntitle: "Test"\ncategory: medications\nsymptoms: ["depressed_mood"]\n---\n\n## Body\n\nContent here.'
+        meta = rag._extract_frontmatter(content)
+        assert meta["title"] == "Test"
+        assert meta["category"] == "medications"
+        assert meta["symptoms"] == ["depressed_mood"]
+
+    def test_frontmatter_legacy_format(self):
+        """Legacy 'symptom: X' format on first line is handled."""
+        from app.services.rag import RAGService
+        from app.core.config import get_settings
+        rag = RAGService(get_settings())
+
+        content = "symptom: DEPRESSED_MOOD\n\n## Depressed Mood\n\nContent."
+        meta = rag._extract_frontmatter(content)
+        assert meta.get("symptom") == "DEPRESSED_MOOD"
+
+    def test_strip_frontmatter(self):
+        """Frontmatter is stripped, body remains."""
+        from app.services.rag import RAGService
+        from app.core.config import get_settings
+        rag = RAGService(get_settings())
+
+        content = '---\ntitle: "Test"\n---\n\n## Body\n\nContent here.'
+        body = rag._strip_frontmatter(content)
+        assert body.startswith("## Body")
+        assert "---" not in body
+
+    def test_strip_frontmatter_legacy(self):
+        """Legacy format: first metadata line stripped."""
+        from app.services.rag import RAGService
+        from app.core.config import get_settings
+        rag = RAGService(get_settings())
+
+        content = "symptom: DEPRESSED_MOOD\n\n## Content"
+        body = rag._strip_frontmatter(content)
+        assert body.startswith("## Content")
