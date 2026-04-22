@@ -118,3 +118,32 @@ class TestGroundingInstructions:
     def test_build_empty_returns_empty(self):
         from app.services.rag_safety import build_rag_prompt_section
         assert build_rag_prompt_section([]) == ""
+
+
+class TestChatSummary:
+
+    def test_extract_clinical_sentences(self):
+        from app.services.chat_summary import extract_clinical_sentences
+        messages = [
+            {"role": "user", "content": "The sertraline is making me nauseous.", "created_at": "2026-04-22"},
+            {"role": "assistant", "content": "That's a common side effect.", "created_at": "2026-04-22"},
+            {"role": "user", "content": "ok thanks", "created_at": "2026-04-22"},
+            {"role": "user", "content": "I tried going for a walk and it helped my mood.", "created_at": "2026-04-22"},
+        ]
+        extracted = extract_clinical_sentences(messages)
+        assert len(extracted) >= 2
+        assert any("sertraline" in s.lower() for s in extracted)
+
+    def test_extract_skips_trivial(self):
+        from app.services.chat_summary import extract_clinical_sentences
+        messages = [
+            {"role": "user", "content": "ok", "created_at": "2026-04-22"},
+            {"role": "user", "content": "thanks", "created_at": "2026-04-22"},
+        ]
+        assert len(extract_clinical_sentences(messages)) == 0
+
+    def test_should_trigger_summary(self):
+        from app.services.chat_summary import should_trigger_summary
+        assert not should_trigger_summary(5, 3)
+        assert not should_trigger_summary(10, 2)
+        assert should_trigger_summary(10, 3)

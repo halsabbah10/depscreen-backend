@@ -81,6 +81,29 @@ class RAGService:
         logger.info("NLI model loaded")
         return self._nli_model
 
+    def verify_claim(self, claim: str, source: str) -> str:
+        """Verify if source text supports a claim using NLI.
+
+        Returns: 'entailment', 'contradiction', or 'neutral'.
+        Lazy-loads NLI model on first call.
+        """
+        try:
+            self._load_nli_model()
+        except Exception as e:
+            logger.warning(f"NLI model failed to load: {e}")
+            return "neutral"
+
+        if self._nli_model is None:
+            return "neutral"
+
+        try:
+            scores = self._nli_model.predict([(source, claim)])
+            labels = ["contradiction", "entailment", "neutral"]
+            return labels[scores[0].argmax()]
+        except Exception as e:
+            logger.warning(f"NLI verification failed: {e}")
+            return "neutral"
+
     def warmup(self) -> None:
         """Eagerly load reranker and NLI models so first request has no delay."""
         logger.info("Warming up RAG models (reranker + NLI)...")

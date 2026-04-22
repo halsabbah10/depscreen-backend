@@ -323,7 +323,10 @@ async def send_conversation_message(
         )
         db.add(user_msg)
 
-        # Crisis check — warm LLM response (not a canned dump)
+        # Crisis check — warm LLM response (not a canned dump).
+        # Patient history retrieval for crisis personalization happens inside
+        # ChatService.generate_warm_crisis_response(), not here — the standalone
+        # path delegates fully so the crisis response starts immediately.
         message_lower = body.message.lower()
         if any(kw in message_lower for kw in CRISIS_KEYWORDS):
             logger.warning(f"Crisis keywords in standalone chat for user {current_user.id[:8]}")
@@ -386,11 +389,16 @@ async def send_conversation_message(
             # Full patient profile — demographics, meds, allergies, diagnoses, etc.
             patient_profile = ""
             try:
-                patient_profile = chat_service.patient_context.build_context(current_user, db)
+                patient_profile = chat_service.patient_context.build_context(
+                    current_user, db,
+                    sections=["demographics", "medications", "allergies", "diagnoses", "care_plan", "screenings"],
+                    include_pii=False,
+                )
             except Exception as e:
                 logger.warning(f"Patient context build failed: {e}")
 
             from app.services.chat import CHAT_SYSTEM_PROMPT
+            from app.services.rag_safety import GROUNDING_INSTRUCTIONS
 
             prompt_parts: list[str] = []
             if patient_profile:
@@ -424,7 +432,7 @@ async def send_conversation_message(
                     return await llm_svc.client.chat.completions.create(
                         model=llm_svc.model,
                         messages=[
-                            {"role": "system", "content": CHAT_SYSTEM_PROMPT},
+                            {"role": "system", "content": CHAT_SYSTEM_PROMPT + "\n\n" + GROUNDING_INSTRUCTIONS},
                             {"role": "user", "content": prompt},
                         ],
                         temperature=0.4,
@@ -562,6 +570,7 @@ async def send_conversation_message_stream(
     import re as re_module
 
     from app.services.chat import CHAT_SYSTEM_PROMPT, CRISIS_KEYWORDS
+    from app.services.rag_safety import GROUNDING_INSTRUCTIONS
 
     # Save user message
     user_msg = ChatMessage(
@@ -608,7 +617,11 @@ async def send_conversation_message_stream(
     # Full patient profile — demographics, meds, allergies, diagnoses, care plan, etc.
     patient_profile = ""
     try:
-        patient_profile = chat_service.patient_context.build_context(current_user, db)
+        patient_profile = chat_service.patient_context.build_context(
+            current_user, db,
+            sections=["demographics", "medications", "allergies", "diagnoses", "care_plan", "screenings"],
+            include_pii=False,
+        )
     except Exception as e:
         logger.warning(f"Patient context build failed: {e}")
 
@@ -688,7 +701,7 @@ async def send_conversation_message_stream(
                     stream = await chat_service.llm.client.chat.completions.create(
                         model=chat_service.llm.model,
                         messages=[
-                            {"role": "system", "content": CHAT_SYSTEM_PROMPT},
+                            {"role": "system", "content": CHAT_SYSTEM_PROMPT + "\n\n" + GROUNDING_INSTRUCTIONS},
                             {"role": "user", "content": prompt},
                         ],
                         temperature=0.4,
