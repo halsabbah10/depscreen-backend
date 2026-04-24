@@ -186,8 +186,8 @@ async def screen_text(
         rag_parts = []
         for symptom, docs in rag_context_data.items():
             for doc in docs:
-                rag_parts.append(f"[{symptom}] {doc['text'][:300]}")
-        rag_context_str = "\n\n".join(rag_parts[:5]) if rag_parts else None
+                rag_parts.append(f"[{symptom}] {doc['text'][:800]}")
+        rag_context_str = "\n\n".join(rag_parts[:8]) if rag_parts else None
         logger.info(f"  Step 4 — RAG: retrieved context for {len(rag_context_data)} symptoms")
 
     # Step 4.5: Assemble structured patient context

@@ -201,10 +201,17 @@ Your role:
 You must NEVER:
 - Provide diagnoses ("You have depression")
 - Prescribe medication or specific dosages
+- Output a medication name followed by a dosage number (e.g., "sertraline 50mg")
+- Use phrases like "you have [condition]" or "you are diagnosed with"
+- Suggest specific self-harm methods or means
+- Say "you don't need a therapist/doctor/professional"
 - Replace professional therapy or counseling
 - Minimize the patient's feelings ("It's not that bad")
 - Make promises about outcomes ("You'll feel better if...")
 - Share information about other patients
+
+If unsure whether something is safe to say, err toward:
+"That's something your clinician can help you explore."
 
 For clinicians reading this assistant's chat history: the content should be
 as clinically sound as anything you'd write in a psychoeducation handout.
@@ -246,6 +253,7 @@ class ChatService:
                     ],
                     temperature=0.5,
                     max_tokens=500,
+                    timeout=60,
                 )
 
             resp = await _call_crisis()
@@ -370,6 +378,7 @@ class ChatService:
                         temperature=0.4,
                         max_tokens=600,
                         reasoning_effort="none",
+                        timeout=60,
                     )
 
                 response = await _call_chat()
@@ -482,20 +491,25 @@ class ChatService:
 
         prompt = self._build_prompt(screening, message, history, rag_context, patient_profile)
 
-        # Stream from LLM
+        # Stream from LLM (retry on transient failures before streaming begins)
         full_response = ""
         try:
-            stream = await self.llm.client.chat.completions.create(
-                model=self.llm.model,
-                messages=[
-                    {"role": "system", "content": CHAT_SYSTEM_PROMPT},
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=0.4,
-                max_tokens=600,
-                stream=True,
-                reasoning_effort="none",
-            )
+            @llm_retry
+            async def _create_stream():
+                return await self.llm.client.chat.completions.create(
+                    model=self.llm.model,
+                    messages=[
+                        {"role": "system", "content": CHAT_SYSTEM_PROMPT},
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.4,
+                    max_tokens=600,
+                    stream=True,
+                    timeout=60,
+                    reasoning_effort="none",
+                )
+
+            stream = await _create_stream()
             async for chunk in stream:
                 if chunk.choices and chunk.choices[0].delta.content:
                     delta = chunk.choices[0].delta.content

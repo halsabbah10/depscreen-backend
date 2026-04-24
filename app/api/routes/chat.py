@@ -437,6 +437,7 @@ async def send_conversation_message(
                         ],
                         temperature=0.4,
                         max_tokens=600,
+                        timeout=60,
                         reasoning_effort="none",
                     )
 
@@ -741,17 +742,22 @@ async def send_conversation_message_stream(
                     logger.warning(f"Chat crisis notification failed (non-fatal): {e}")
             else:
                 try:
-                    stream = await chat_service.llm.client.chat.completions.create(
-                        model=chat_service.llm.model,
-                        messages=[
-                            {"role": "system", "content": CHAT_SYSTEM_PROMPT + "\n\n" + GROUNDING_INSTRUCTIONS},
-                            {"role": "user", "content": prompt},
-                        ],
-                        temperature=0.4,
-                        max_tokens=600,
-                        stream=True,
-                        reasoning_effort="none",
-                    )
+                    @llm_retry
+                    async def _create_standalone_stream():
+                        return await chat_service.llm.client.chat.completions.create(
+                            model=chat_service.llm.model,
+                            messages=[
+                                {"role": "system", "content": CHAT_SYSTEM_PROMPT + "\n\n" + GROUNDING_INSTRUCTIONS},
+                                {"role": "user", "content": prompt},
+                            ],
+                            temperature=0.4,
+                            max_tokens=600,
+                            stream=True,
+                            timeout=60,
+                            reasoning_effort="none",
+                        )
+
+                    stream = await _create_standalone_stream()
                     async for chunk in stream:
                         if chunk.choices and chunk.choices[0].delta.content:
                             delta = chunk.choices[0].delta.content

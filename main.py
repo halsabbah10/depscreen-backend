@@ -159,7 +159,7 @@ def create_app() -> FastAPI:
     # 4. Request logging
     app.add_middleware(RequestLoggingMiddleware)
 
-    # 3. CORS
+    # 5. CORS
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.get_cors_origins(),
@@ -168,7 +168,7 @@ def create_app() -> FastAPI:
         allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
     )
 
-    # 4. Rate limiting
+    # 6. Rate limiting
     app.state.limiter = limiter
 
     @app.exception_handler(RateLimitExceeded)

@@ -12,7 +12,22 @@ import logging
 import re
 import uuid
 
+from openai import AsyncOpenAI
+
 logger = logging.getLogger(__name__)
+
+# Lazy singleton — reuses connection pool across calls
+_async_llm_client: AsyncOpenAI | None = None
+
+
+def _get_llm_client(settings) -> AsyncOpenAI:
+    global _async_llm_client
+    if _async_llm_client is None:
+        _async_llm_client = AsyncOpenAI(
+            api_key=settings.llm_api_key,
+            base_url=settings.llm_base_url,
+        )
+    return _async_llm_client
 
 CLINICAL_KEYWORDS = [
     # Symptoms
@@ -112,12 +127,7 @@ async def _llm_structure_summary(extracted: list[str], rag_service) -> str | Non
         return None
 
     try:
-        import openai
-
-        client = openai.AsyncOpenAI(
-            api_key=settings.llm_api_key,
-            base_url=settings.llm_base_url,
-        )
+        client = _get_llm_client(settings)
         response = await client.chat.completions.create(
             model=settings.llm_model_flash,
             messages=[

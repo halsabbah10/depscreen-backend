@@ -8,7 +8,6 @@ allergies, diagnoses, screening schedules, and onboarding.
 
 import logging
 from datetime import UTC, date, datetime, timedelta
-from typing import Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Request, UploadFile
@@ -1035,7 +1034,7 @@ async def list_diagnoses(
 # ── Screening Schedule ───────────────────────────────────────────────────────
 
 
-@router.get("/screening-schedule", response_model=Optional[ScreeningScheduleResponse])
+@router.get("/screening-schedule", response_model=ScreeningScheduleResponse | None)
 async def get_screening_schedule(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),

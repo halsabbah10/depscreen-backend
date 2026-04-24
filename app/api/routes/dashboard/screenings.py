@@ -320,11 +320,21 @@ async def get_patient_trends(
             }
         )
 
+    # Compute overall trend (same logic as patient self-service endpoint)
+    if len(timeline) >= 2:
+        severity_order = {"none": 0, "mild": 1, "moderate": 2, "severe": 3}
+        first_sev = severity_order.get(timeline[0]["severity_level"], 0)
+        last_sev = severity_order.get(timeline[-1]["severity_level"], 0)
+        trend = "worsening" if last_sev > first_sev else "improving" if last_sev < first_sev else "stable"
+    else:
+        trend = "insufficient_data"
+
     return {
         "patient_id": patient_id,
         "patient_name": patient.full_name,
         "days_analyzed": days,
         "total_screenings": len(timeline),
+        "trend": trend,
         "all_symptoms_observed": sorted(all_symptoms_seen),
         "timeline": timeline,
     }

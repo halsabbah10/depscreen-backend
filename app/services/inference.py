@@ -5,6 +5,7 @@ Loads the trained SymptomClassifier and provides sentence-level symptom
 prediction with post-level aggregation.
 """
 
+import asyncio
 import json
 import logging
 import re
@@ -64,14 +65,16 @@ class SymptomClassifier(nn.Module):
 
 
 def split_into_sentences(text: str) -> list[str]:
-    """Rule-based sentence splitter for informal text (Reddit-style)."""
+    """Rule-based sentence splitter for English and Arabic informal text."""
     if not isinstance(text, str) or len(text.strip()) == 0:
         return []
 
     # Normalize line breaks into sentence boundaries
     text = re.sub(r"\n+", ". ", text)
-    # Split on sentence-ending punctuation followed by space + uppercase or end
-    parts = re.split(r"(?<=[.!?])\s+(?=[A-Z\"])", text)
+    # Split on sentence-ending punctuation followed by space + start of new sentence.
+    # Supports English (.!?) and Arabic (؟) punctuation.
+    # \u0600-\u06FF covers Arabic Unicode block.
+    parts = re.split(r"(?<=[.!?؟])\s+(?=[A-Z\"\u0600-\u06FF])", text)
 
     sentences = []
     for part in parts:
@@ -386,6 +389,10 @@ class ModelService:
         return self.symptom_model is not None and self.tokenizer is not None
 
     async def predict_symptoms(self, text: str) -> PostSymptomSummary:
+        """Async entry point: offloads blocking PyTorch inference to a thread."""
+        return await asyncio.to_thread(self._predict_symptoms_sync, text)
+
+    def _predict_symptoms_sync(self, text: str) -> PostSymptomSummary:
         """Main inference: split text → classify each sentence → aggregate."""
         if not self.is_loaded:
             logger.warning("Model not loaded — falling back to demo prediction")
@@ -471,7 +478,10 @@ class ModelService:
 
             symptom_name = self.label_map.get(pred_class, "NO_SYMPTOM")
 
-            if symptom_name != "NO_SYMPTOM":
+            # Minimum confidence threshold to reduce false positives
+            # (NO_SYMPTOM class has weak F1 0.508 — low-confidence predictions are unreliable)
+            MIN_SYMPTOM_CONFIDENCE = 0.40
+            if symptom_name != "NO_SYMPTOM" and confidence >= MIN_SYMPTOM_CONFIDENCE:
                 detections.append(
                     SymptomDetection(
                         symptom=symptom_name,

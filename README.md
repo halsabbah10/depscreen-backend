@@ -32,7 +32,7 @@ Frontend (React + Vite): [halsabbah10/depscreen-frontend](https://github.com/hal
 | Rate limiting | `slowapi` — auth 10/min, screening 20/min, chat 30/min |
 | Logging | `structlog` JSON, request IDs, PII-scrubbed |
 | Errors | Sentry (FastAPI integration) — no-op when DSN unset |
-| Auth | JWT (python-jose) · bcrypt (passlib) · access 1h / refresh 7d |
+| Auth | JWT (PyJWT) · bcrypt (passlib) · access 1h / refresh 7d |
 | Email | Resend (via `resend` SDK); Jinja2 templates |
 | PDF | Docling (parse uploaded forms, primary) · pdfplumber (fallback) · reportlab (generate reports) |
 | Storage | Supabase Storage (profile avatars) |

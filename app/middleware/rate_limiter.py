@@ -12,7 +12,7 @@ falls back to in-memory storage otherwise.
 
 import logging
 
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 logger = logging.getLogger(__name__)
@@ -49,8 +49,3 @@ limiter = _build_limiter()
 def get_limiter() -> Limiter:
     """Get the global limiter instance."""
     return limiter
-
-
-def rate_limit_exceeded_handler(request, exc):
-    """Custom handler for rate limit exceeded — gentle message."""
-    return _rate_limit_exceeded_handler(request, exc)
