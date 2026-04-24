@@ -742,6 +742,7 @@ async def send_conversation_message_stream(
                     logger.warning(f"Chat crisis notification failed (non-fatal): {e}")
             else:
                 try:
+
                     @llm_retry
                     async def _create_standalone_stream():
                         return await chat_service.llm.client.chat.completions.create(

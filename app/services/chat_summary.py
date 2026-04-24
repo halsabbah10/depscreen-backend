@@ -29,6 +29,7 @@ def _get_llm_client(settings) -> AsyncOpenAI:
         )
     return _async_llm_client
 
+
 CLINICAL_KEYWORDS = [
     # Symptoms
     "sad",

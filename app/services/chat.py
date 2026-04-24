@@ -494,6 +494,7 @@ class ChatService:
         # Stream from LLM (retry on transient failures before streaming begins)
         full_response = ""
         try:
+
             @llm_retry
             async def _create_stream():
                 return await self.llm.client.chat.completions.create(
