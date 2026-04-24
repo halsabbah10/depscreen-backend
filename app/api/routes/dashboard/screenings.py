@@ -25,7 +25,7 @@ from app.schemas.analysis import (
 from app.services.auth import log_audit, require_clinician
 from app.services.rag import RAGService
 
-from ._shared import _get_rag
+from ._shared import _get_rag, _verify_patient_access
 
 router = APIRouter()
 
@@ -227,6 +227,9 @@ async def update_clinician_notes(
     if not screening:
         raise HTTPException(status_code=404, detail="Screening not found")
 
+    # Verify the screening belongs to one of this clinician's patients
+    _verify_patient_access(db, screening.patient_id, current_user.id)
+
     screening.clinician_notes = body.notes
     db.commit()
 
@@ -252,6 +255,9 @@ async def update_triage_status(
     screening = db.query(Screening).filter(Screening.id == screening_id).first()
     if not screening:
         raise HTTPException(status_code=404, detail="Screening not found")
+
+    # Verify the screening belongs to one of this clinician's patients
+    _verify_patient_access(db, screening.patient_id, current_user.id)
 
     screening.triage_status = status
     screening.reviewed_by = current_user.id

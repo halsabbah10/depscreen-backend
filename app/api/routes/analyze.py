@@ -265,13 +265,14 @@ async def screen_text(
             logger.warning(f"Crisis alert email failed: {e}")
 
     # Step 6b: Ingest into patient RAG for future chat context
-    rag_service.ingest_patient_screening(
-        patient_id=current_user.id,
-        screening_id=screening_id,
-        text=text,
-        symptoms_detected=[d.model_dump() for d in symptom_analysis.symptoms_detected],
-        severity_level=symptom_analysis.severity_level,
-    )
+    if rag_service and rag_service.is_initialized:
+        rag_service.ingest_patient_screening(
+            patient_id=current_user.id,
+            screening_id=screening_id,
+            text=text,
+            symptoms_detected=[d.model_dump() for d in symptom_analysis.symptoms_detected],
+            severity_level=symptom_analysis.severity_level,
+        )
 
     # Audit log
     log_audit(db, current_user.id, "screening_created", resource_type="screening", resource_id=screening_id)

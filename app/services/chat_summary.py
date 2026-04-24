@@ -114,11 +114,11 @@ async def _llm_structure_summary(extracted: list[str], rag_service) -> str | Non
     try:
         import openai
 
-        client = openai.OpenAI(
+        client = openai.AsyncOpenAI(
             api_key=settings.llm_api_key,
             base_url=settings.llm_base_url,
         )
-        response = client.chat.completions.create(
+        response = await client.chat.completions.create(
             model=settings.llm_model_flash,
             messages=[
                 {
