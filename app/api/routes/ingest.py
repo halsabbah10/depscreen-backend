@@ -12,6 +12,7 @@ Every method runs: DL classification → LLM verification → Decision → RAG e
 
 import asyncio
 import logging
+import re
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -46,13 +47,13 @@ logger = logging.getLogger(__name__)
 
 
 class RedditIngestionRequest(BaseModel):
-    username: str = Field(min_length=1, max_length=100)
+    username: str = Field(min_length=3, max_length=20)
     mental_health_only: bool = Field(default=True)
     max_posts: int = Field(default=50, ge=1, le=100)
 
 
 class XIngestionRequest(BaseModel):
-    username: str = Field(min_length=1, max_length=100)
+    username: str = Field(min_length=1, max_length=15)
     mental_health_filter: bool = Field(default=True)
     max_posts: int = Field(default=50, ge=1, le=100)
 
@@ -250,6 +251,9 @@ async def analyze_reddit_profile(
     Aggregates symptom detections across all posts for a comprehensive
     longitudinal profile. Uses public Reddit JSON API — no API key needed.
     """
+    if not re.fullmatch(r'[A-Za-z0-9_-]{3,20}', body.username):
+        raise HTTPException(status_code=400, detail="Invalid Reddit username. Must be 3-20 characters: letters, numbers, underscores, or hyphens.")
+
     model_service: ModelService = services["model"]
 
     # Fetch posts
@@ -333,6 +337,9 @@ async def analyze_x_profile(
     db: Session = Depends(get_db),
 ):
     """Fetch X/Twitter public posts and screen through the full pipeline."""
+    if not re.fullmatch(r'[A-Za-z0-9_]{1,15}', body.username):
+        raise HTTPException(status_code=400, detail="Invalid X username. Must be 1-15 characters: letters, numbers, or underscores.")
+
     from app.services.container import get_x_client
 
     x_client = get_x_client()
@@ -373,6 +380,9 @@ async def analyze_x_profile(
             {
                 "platform": "x",
                 "text_preview": tweet.text[:100],
+                "date": tweet.created_at,
+                "like_count": tweet.like_count,
+                "retweet_count": tweet.retweet_count,
                 "symptoms": [d.model_dump() for d in result.symptoms_detected],
                 "symptom_count": result.unique_symptom_count,
                 "severity": result.severity_level,
