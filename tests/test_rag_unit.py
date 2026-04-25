@@ -281,8 +281,11 @@ class TestPatientContextService:
         db = self._make_db()
 
         result = svc.build_context(user, db, include_pii=True)
-        # CPR is redacted (last 4 shown), MRN shown in full per existing logic
-        assert "MRN001" in result
+        # Both CPR and MRN are redacted (last 4 digits shown); raw values must not appear
+        assert "MRN001" not in result
+        assert "N001" in result  # redacted tail of "MRN001"
+        assert "123456789" not in result
+        assert "6789" in result  # redacted tail of CPR
         assert "Medical Identifiers" in result
 
     def test_default_sections_none_is_backwards_compatible(self):

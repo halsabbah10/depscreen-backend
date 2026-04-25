@@ -41,9 +41,15 @@ from app.middleware.request_logging import RequestLoggingMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.models.db import init_db
 
+_boot_settings = get_settings()
+_log_fmt = (
+    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    if _boot_settings.log_format != "json"
+    else '{"time":"%(asctime)s","name":"%(name)s","level":"%(levelname)s","msg":"%(message)s"}'
+)
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=getattr(logging, _boot_settings.log_level.upper(), logging.INFO),
+    format=_log_fmt,
 )
 logger = logging.getLogger(__name__)
 

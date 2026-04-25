@@ -162,6 +162,14 @@ async def refresh_token(
         raise HTTPException(status_code=401, detail="No refresh token cookie")
     payload = decode_token(cookie_token, settings)
 
+    # Revoke the old refresh token to prevent replay
+    old_jti = payload.get("jti")
+    old_exp_ts = payload.get("exp")
+    if old_jti and old_exp_ts:
+        from datetime import UTC, datetime
+        old_exp = datetime.fromtimestamp(old_exp_ts, tz=UTC)
+        await deny_token(old_jti, old_exp)
+
     if payload.get("type") != "refresh":
         raise HTTPException(status_code=401, detail="Invalid token type — expected refresh token")
 

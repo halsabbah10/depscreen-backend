@@ -148,7 +148,7 @@ class PatientContextService:
                 if user.cpr_number:
                     id_parts.append(f"CPR ending {_redact(user.cpr_number)}")
                 if user.medical_record_number:
-                    id_parts.append(f"MRN: {user.medical_record_number}")
+                    id_parts.append(f"MRN ending {_redact(user.medical_record_number)}")
                 if user.blood_type:
                     id_parts.append(f"Blood type: {user.blood_type}")
                 sections_list.append("**Medical Identifiers**\n" + ", ".join(id_parts) + ".")

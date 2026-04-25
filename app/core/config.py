@@ -82,6 +82,17 @@ class Settings(BaseSettings):
             self.jwt_secret = secrets.token_hex(32)
         return self
 
+    @model_validator(mode="after")
+    def validate_database_url(self) -> "Settings":
+        if self.environment == "production" and (
+            "localhost" in self.database_url or "sqlite" in self.database_url
+        ):
+            raise ValueError(
+                "DATABASE_URL must not use localhost or sqlite in production. "
+                "Set a real PostgreSQL connection string."
+            )
+        return self
+
     # ── RAG ─────────────────────────────────────────────────────────────────
     knowledge_base_dir: Path = Path("./ml/knowledge_base")
 

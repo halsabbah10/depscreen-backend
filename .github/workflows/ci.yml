@@ -65,7 +65,7 @@ jobs:
       - name: Run pytest with coverage
         env:
           DATABASE_URL: "sqlite:///:memory:"
-          JWT_SECRET: "ci-secret-placeholder-not-used-in-production-012345678901"
+          JWT_SECRET: "${{ github.run_id }}-${{ github.run_attempt }}-ci-ephemeral"
           ENVIRONMENT: test
           LLM_API_KEY: test-key
           CORS_ORIGINS: '["http://testserver"]'

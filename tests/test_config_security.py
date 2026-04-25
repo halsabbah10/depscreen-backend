@@ -48,7 +48,9 @@ def test_jwt_secret_accepted_in_production_when_explicit():
     """A real secret in production should be accepted as-is."""
     os.environ["ENVIRONMENT"] = "production"
     os.environ["JWT_SECRET"] = "a" * 64
-    os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+    # Must supply a non-localhost/non-sqlite DATABASE_URL so the new
+    # validate_database_url validator doesn't block this test.
+    os.environ["DATABASE_URL"] = "postgresql://user:pass@db.example.com:5432/depscreen"
 
     from app.core.config import Settings
 
