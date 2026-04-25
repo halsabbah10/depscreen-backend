@@ -14,3 +14,12 @@ docker-compose.yml
 Dockerfile
 .dockerignore
 .claude
+
+.venv
+venv
+ml/models/
+*.db
+*.sqlite3
+uploads/
+coverage.xml
+htmlcov/

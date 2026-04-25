@@ -31,6 +31,8 @@ RUN mkdir -p ml/models ml/knowledge_base uploads
 RUN chown -R 1000:1000 /app/ml/models /app/uploads && \
     chmod -R 755 /app/ml/models /app/uploads
 
+USER 1000
+
 EXPOSE 8000
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

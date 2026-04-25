@@ -15,21 +15,18 @@ alembic>=1.12.0
 
 # Authentication
 PyJWT>=2.8.0
-passlib[bcrypt]>=1.7.4
-bcrypt==4.0.1
+bcrypt>=4.0.1,<5
 
 # ML/DL
-torch>=2.0.0
-torchvision>=0.15.0
+torch>=2.0.0,<2.6
 # 4.50+ closes a long chain of CVEs (PYSEC-2024-227/228/229, CVE-2025-*).
 # DistilBERT tokenizer + AutoModelForSequenceClassification APIs we use
 # are stable across this range.
 transformers>=4.50.0,<5.0.0
 huggingface-hub>=0.20.0
-numpy>=1.24.0
+numpy>=1.24.0,<3
 pandas>=2.0.0
 scikit-learn>=1.3.0
-tabulate>=0.9.0
 
 # LLM Integration (OpenAI-compatible API)
 openai>=1.30.0
@@ -48,7 +45,6 @@ docling>=2.0.0
 # Backend Hardening
 slowapi>=0.1.9
 redis>=5.0.0
-structlog>=23.1.0
 
 # Email notifications
 resend>=0.8.0
@@ -57,10 +53,7 @@ jinja2>=3.1.0
 svix>=1.20.0
 
 # Background scheduler (screening/appointment reminder jobs)
-apscheduler>=3.10.0
-
-# Development / CI
-ruff>=0.4.0
+apscheduler>=3.10.0,<4
 
 # Utilities
 PyYAML>=6.0
@@ -70,20 +63,14 @@ python-dotenv==1.2.2
 # version compatible with both upstreams.
 pydantic>=2.11,<3
 pydantic-settings>=2.1.0
-aiofiles==23.2.1
 httpx==0.26.0
-
-# PDF parsing (uploaded patient forms: PHQ-9, GAD-7, etc.)
-# Docling is primary; pdfplumber is fallback; ocrmypdf handles scanned PDFs
-# (uses Tesseract; requires apt packages in Dockerfile).
-ocrmypdf>=16.0.0
 
 # PDF generation (screening result reports, patient export, clinical summary)
 reportlab>=4.0.0
 
 # Supabase Storage (avatar uploads) + image normalisation
 supabase>=2.0.0
-Pillow>=10.0.0
+Pillow>=10.4.0,<12
 
 # Error monitoring
 sentry-sdk[fastapi]>=2.0.0
