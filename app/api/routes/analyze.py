@@ -159,7 +159,7 @@ async def screen_text(
             ),
             timeout=settings.rag_timeout_screening,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning(f"RAG retrieval timed out after {settings.rag_timeout_screening}s — proceeding without context")
         dsm5_context, rag_context_data = None, None
 

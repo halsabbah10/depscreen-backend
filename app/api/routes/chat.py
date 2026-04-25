@@ -612,7 +612,7 @@ async def send_conversation_message_stream(
     # Standalone conversation (no screening linked)
     import re as re_module
 
-    from app.services.chat import CHAT_SYSTEM_PROMPT, CRISIS_KEYWORDS, _check_crisis_keywords
+    from app.services.chat import CHAT_SYSTEM_PROMPT, _check_crisis_keywords
     from app.services.rag_safety import GROUNDING_INSTRUCTIONS
 
     # Save user message
