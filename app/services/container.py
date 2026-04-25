@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.services.rag import RAGService
+    from app.services.x_client import XClient
 
 _rag_service: RAGService | None = None
 
@@ -34,3 +35,17 @@ def set_rag_service(service: RAGService) -> None:
 def get_rag_service() -> RAGService | None:
     """Return the singleton RAGService instance, or None if not yet initialized."""
     return _rag_service
+
+
+_x_client: XClient | None = None
+
+
+def set_x_client(client: XClient) -> None:
+    """Register the singleton XClient instance (called once at startup)."""
+    global _x_client
+    _x_client = client
+
+
+def get_x_client() -> XClient | None:
+    """Return the singleton XClient instance, or None if X is not configured."""
+    return _x_client
