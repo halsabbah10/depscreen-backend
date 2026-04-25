@@ -18,7 +18,8 @@ PyJWT>=2.8.0
 bcrypt>=4.0.1,<5
 
 # ML/DL
-torch>=2.0.0,<2.6
+# >=2.6.0 fixes PYSEC-2025-41 (RCE via torch.load weights_only=True).
+torch>=2.6.0,<3
 # 4.50+ closes a long chain of CVEs (PYSEC-2024-227/228/229, CVE-2025-*).
 # DistilBERT tokenizer + AutoModelForSequenceClassification APIs we use
 # are stable across this range.
@@ -70,7 +71,8 @@ reportlab>=4.0.0
 
 # Supabase Storage (avatar uploads) + image normalisation
 supabase>=2.0.0
-Pillow>=10.4.0,<12
+# >=12.2.0 fixes CVE-2026-25990 (PSD OOB write) and CVE-2026-40192 (FITS decompression bomb).
+Pillow>=12.2.0,<13
 
 # Error monitoring
 sentry-sdk[fastapi]>=2.0.0

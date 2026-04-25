@@ -122,9 +122,17 @@ jobs:
         #     during training. We do inference-only, never Trainer, never
         #     deserialize external .pth files. Fix is in 5.0.0rc3 (pre-release);
         #     re-evaluate when 5.0.0 ships stable.
+        #   CVE-2025-2953 (torch) — local DoS in torch.mkldnn_max_pool2d.
+        #     Attack requires local access; no remote exploit path. Fix is in
+        #     2.7.1rc1 (pre-release); re-evaluate when stable 2.7.x ships.
+        #   CVE-2025-3730 (torch) — local DoS in torch.nn.functional.ctc_loss.
+        #     Attack requires local access; no remote exploit path. Fix is in
+        #     2.8.0; re-evaluate when 2.8.0 ships stable.
         run: |
           pip-audit --requirement requirements.txt --desc --strict \
-            --ignore-vuln CVE-2026-1839
+            --ignore-vuln CVE-2026-1839 \
+            --ignore-vuln CVE-2025-2953 \
+            --ignore-vuln CVE-2025-3730
 
   docker-build:
     name: Docker Build
