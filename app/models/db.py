@@ -80,7 +80,7 @@ class User(Base):
     is_active = Column(Boolean, default=True)
 
     # Patient ↔ Clinician relationship
-    clinician_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    clinician_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     clinician_code = Column(String(10), unique=True, nullable=True)
 
     # Demographics (Phase 2)
@@ -137,7 +137,7 @@ class Screening(Base):
     __tablename__ = "screenings"
 
     id = Column(String(36), primary_key=True, index=True)
-    patient_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    patient_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC), index=True)
 
     # Input
@@ -166,13 +166,13 @@ class Screening(Base):
     # Clinical workflow
     triage_status = Column(String(50), default="new", index=True)
     reviewed_at = Column(DateTime, nullable=True)
-    reviewed_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    reviewed_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     clinician_notes = Column(Text, nullable=True)
     next_action = Column(String(255), nullable=True)
     next_action_date = Column(DateTime, nullable=True)
 
     # Link to care plan (if active)
-    care_plan_id = Column(String(36), ForeignKey("care_plans.id"), nullable=True, index=True)
+    care_plan_id = Column(String(36), ForeignKey("care_plans.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Relationships
     patient = relationship("User", back_populates="screenings", foreign_keys=[patient_id])
@@ -189,8 +189,8 @@ class ChatMessage(Base):
 
     id = Column(String(36), primary_key=True, index=True)
     # Can belong to a screening (screening followup) or a conversation (standalone)
-    screening_id = Column(String(36), ForeignKey("screenings.id"), nullable=True, index=True)
-    conversation_id = Column(String(36), ForeignKey("conversations.id"), nullable=True, index=True)
+    screening_id = Column(String(36), ForeignKey("screenings.id", ondelete="CASCADE"), nullable=True, index=True)
+    conversation_id = Column(String(36), ForeignKey("conversations.id", ondelete="CASCADE"), nullable=True, index=True)
     role = Column(String(20), nullable=False)  # "user", "assistant", "clinician"
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
@@ -209,11 +209,11 @@ class Conversation(Base):
     __tablename__ = "conversations"
 
     id = Column(String(36), primary_key=True, index=True)
-    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(255), default="New Conversation")
     context_type = Column(String(50), default="general")  # general, screening_followup, clinician_direct
     linked_screening_id = Column(String(36), nullable=True)  # Optional screening context
-    linked_clinician_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)  # For clinician-direct
+    linked_clinician_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)  # For clinician-direct
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
     updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
@@ -229,8 +229,8 @@ class PatientDocument(Base):
     __tablename__ = "patient_documents"
 
     id = Column(String(36), primary_key=True, index=True)
-    patient_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
-    uploaded_by = Column(String(36), ForeignKey("users.id"), nullable=False)
+    patient_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    uploaded_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=False)
     doc_type = Column(String(50), nullable=False, index=True)
     title = Column(String(255), nullable=False)
     content = Column(Text, nullable=False)
@@ -248,7 +248,7 @@ class EmergencyContact(Base):
     __tablename__ = "emergency_contacts"
 
     id = Column(String(36), primary_key=True, index=True)
-    patient_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    patient_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     contact_name = Column(String(255), nullable=False)
     phone = Column(String(20), nullable=False)
     relation = Column(String(50), nullable=False)
@@ -265,7 +265,7 @@ class Medication(Base):
     __tablename__ = "medications"
 
     id = Column(String(36), primary_key=True, index=True)
-    patient_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    patient_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(255), nullable=False)  # Drug name (RxNorm-autocomplete supported)
     dosage = Column(String(100), nullable=True)  # e.g., "50mg"
     frequency = Column(String(50), nullable=True)  # daily, twice_daily, weekly, as_needed
@@ -287,7 +287,7 @@ class Allergy(Base):
     __tablename__ = "allergies"
 
     id = Column(String(36), primary_key=True, index=True)
-    patient_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    patient_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     allergen = Column(String(255), nullable=False)
     allergy_type = Column(String(50), nullable=True)  # medication, food, environmental, other
     severity = Column(String(50), nullable=True)  # mild, moderate, severe, life_threatening
@@ -306,7 +306,7 @@ class Diagnosis(Base):
     __tablename__ = "diagnoses"
 
     id = Column(String(36), primary_key=True, index=True)
-    patient_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    patient_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     condition = Column(String(255), nullable=False)
     icd10_code = Column(String(20), nullable=True)  # ICD-10 code (optional, API-assisted)
     diagnosed_date = Column(Date, nullable=True)
@@ -326,7 +326,7 @@ class ScreeningSchedule(Base):
     __tablename__ = "screening_schedules"
 
     id = Column(String(36), primary_key=True, index=True)
-    patient_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    patient_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     frequency = Column(String(50), nullable=False)  # weekly, biweekly, monthly, custom
     custom_days = Column(Integer, nullable=True)  # for custom frequency
     day_of_week = Column(Integer, nullable=True)  # 0=Monday ... 6=Sunday (for weekly/biweekly)
@@ -334,7 +334,7 @@ class ScreeningSchedule(Base):
     next_due_at = Column(DateTime, nullable=True, index=True)
     last_completed_at = Column(DateTime, nullable=True)
     last_reminder_sent_at = Column(DateTime, nullable=True)  # de-dupe reminder emails
-    assigned_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    assigned_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     is_active = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
     updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
@@ -350,8 +350,8 @@ class Appointment(Base):
     __tablename__ = "appointments"
 
     id = Column(String(36), primary_key=True, index=True)
-    patient_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
-    clinician_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    patient_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    clinician_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     scheduled_at = Column(DateTime, nullable=False, index=True)
     duration_minutes = Column(Integer, default=60)
     appointment_type = Column(String(50), default="followup")  # intake, followup, crisis, review
@@ -373,7 +373,7 @@ class Notification(Base):
     __tablename__ = "notifications"
 
     id = Column(String(36), primary_key=True, index=True, default=lambda: str(uuid4()))
-    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     notification_type = Column(String(50), nullable=False, index=True)
     # Types: screening_due, screening_missed, new_message, appointment_reminder,
     #        care_plan_updated, crisis_alert, document_uploaded
@@ -393,8 +393,8 @@ class CarePlan(Base):
     __tablename__ = "care_plans"
 
     id = Column(String(36), primary_key=True, index=True)
-    patient_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
-    clinician_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    patient_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    clinician_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     template_name = Column(String(100), nullable=True)  # which template was used
@@ -417,7 +417,7 @@ class AuditLog(Base):
     __tablename__ = "audit_log"
 
     id = Column(String(36), primary_key=True)
-    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     action = Column(String(100), nullable=False, index=True)
     resource_type = Column(String(50), default="")
     resource_id = Column(String(36), nullable=True)
@@ -439,7 +439,7 @@ class EmailDelivery(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
     resend_email_id = Column(String(64), nullable=True, unique=True, index=True)
-    user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     recipient = Column(String(255), nullable=False, index=True)
     subject = Column(String(500), nullable=False)
     template_key = Column(String(64), nullable=False, index=True)  # e.g., 'welcome', 'appointment_reminder'
@@ -465,7 +465,7 @@ class KnowledgeChunk(Base):
     __tablename__ = "knowledge_chunks"
 
     id = Column(String(36), primary_key=True)
-    parent_chunk_id = Column(String(36), ForeignKey("knowledge_chunks.id"), nullable=True)
+    parent_chunk_id = Column(String(36), ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), nullable=True)
     chunk_level = Column(String(10), default="child")  # 'parent' or 'child'
     sequence_index = Column(Integer, default=0)
     content = Column(Text, nullable=False)
@@ -492,10 +492,10 @@ class PatientRAGChunk(Base):
     __tablename__ = "patient_rag_chunks"
 
     id = Column(String(36), primary_key=True)
-    parent_chunk_id = Column(String(36), ForeignKey("patient_rag_chunks.id"), nullable=True)
+    parent_chunk_id = Column(String(36), ForeignKey("patient_rag_chunks.id", ondelete="SET NULL"), nullable=True)
     chunk_level = Column(String(10), default="child")
     sequence_index = Column(Integer, default=0)
-    patient_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    patient_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     screening_id = Column(String(36), nullable=True)
     doc_id = Column(String(36), nullable=True)
     content = Column(Text, nullable=False)
