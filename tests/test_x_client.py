@@ -103,14 +103,16 @@ async def test_mental_health_filter_off_returns_all(x_client):
 @pytest.mark.asyncio
 async def test_user_not_found_raises_valueerror(x_client):
     """Non-existent user raises ValueError."""
-    with patch.object(x_client, "_authenticated", True), \
-         patch.object(
-             x_client._client, "get_user_by_screen_name",
-             new_callable=AsyncMock, side_effect=Exception("User not found")
-         ), \
-         patch.object(x_client, "_login", new_callable=AsyncMock, side_effect=Exception("login failed")):
-        with pytest.raises(ValueError, match="not found"):
-            await x_client.fetch_user_tweets("nonexistent_user_xyz")
+    with (
+        patch.object(x_client, "_authenticated", True),
+        patch.object(
+            x_client._client, "get_user_by_screen_name",
+            new_callable=AsyncMock, side_effect=Exception("User not found"),
+        ),
+        patch.object(x_client, "_login", new_callable=AsyncMock, side_effect=Exception("login failed")),
+        pytest.raises(ValueError, match="not found"),
+    ):
+        await x_client.fetch_user_tweets("nonexistent_user_xyz")
 
 
 @pytest.mark.asyncio

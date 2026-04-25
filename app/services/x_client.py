@@ -11,7 +11,7 @@ one re-login attempt is made before failing.
 
 import logging
 import math
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from twikit import Client, TooManyRequests
@@ -144,8 +144,8 @@ class XClient:
         try:
             reset_time = exc.rate_limit_reset
             if reset_time:
-                now = datetime.now(timezone.utc).timestamp()
+                now = datetime.now(UTC).timestamp()
                 return max(1, math.ceil((reset_time - now) / 60))
         except Exception:
-            pass
+            logger.debug("Could not parse rate limit reset time", exc_info=True)
         return 15  # Default to 15 minutes if we can't parse
