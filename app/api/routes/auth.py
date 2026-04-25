@@ -167,6 +167,7 @@ async def refresh_token(
     old_exp_ts = payload.get("exp")
     if old_jti and old_exp_ts:
         from datetime import UTC, datetime
+
         old_exp = datetime.fromtimestamp(old_exp_ts, tz=UTC)
         await deny_token(old_jti, old_exp)
 

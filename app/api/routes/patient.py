@@ -1348,11 +1348,7 @@ async def export_my_data(
         )
 
     # Also export standalone chat messages (conversations not tied to screenings)
-    conversations = (
-        db.query(Conversation)
-        .filter(Conversation.user_id == current_user.id)
-        .all()
-    )
+    conversations = db.query(Conversation).filter(Conversation.user_id == current_user.id).all()
     conversation_ids = [c.id for c in conversations]
     if conversation_ids:
         conversation_messages = (

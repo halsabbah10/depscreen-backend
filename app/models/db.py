@@ -213,7 +213,9 @@ class Conversation(Base):
     title = Column(String(255), default="New Conversation")
     context_type = Column(String(50), default="general")  # general, screening_followup, clinician_direct
     linked_screening_id = Column(String(36), nullable=True)  # Optional screening context
-    linked_clinician_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)  # For clinician-direct
+    linked_clinician_id = Column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )  # For clinician-direct
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
     updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))

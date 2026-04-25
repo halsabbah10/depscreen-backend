@@ -23,12 +23,32 @@ logger = logging.getLogger(__name__)
 # Negation words that, when appearing within 5 words before a crisis keyword,
 # indicate the patient is NOT expressing active ideation (e.g. "I don't want
 # to die", "I'm not suicidal"). Covers English and Arabic (MSA + Gulf dialect).
-NEGATION_PREFIXES = frozenset({
-    "not", "no", "don't", "dont", "never", "aren't", "arent",
-    "isn't", "isnt", "wasn't", "wasnt", "haven't", "havent",
-    "can't", "cant", "won't", "wont", "neither", "nobody",
-    "مش", "ما", "لا",
-})
+NEGATION_PREFIXES = frozenset(
+    {
+        "not",
+        "no",
+        "don't",
+        "dont",
+        "never",
+        "aren't",
+        "arent",
+        "isn't",
+        "isnt",
+        "wasn't",
+        "wasnt",
+        "haven't",
+        "havent",
+        "can't",
+        "cant",
+        "won't",
+        "wont",
+        "neither",
+        "nobody",
+        "مش",
+        "ما",
+        "لا",
+    }
+)
 
 
 def _check_crisis_keywords(message_lower: str) -> tuple[str | None, bool]:
@@ -43,7 +63,7 @@ def _check_crisis_keywords(message_lower: str) -> tuple[str | None, bool]:
         if kw in message_lower:
             idx = message_lower.find(kw)
             if idx > 0:
-                prefix_text = message_lower[max(0, idx - 60):idx]
+                prefix_text = message_lower[max(0, idx - 60) : idx]
                 prefix_words = prefix_text.split()[-5:]
                 if any(w in NEGATION_PREFIXES for w in prefix_words):
                     return kw, True

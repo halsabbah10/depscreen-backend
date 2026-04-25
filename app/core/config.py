@@ -84,12 +84,9 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_database_url(self) -> "Settings":
-        if self.environment == "production" and (
-            "localhost" in self.database_url or "sqlite" in self.database_url
-        ):
+        if self.environment == "production" and ("localhost" in self.database_url or "sqlite" in self.database_url):
             raise ValueError(
-                "DATABASE_URL must not use localhost or sqlite in production. "
-                "Set a real PostgreSQL connection string."
+                "DATABASE_URL must not use localhost or sqlite in production. Set a real PostgreSQL connection string."
             )
         return self
 
