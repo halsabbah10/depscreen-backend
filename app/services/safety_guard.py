@@ -84,6 +84,9 @@ _PRESCRIPTION_PATTERNS = [
         ),
         "high",
     ),
+    # Arabic prescription patterns
+    (re.compile(r"\bخ[ذث]\s+\d+\s*(?:ملغ|مل|حبة)", re.IGNORECASE), "high"),
+    (re.compile(r"\bتوقف\s+عن\s+(?:تناول|أخذ)", re.IGNORECASE), "high"),
 ]
 
 # Diagnostic claims
@@ -103,6 +106,9 @@ _DIAGNOSIS_PATTERNS = [
     ),
     (re.compile(r"\bi\s+diagnose\s+you\s+with", re.IGNORECASE), "high"),
     (re.compile(r"\byour\s+diagnosis\s+is", re.IGNORECASE), "medium"),
+    # Arabic diagnosis patterns
+    (re.compile(r"\bأنت\s+(?:مصاب|تعاني)\s+(?:بالاكتئاب|بالقلق|بالفصام)", re.IGNORECASE), "high"),
+    (re.compile(r"\bتشخيصك\s+هو", re.IGNORECASE), "high"),
 ]
 
 # Self-harm encouragement — extremely unlikely from a safety-trained LLM,
@@ -122,6 +128,9 @@ _SELF_HARM_PATTERNS = [
     ),
     (re.compile(r"\byou(?:'?d|\s+would)\s+be\s+better\s+off\s+(?:dead|gone|without)", re.IGNORECASE), "high"),
     (re.compile(r"\bworld\s+would\s+be\s+better\s+off\s+without\s+you", re.IGNORECASE), "high"),
+    # Arabic self-harm encouragement patterns
+    (re.compile(r"\b(?:اقتل|اذبح|اضرب)\s+نفسك", re.IGNORECASE), "high"),
+    (re.compile(r"\bالانتحار\s+(?:هو\s+)?(?:الحل|الخيار)", re.IGNORECASE), "high"),
 ]
 
 # Undermining professional care
@@ -139,6 +148,9 @@ _UNDERMINE_PATTERNS = [
         ),
         "medium",
     ),
+    # Arabic undermining patterns
+    (re.compile(r"\bلا\s+تحتاج\s+(?:علاج|طبيب|دواء)", re.IGNORECASE), "medium"),
+    (re.compile(r"\bتجاهل\s+(?:الطبيب|العلاج|الدواء)", re.IGNORECASE), "high"),
 ]
 
 
