@@ -11,7 +11,6 @@ No manual textarea — all input is either structured or API-sourced.
 
 import json
 import logging
-import re
 from dataclasses import dataclass
 
 import httpx
@@ -205,93 +204,6 @@ class Tweet:
     like_count: int
     retweet_count: int
 
-
-async def fetch_x_posts(
-    username: str,
-    limit: int = 50,
-    mental_health_filter: bool = True,
-) -> list[Tweet]:
-    """Fetch a user's public X/Twitter posts via Nitter or public endpoints.
-
-    Note: X's official API requires paid access ($100/mo). For a capstone
-    project, we use the public syndication endpoint which returns recent
-    tweets without API keys.
-    """
-    tweets = []
-
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        # Use X's public syndication timeline endpoint
-        url = f"https://syndication.twitter.com/srv/timeline-profile/screen-name/{username}"
-
-        try:
-            response = await client.get(
-                url,
-                headers={
-                    "User-Agent": "Mozilla/5.0 (compatible; DepScreen/2.0)",
-                    "Accept": "text/html",
-                },
-            )
-
-            if response.status_code == 404:
-                raise ValueError(f"X/Twitter user '@{username}' not found")
-            if response.status_code != 200:
-                raise ValueError(
-                    f"Could not fetch posts for @{username}. "
-                    "The profile may be private or X's API may be rate-limiting."
-                )
-
-            # Parse tweet text from the HTML response
-            # The syndication endpoint returns HTML with tweet content
-            content = response.text
-
-            # Extract tweet texts using regex on the HTML
-            tweet_texts = re.findall(
-                r'<p[^>]*class="[^"]*timeline-Tweet-text[^"]*"[^>]*>(.*?)</p>',
-                content,
-                re.DOTALL,
-            )
-
-            if not tweet_texts:
-                # Fallback: try extracting from data attributes
-                tweet_texts = re.findall(
-                    r'data-tweet-text="([^"]+)"',
-                    content,
-                )
-
-            for i, text in enumerate(tweet_texts[:limit]):
-                # Clean HTML entities
-                text = re.sub(r"<[^>]+>", "", text)
-                text = text.replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
-                text = text.replace("&#39;", "'").replace("&quot;", '"')
-                text = text.strip()
-
-                if len(text) < 10:
-                    continue
-
-                # Filter for mental health content if requested
-                if mental_health_filter:
-                    text_lower = text.lower()
-                    if not any(kw in text_lower for kw in MENTAL_HEALTH_KEYWORDS):
-                        continue
-
-                tweets.append(
-                    Tweet(
-                        tweet_id=f"tweet_{i}",
-                        text=text,
-                        created_at="",
-                        like_count=0,
-                        retweet_count=0,
-                    )
-                )
-
-        except httpx.HTTPError as e:
-            logger.error(f"X/Twitter fetch error: {e}")
-            raise ValueError(
-                f"Failed to fetch X/Twitter posts for @{username}. Please ensure the profile is public and try again."
-            )
-
-    logger.info(f"Fetched {len(tweets)} tweets for @{username}")
-    return tweets
 
 
 # ── Guided Clinical Check-in ─────────────────────────────────────────────────

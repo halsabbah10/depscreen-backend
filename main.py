@@ -117,6 +117,25 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Scheduler failed to start (non-fatal): {e}")
 
+    # X/Twitter integration (twikit)
+    if settings.x_username and settings.x_email and settings.x_password:
+        try:
+            from app.services.container import set_x_client
+            from app.services.x_client import XClient
+
+            x_client = XClient(
+                username=settings.x_username,
+                email=settings.x_email,
+                password=settings.x_password,
+            )
+            await x_client.initialize()
+            set_x_client(x_client)
+            logger.info("X/Twitter client initialized")
+        except Exception as e:
+            logger.warning(f"X/Twitter client initialization failed (non-fatal): {e}")
+    else:
+        logger.info("X/Twitter credentials not configured — X analysis disabled")
+
     yield
 
     logger.info("Shutting down...")

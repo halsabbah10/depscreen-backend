@@ -31,7 +31,6 @@ from app.services.inference import ModelService
 from app.services.ingestion import (
     combine_checkin_responses,
     fetch_reddit_posts,
-    fetch_x_posts,
     get_checkin_prompts,
     parse_reddit_export,
 )
@@ -334,8 +333,17 @@ async def analyze_x_profile(
     db: Session = Depends(get_db),
 ):
     """Fetch X/Twitter public posts and screen through the full pipeline."""
+    from app.services.container import get_x_client
+
+    x_client = get_x_client()
+    if x_client is None:
+        raise HTTPException(
+            status_code=503,
+            detail="X/Twitter integration is not configured on this server.",
+        )
+
     try:
-        tweets = await fetch_x_posts(
+        tweets = await x_client.fetch_user_tweets(
             username=body.username,
             limit=body.max_posts,
             mental_health_filter=body.mental_health_filter,
