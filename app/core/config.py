@@ -51,6 +51,13 @@ class Settings(BaseSettings):
     supabase_service_role_key: str = ""
     supabase_avatar_bucket: str = "depscreen-avatars"
 
+    # ── X/Twitter integration (twikit) ────────────────────────────────
+    # All three must be set to enable X analysis. If any are empty,
+    # the /ingest/x endpoint returns 503.
+    x_username: str = ""
+    x_email: str = ""
+    x_password: str = ""
+
     # ── Error monitoring (Sentry) ──────────────────────────────────────────
     # If unset, Sentry initializes as a no-op (local dev, CI).
     sentry_dsn: str = ""

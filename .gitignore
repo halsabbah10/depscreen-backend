@@ -107,3 +107,6 @@ package-lock.json
 
 # Suicide Watch data (large, not used in production)
 ml/data/suicide_watch/
+
+# X/Twitter twikit cookie cache (contains session tokens)
+.x_cookies.json
