@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -26,7 +26,7 @@ def _make_fake_tweets(texts: list[str]) -> list[FakeTwikitTweet]:
         FakeTwikitTweet(
             id=f"tweet_{i}",
             text=text,
-            created_at_datetime=datetime(2026, 4, 1, 12, 0, tzinfo=timezone.utc),
+            created_at_datetime=datetime(2026, 4, 1, 12, 0, tzinfo=UTC),
             favorite_count=i * 5,
             retweet_count=i * 2,
         )
@@ -125,9 +125,8 @@ async def test_rate_limit_raises_valueerror(x_client):
          patch.object(
              x_client._client, "get_user_by_screen_name",
              new_callable=AsyncMock, side_effect=exc
-         ):
-        with pytest.raises(ValueError, match="rate limit"):
-            await x_client.fetch_user_tweets("someone")
+         ), pytest.raises(ValueError, match="rate limit"):
+        await x_client.fetch_user_tweets("someone")
 
 
 @pytest.mark.asyncio
