@@ -27,11 +27,16 @@ COPY . .
 # Create necessary directories
 RUN mkdir -p ml/models ml/knowledge_base uploads
 
-# HF Spaces runs as user 1000 — ensure write permissions
-RUN chown -R 1000:1000 /app/ml/models /app/uploads && \
+# Create a named user for UID 1000 so getpass.getuser() resolves correctly
+# (torch._dynamo calls getpwuid at import time; bare UID with no passwd entry crashes).
+# HF Spaces also runs as UID 1000.
+RUN groupadd --system --gid 1000 appuser && \
+    useradd --system --uid 1000 --gid 1000 --no-create-home appuser
+
+RUN chown -R appuser:appuser /app/ml/models /app/uploads && \
     chmod -R 755 /app/ml/models /app/uploads
 
-USER 1000
+USER appuser
 
 EXPOSE 8000
 
