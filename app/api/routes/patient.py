@@ -1347,6 +1347,22 @@ async def export_my_data(
             .all()
         )
 
+    # Also export standalone chat messages (conversations not tied to screenings)
+    conversations = (
+        db.query(Conversation)
+        .filter(Conversation.user_id == current_user.id)
+        .all()
+    )
+    conversation_ids = [c.id for c in conversations]
+    if conversation_ids:
+        conversation_messages = (
+            db.query(ChatMessage)
+            .filter(ChatMessage.conversation_id.in_(conversation_ids))
+            .order_by(ChatMessage.created_at)
+            .all()
+        )
+        chat_messages = chat_messages + conversation_messages
+
     # Emergency contacts
     contacts = db.query(EmergencyContact).filter(EmergencyContact.patient_id == current_user.id).all()
 
@@ -1699,14 +1715,23 @@ async def list_my_appointments(
             Appointment.scheduled_at >= datetime.now(UTC),
         )
 
+    from sqlalchemy.orm import aliased
+
+    ClinicianUser = aliased(User)
+    appt_rows = (
+        query.outerjoin(ClinicianUser, Appointment.clinician_id == ClinicianUser.id)
+        .add_columns(ClinicianUser.full_name.label("clinician_name"))
+        .order_by(Appointment.scheduled_at)
+        .all()
+    )
+
     results = []
-    for appt in query.order_by(Appointment.scheduled_at).all():
-        clinician = db.query(User).filter(User.id == appt.clinician_id).first()
+    for appt, clinician_name in appt_rows:
         results.append(
             {
                 "id": appt.id,
                 "clinician_id": appt.clinician_id,
-                "clinician_name": clinician.full_name if clinician else "Unknown",
+                "clinician_name": clinician_name or "Unknown",
                 "scheduled_at": appt.scheduled_at.isoformat() if appt.scheduled_at else None,
                 "duration_minutes": appt.duration_minutes,
                 "appointment_type": appt.appointment_type,

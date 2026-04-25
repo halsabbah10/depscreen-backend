@@ -612,7 +612,7 @@ async def send_conversation_message_stream(
     # Standalone conversation (no screening linked)
     import re as re_module
 
-    from app.services.chat import CHAT_SYSTEM_PROMPT, CRISIS_KEYWORDS
+    from app.services.chat import CHAT_SYSTEM_PROMPT, CRISIS_KEYWORDS, _check_crisis_keywords
     from app.services.rag_safety import GROUNDING_INSTRUCTIONS
 
     # Save user message
@@ -633,9 +633,10 @@ async def send_conversation_message_stream(
         .all()
     )
 
-    # Crisis check
+    # Crisis check (negation-aware)
     message_lower = body.message.lower()
-    is_crisis = any(kw in message_lower for kw in CRISIS_KEYWORDS)
+    _matched_kw_standalone, _is_negated_standalone = _check_crisis_keywords(message_lower)
+    is_crisis = _matched_kw_standalone is not None and not _is_negated_standalone
 
     # Build prompt
     detected_symptoms = []
@@ -759,17 +760,17 @@ async def send_conversation_message_stream(
                         )
 
                     stream = await _create_standalone_stream()
+                    _chunks: list[str] = []
                     async for chunk in stream:
                         if chunk.choices and chunk.choices[0].delta.content:
-                            delta = chunk.choices[0].delta.content
-                            full_response += delta
-                            escaped = delta.replace("\n", "\\n")
-                            yield f"data: {escaped}\n\n"
+                            _chunks.append(chunk.choices[0].delta.content)
 
+                    full_response = "".join(_chunks)
                     full_response = re_module.sub(
                         r"<think>.*?</think>", "", full_response, flags=re_module.DOTALL
                     ).strip()
-                    # Safety guard on stream output
+
+                    # Safety guard: buffer first, scan, then yield safe version.
                     try:
                         from app.services.safety_guard import scan_text as _sg_scan
 
@@ -782,6 +783,9 @@ async def send_conversation_message_stream(
                         full_response = _sg.redacted
                     except Exception as _sg_err:
                         logger.warning(f"Safety guard error (non-fatal): {_sg_err}")
+
+                    escaped = full_response.replace("\n", "\\n")
+                    yield f"data: {escaped}\n\n"
                 except Exception as e:
                     logger.error(f"Standalone chat streaming failed: {type(e).__name__}: {e}", exc_info=True)
                     fallback = (

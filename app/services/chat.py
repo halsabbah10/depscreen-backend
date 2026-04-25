@@ -20,6 +20,37 @@ from app.services.rag import RAGService
 
 logger = logging.getLogger(__name__)
 
+# Negation words that, when appearing within 5 words before a crisis keyword,
+# indicate the patient is NOT expressing active ideation (e.g. "I don't want
+# to die", "I'm not suicidal"). Covers English and Arabic (MSA + Gulf dialect).
+NEGATION_PREFIXES = frozenset({
+    "not", "no", "don't", "dont", "never", "aren't", "arent",
+    "isn't", "isnt", "wasn't", "wasnt", "haven't", "havent",
+    "can't", "cant", "won't", "wont", "neither", "nobody",
+    "مش", "ما", "لا",
+})
+
+
+def _check_crisis_keywords(message_lower: str) -> tuple[str | None, bool]:
+    """Check message for crisis keywords with negation awareness.
+
+    Returns (matched_keyword, is_negated).
+    - (None, False) → no crisis keyword found
+    - (kw, False)   → keyword found, NOT negated → active crisis signal
+    - (kw, True)    → keyword found but preceded by a negation within 5 words
+    """
+    for kw in CRISIS_KEYWORDS:
+        if kw in message_lower:
+            idx = message_lower.find(kw)
+            if idx > 0:
+                prefix_text = message_lower[max(0, idx - 60):idx]
+                prefix_words = prefix_text.split()[-5:]
+                if any(w in NEGATION_PREFIXES for w in prefix_words):
+                    return kw, True
+            return kw, False
+    return None, False
+
+
 # Keywords that trigger an immediate crisis response (pre-LLM)
 # English + Arabic (MSA and Gulf/Khaleeji dialect for Bahrain context)
 CRISIS_KEYWORDS = [
@@ -293,9 +324,10 @@ class ChatService:
         )
         db.add(user_msg)
 
-        # 1. Crisis check
+        # 1. Crisis check (negation-aware)
         message_lower = message.lower()
-        is_crisis = any(kw in message_lower for kw in CRISIS_KEYWORDS)
+        matched_keyword, is_negated = _check_crisis_keywords(message_lower)
+        is_crisis = matched_keyword is not None and not is_negated
 
         if is_crisis:
             logger.warning(f"Crisis keywords detected in chat for screening {screening.id}")
@@ -335,6 +367,30 @@ class ChatService:
                     db.commit()
             except Exception as e:
                 logger.warning(f"Chat crisis notification failed (non-fatal): {e}")
+        elif matched_keyword and is_negated:
+            logger.info(f"Crisis keyword '{matched_keyword}' detected but negated in screening {screening.id}")
+            try:
+                from app.models.db import Notification
+                from app.models.db import User as UserModel
+
+                patient = db.query(UserModel).filter(UserModel.id == screening.patient_id).first()
+                if patient and patient.clinician_id:
+                    db.add(
+                        Notification(
+                            id=str(uuid4()),
+                            user_id=patient.clinician_id,
+                            notification_type="safety_mention",
+                            title="Safety-related language (negated)",
+                            message=(
+                                f"{patient.full_name} used safety-related language in a negated context. "
+                                "No crisis alert sent, but review may be warranted."
+                            ),
+                            is_read=False,
+                        )
+                    )
+                    db.commit()
+            except Exception as e:
+                logger.warning(f"Negation notification failed (non-fatal): {e}")
         else:
             # 2. Retrieve RAG context
             detected_symptoms = []
@@ -445,10 +501,12 @@ class ChatService:
         db.add(user_msg)
         db.commit()
 
-        # Crisis check — streaming fakes chunks so the UX feels consistent,
-        # but the response itself is a warm Gemini-generated message + footer.
+        # Crisis check (negation-aware) — streaming fakes chunks so the UX
+        # feels consistent, but the response itself is a warm Gemini-generated
+        # message + footer.
         message_lower = message.lower()
-        if any(kw in message_lower for kw in CRISIS_KEYWORDS):
+        _matched_kw, _is_negated = _check_crisis_keywords(message_lower)
+        if _matched_kw is not None and not _is_negated:
             logger.warning(f"Crisis keywords detected in chat for screening {screening.id}")
             warm_response = await self.generate_warm_crisis_response(message)
             # Stream the response in small chunks so the UI shows progressive
@@ -511,11 +569,12 @@ class ChatService:
                 )
 
             stream = await _create_stream()
+            chunks: list[str] = []
             async for chunk in stream:
                 if chunk.choices and chunk.choices[0].delta.content:
-                    delta = chunk.choices[0].delta.content
-                    full_response += delta
-                    yield delta
+                    chunks.append(chunk.choices[0].delta.content)
+
+            full_response = "".join(chunks)
 
             # Clean up <think> tags for reasoning models
             full_response = re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
@@ -531,11 +590,9 @@ class ChatService:
             yield fallback
             full_response = fallback
 
-        # Safety guard: scan the assembled stream output before persisting.
-        # If violations were found, we persist the REDACTED version (what the
-        # user already saw in their stream may include unsafe text — we can't
-        # un-ring that bell, but we can prevent it from being re-delivered on
-        # history reload). A post-scan audit log is written for review.
+        # Safety guard: buffer the full response, scan it, then yield the safe
+        # version. This ensures the patient never sees unsafe content — we buffer
+        # first, scan, then deliver.
         try:
             from app.services.safety_guard import scan_text
 
@@ -548,6 +605,8 @@ class ChatService:
             full_response = safety.redacted
         except Exception as e:
             logger.warning(f"Safety guard error (non-fatal): {e}")
+
+        yield full_response
 
         # Save the complete assistant message
         assistant_msg = ChatMessage(

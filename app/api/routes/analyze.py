@@ -151,10 +151,17 @@ async def screen_text(
             )
         return None
 
-    dsm5_context, rag_context_data = await asyncio.gather(
-        _dsm5_retrieve(),
-        _rag_retrieve(),
-    )
+    try:
+        dsm5_context, rag_context_data = await asyncio.wait_for(
+            asyncio.gather(
+                _dsm5_retrieve(),
+                _rag_retrieve(),
+            ),
+            timeout=settings.rag_timeout_screening,
+        )
+    except asyncio.TimeoutError:
+        logger.warning(f"RAG retrieval timed out after {settings.rag_timeout_screening}s — proceeding without context")
+        dsm5_context, rag_context_data = None, None
 
     if dsm5_context:
         logger.info(f"  Step 1.5 — RAG: DSM-5 criteria for {len(dsm5_context)} symptoms")
@@ -263,6 +270,29 @@ async def screen_text(
                 )
         except Exception as e:
             logger.warning(f"Crisis alert email failed: {e}")
+
+    # In-app notification for clinician (mirrors chat.py crisis notification pattern)
+    if flagged and current_user.clinician_id:
+        try:
+            from app.models.db import Notification
+
+            db.add(
+                Notification(
+                    id=str(uuid4()),
+                    user_id=current_user.clinician_id,
+                    notification_type="screening_flagged",
+                    title="Screening flagged for review",
+                    message=(
+                        f"{current_user.full_name} submitted a screening flagged for review "
+                        f"(severity: {symptom_analysis.severity_level})."
+                    ),
+                    link=f"/patients/{current_user.id}",
+                    is_read=False,
+                )
+            )
+            db.commit()
+        except Exception as e:
+            logger.warning(f"Screening in-app notification failed: {e}")
 
     # Step 6b: Ingest into patient RAG for future chat context
     if rag_service and rag_service.is_initialized:
