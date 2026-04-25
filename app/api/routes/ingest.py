@@ -251,8 +251,11 @@ async def analyze_reddit_profile(
     Aggregates symptom detections across all posts for a comprehensive
     longitudinal profile. Uses public Reddit JSON API — no API key needed.
     """
-    if not re.fullmatch(r'[A-Za-z0-9_-]{3,20}', body.username):
-        raise HTTPException(status_code=400, detail="Invalid Reddit username. Must be 3-20 characters: letters, numbers, underscores, or hyphens.")
+    if not re.fullmatch(r"[A-Za-z0-9_-]{3,20}", body.username):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid Reddit username. Must be 3-20 characters: letters, numbers, underscores, or hyphens.",
+        )
 
     model_service: ModelService = services["model"]
 
@@ -337,8 +340,10 @@ async def analyze_x_profile(
     db: Session = Depends(get_db),
 ):
     """Fetch X/Twitter public posts and screen through the full pipeline."""
-    if not re.fullmatch(r'[A-Za-z0-9_]{1,15}', body.username):
-        raise HTTPException(status_code=400, detail="Invalid X username. Must be 1-15 characters: letters, numbers, or underscores.")
+    if not re.fullmatch(r"[A-Za-z0-9_]{1,15}", body.username):
+        raise HTTPException(
+            status_code=400, detail="Invalid X username. Must be 1-15 characters: letters, numbers, or underscores."
+        )
 
     from app.services.container import get_x_client
 
