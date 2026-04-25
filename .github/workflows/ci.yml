@@ -11,7 +11,7 @@ jobs:
     name: Lint & Format Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v6
         with:
@@ -30,7 +30,7 @@ jobs:
     name: Import & Syntax Validation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v6
         with:
@@ -50,7 +50,7 @@ jobs:
     name: Pytest
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v6
         with:
@@ -83,7 +83,7 @@ jobs:
     name: Database Migration Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v6
         with:
@@ -104,7 +104,7 @@ jobs:
     # triaged the existing vulnerability backlog.
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v6
         with:
@@ -144,7 +144,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Build Docker image
         run: docker build -t depscreen-backend .
