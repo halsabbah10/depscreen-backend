@@ -9,8 +9,11 @@ from __future__ import annotations
 
 import pytest
 
-from app.services.inference import _MIN_CLAUSE_LEN, split_compound_sentence, split_into_sentences
-
+from app.services.inference import (
+    _MIN_CLAUSE_LEN,
+    split_compound_sentence,
+    split_into_sentences,
+)
 
 # ── Regression: simple sentences must pass through unchanged ──────────────────
 
