@@ -7,14 +7,23 @@ service account.
 
 Cookie caching avoids re-login on every request. If cookies expire,
 one re-login attempt is made before failing.
+
+Workarounds for twikit 2.3.3 bugs:
+- ClientTransaction.init() fails with "Couldn't get KEY_BYTE indices"
+  due to X changing their anti-bot JS. We stub the transaction system.
+- User.__init__ crashes on new accounts missing optional fields like
+  'pinned_tweet_ids_str', 'withheld_in_countries'. We wrap legacy data
+  in SafeDict that returns sensible defaults for missing keys.
 """
 
 import logging
 import math
 from datetime import UTC, datetime
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
 
 from twikit import Client, TooManyRequests
+from twikit.user import User as TwikitUser
 
 from app.services.ingestion import MENTAL_HEALTH_KEYWORDS, Tweet
 
@@ -22,6 +31,55 @@ logger = logging.getLogger(__name__)
 
 # Resolve cookie path relative to this file → backend/.x_cookies.json
 _COOKIES_PATH = str(Path(__file__).resolve().parent.parent.parent / ".x_cookies.json")
+
+
+# ── twikit 2.3.3 workarounds ────────────────────────────────────────────────
+
+
+class _SafeDict(dict):
+    """Dict that returns sensible defaults for missing keys.
+
+    twikit's User.__init__ accesses many optional fields with raw dict[]
+    lookups. New X accounts lack fields like 'pinned_tweet_ids_str',
+    'withheld_in_countries', 'profile_banner_url'. This prevents KeyError
+    crashes without modifying the twikit source.
+    """
+
+    def __missing__(self, key: str):
+        if any(key.endswith(s) for s in ("_str", "_ids", "urls", "countries")):
+            return []
+        if key.endswith("_count") or key.endswith("_int"):
+            return 0
+        if key.endswith("_url") or key.endswith("_https"):
+            return ""
+        if key in ("entities", "description", "url"):
+            return _SafeDict()
+        return None
+
+
+def _safe_wrap(data):
+    """Recursively wrap dicts in _SafeDict."""
+    if isinstance(data, dict):
+        return _SafeDict({k: _safe_wrap(v) for k, v in data.items()})
+    if isinstance(data, list):
+        return [_safe_wrap(i) for i in data]
+    return data
+
+
+# Monkey-patch twikit User to handle missing legacy fields
+_original_user_init = TwikitUser.__init__
+
+
+def _patched_user_init(self, client, data, **kwargs):
+    if "legacy" in data:
+        data["legacy"] = _safe_wrap(data["legacy"])
+    _original_user_init(self, client, data, **kwargs)
+
+
+TwikitUser.__init__ = _patched_user_init
+
+
+# ── XClient ──────────────────────────────────────────────────────────────────
 
 
 class XClient:
@@ -35,13 +93,17 @@ class XClient:
         self._authenticated = False
 
     async def initialize(self) -> None:
-        """Authenticate with X. Try cookies first, fall back to login."""
+        """Authenticate with X. Load cookies and stub the broken transaction system."""
+        # Stub twikit's broken ClientTransaction (KEY_BYTE indices bug)
+        self._client.client_transaction.init = AsyncMock()
+        self._client.client_transaction.generate_transaction_id = MagicMock(return_value="depscreen")
+
         try:
             self._client.load_cookies(_COOKIES_PATH)
             self._authenticated = True
             logger.info("X/Twitter: loaded cached cookies")
         except Exception:
-            logger.info("X/Twitter: no cached cookies, performing login")
+            logger.info("X/Twitter: no cached cookies, attempting login")
             await self._login()
 
     async def _login(self) -> None:
@@ -58,7 +120,10 @@ class XClient:
         except Exception as e:
             logger.error(f"X/Twitter login failed: {e}")
             self._authenticated = False
-            raise ValueError("X/Twitter authentication failed. Please check credentials.") from e
+            raise ValueError(
+                "X/Twitter authentication failed. "
+                "If login() is broken (KEY_BYTE bug), provide cookies via .x_cookies.json instead."
+            ) from e
 
     async def fetch_user_tweets(
         self,
