@@ -116,6 +116,12 @@ jobs:
 
       - name: Audit backend requirements
         # --desc: show a one-line description of each CVE
+        # --no-strict: twikit is installed from a Codeberg VCS URL (phin fork
+        #   that fixes the KEY_BYTE indices bug in upstream 2.3.3). VCS
+        #   dependencies are not registered on PyPI and cannot be audited by
+        #   pip-audit. --no-strict (the default without --strict) treats
+        #   unauditable packages as warnings rather than hard failures, so
+        #   the scan still covers all 40+ PyPI-sourced dependencies.
         # --ignore-vuln: deliberately ignored CVEs with justification:
         #   CVE-2026-1839 (transformers) — affects Trainer._load_rng_state,
         #     only reachable when loading malicious rng_state.pth checkpoints
@@ -129,7 +135,7 @@ jobs:
         #     Attack requires local access; no remote exploit path. Fix is in
         #     2.8.0; re-evaluate when 2.8.0 ships stable.
         run: |
-          pip-audit --requirement requirements.txt --desc --strict \
+          pip-audit --requirement requirements.txt --desc \
             --ignore-vuln CVE-2026-1839 \
             --ignore-vuln CVE-2025-2953 \
             --ignore-vuln CVE-2025-3730
