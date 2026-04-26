@@ -127,10 +127,30 @@ async def lifespan(app: FastAPI):
                 username=settings.x_username,
                 email=settings.x_email,
                 password=settings.x_password,
+                cookies_b64=settings.x_cookies,
             )
             await x_client.initialize()
             set_x_client(x_client)
             logger.info("X/Twitter client initialized")
+
+            # Schedule background cookie refresh every 12 hours.
+            # When the account ages past X's anti-spam gate, login()
+            # starts succeeding and cookies auto-refresh.
+            try:
+                from app.services.scheduler import get_scheduler
+
+                scheduler = get_scheduler()
+                if scheduler and scheduler.running:
+                    scheduler.add_job(
+                        x_client.refresh_cookies,
+                        "interval",
+                        hours=12,
+                        id="x_cookie_refresh",
+                        replace_existing=True,
+                    )
+                    logger.info("X/Twitter: scheduled 12h cookie refresh")
+            except Exception as e:
+                logger.debug(f"X/Twitter: could not schedule cookie refresh: {e}")
         except Exception as e:
             logger.warning(f"X/Twitter client initialization failed (non-fatal): {e}")
     else:

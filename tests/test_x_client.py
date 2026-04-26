@@ -120,7 +120,6 @@ async def test_user_not_found_raises_valueerror(x_client):
             new_callable=AsyncMock,
             side_effect=Exception("User not found"),
         ),
-        patch.object(x_client, "_login", new_callable=AsyncMock, side_effect=Exception("login failed")),
         pytest.raises(ValueError, match="not found"),
     ):
         await x_client.fetch_user_tweets("nonexistent_user_xyz")

@@ -66,8 +66,9 @@ pydantic>=2.11,<3
 pydantic-settings>=2.1.0
 httpx==0.26.0
 
-# X/Twitter integration (unofficial GraphQL client — cookie-based auth)
-twikit>=2.3.0
+# X/Twitter integration (phin fork — fixes KEY_BYTE indices bug in upstream 2.3.3)
+twikit @ git+https://codeberg.org/phin/twikit.git
+curl_cffi>=0.7.0
 
 # PDF generation (screening result reports, patient export, clinical summary)
 reportlab>=4.0.0

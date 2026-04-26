@@ -57,6 +57,10 @@ class Settings(BaseSettings):
     x_username: str = ""
     x_email: str = ""
     x_password: str = ""
+    # Base64-encoded JSON cookies: {"auth_token": "...", "ct0": "..."}
+    # Fallback when login() is blocked (new accounts). On startup, login()
+    # is tried first; if it succeeds, this is ignored and cookies auto-refresh.
+    x_cookies: str = ""
 
     # ── Error monitoring (Sentry) ──────────────────────────────────────────
     # If unset, Sentry initializes as a no-op (local dev, CI).

@@ -1,26 +1,24 @@
 """
-X/Twitter integration via twikit.
+X/Twitter integration via twikit (phin fork).
 
-Wraps twikit's async Client to fetch a user's public tweets for
-depression screening. Uses cookie-based auth with the @depscreen
-service account.
+Deployment-friendly auth strategy:
+1. On startup: try login() for fresh cookies (auto-refresh).
+2. If login fails (new account, error 399): fall back to X_COOKIES env var.
+3. Every 12h: background task retries login(). The moment X accepts it
+   (account ages past anti-spam gate), cookie refresh becomes automatic.
 
-Cookie caching avoids re-login on every request. If cookies expire,
-one re-login attempt is made before failing.
+Cookies are stored in the X_COOKIES env var as base64-encoded JSON,
+not on disk — works in stateless containers (HuggingFace Spaces, Docker).
 
-Workarounds for twikit 2.3.3 bugs:
-- ClientTransaction.init() fails with "Couldn't get KEY_BYTE indices"
-  due to X changing their anti-bot JS. We stub the transaction system.
-- User.__init__ crashes on new accounts missing optional fields like
-  'pinned_tweet_ids_str', 'withheld_in_countries'. We wrap legacy data
-  in SafeDict that returns sensible defaults for missing keys.
+Workaround for twikit User parsing: new X accounts are missing optional
+fields like 'withheld_in_countries'. SafeDict returns sensible defaults.
 """
 
+import base64
+import json
 import logging
 import math
 from datetime import UTC, datetime
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
 
 from twikit import Client, TooManyRequests
 from twikit.user import User as TwikitUser
@@ -29,20 +27,16 @@ from app.services.ingestion import MENTAL_HEALTH_KEYWORDS, Tweet
 
 logger = logging.getLogger(__name__)
 
-# Resolve cookie path relative to this file → backend/.x_cookies.json
-_COOKIES_PATH = str(Path(__file__).resolve().parent.parent.parent / ".x_cookies.json")
 
-
-# ── twikit 2.3.3 workarounds ────────────────────────────────────────────────
+# ── twikit User parsing workaround ───────────────────────────────────────────
 
 
 class _SafeDict(dict):
     """Dict that returns sensible defaults for missing keys.
 
-    twikit's User.__init__ accesses many optional fields with raw dict[]
-    lookups. New X accounts lack fields like 'pinned_tweet_ids_str',
-    'withheld_in_countries', 'profile_banner_url'. This prevents KeyError
-    crashes without modifying the twikit source.
+    twikit's User.__init__ accesses optional fields with raw dict[] lookups.
+    New X accounts lack fields like 'pinned_tweet_ids_str',
+    'withheld_in_countries'. This prevents KeyError crashes.
     """
 
     def __missing__(self, key: str):
@@ -66,7 +60,6 @@ def _safe_wrap(data):
     return data
 
 
-# Monkey-patch twikit User to handle missing legacy fields
 _original_user_init = TwikitUser.__init__
 
 
@@ -85,45 +78,62 @@ TwikitUser.__init__ = _patched_user_init
 class XClient:
     """Singleton wrapper around twikit for fetching X/Twitter user tweets."""
 
-    def __init__(self, username: str, email: str, password: str) -> None:
+    def __init__(self, username: str, email: str, password: str, cookies_b64: str = "") -> None:
         self._username = username
         self._email = email
         self._password = password
+        self._cookies_b64 = cookies_b64
         self._client = Client("en-US")
         self._authenticated = False
 
     async def initialize(self) -> None:
-        """Authenticate with X. Load cookies and stub the broken transaction system."""
-        # Stub twikit's broken ClientTransaction (KEY_BYTE indices bug)
-        self._client.client_transaction.init = AsyncMock()
-        self._client.client_transaction.generate_transaction_id = MagicMock(return_value="depscreen")
+        """Authenticate with X. Try login() first, fall back to env var cookies."""
+        # Try login for fresh cookies (auto-refresh path)
+        if await self._try_login():
+            return
 
-        try:
-            self._client.load_cookies(_COOKIES_PATH)
-            self._authenticated = True
-            logger.info("X/Twitter: loaded cached cookies")
-        except Exception:
-            logger.info("X/Twitter: no cached cookies, attempting login")
-            await self._login()
+        # Fall back to stored cookies from X_COOKIES env var
+        if self._cookies_b64:
+            try:
+                cookie_json = base64.b64decode(self._cookies_b64).decode()
+                cookies = json.loads(cookie_json)
+                self._client.set_cookies(cookies)
+                self._authenticated = True
+                logger.info("X/Twitter: loaded cookies from X_COOKIES env var")
+                return
+            except Exception as e:
+                logger.error(f"X/Twitter: failed to parse X_COOKIES: {e}")
 
-    async def _login(self) -> None:
-        """Perform a fresh login and save cookies."""
+        raise ValueError(
+            "X/Twitter: could not authenticate. login() failed and no valid X_COOKIES provided. "
+            "Set X_COOKIES env var with base64-encoded JSON: {\"auth_token\": \"...\", \"ct0\": \"...\"}"
+        )
+
+    async def _try_login(self) -> bool:
+        """Attempt login(). Returns True on success, False on failure (non-fatal)."""
         try:
             await self._client.login(
                 auth_info_1=self._username,
                 auth_info_2=self._email,
                 password=self._password,
             )
-            self._client.save_cookies(_COOKIES_PATH)
             self._authenticated = True
-            logger.info("X/Twitter: login successful, cookies saved")
+            logger.info("X/Twitter: login() succeeded — cookies auto-refreshed")
+            return True
         except Exception as e:
-            logger.error(f"X/Twitter login failed: {e}")
-            self._authenticated = False
-            raise ValueError(
-                "X/Twitter authentication failed. "
-                "If login() is broken (KEY_BYTE bug), provide cookies via .x_cookies.json instead."
-            ) from e
+            logger.info(f"X/Twitter: login() failed (will try stored cookies): {e}")
+            return False
+
+    async def refresh_cookies(self) -> None:
+        """Background task: retry login() to auto-refresh cookies.
+
+        Called by APScheduler every 12 hours. When the account ages past
+        X's anti-spam gate, this starts succeeding automatically.
+        """
+        if await self._try_login():
+            logger.info("X/Twitter: background cookie refresh succeeded")
+        else:
+            logger.debug("X/Twitter: background cookie refresh failed (not critical)")
 
     async def fetch_user_tweets(
         self,
@@ -154,15 +164,7 @@ class XClient:
             minutes = self._rate_limit_minutes(e)
             raise ValueError(f"X rate limit reached — please try again in {minutes} minutes.") from e
         except Exception as e:
-            # Try one re-login in case cookies expired
-            if "auth" in str(e).lower() or "login" in str(e).lower():
-                try:
-                    await self._login()
-                    user = await self._client.get_user_by_screen_name(username)
-                except Exception:
-                    raise ValueError(f"X/Twitter user '@{username}' not found or profile is private.") from e
-            else:
-                raise ValueError(f"X/Twitter user '@{username}' not found or profile is private.") from e
+            raise ValueError(f"X/Twitter user '@{username}' not found or profile is private.") from e
 
         try:
             tweets_result = await user.get_tweets("Tweets", count=limit)
