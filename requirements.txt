@@ -6,7 +6,7 @@
 fastapi>=0.120.0
 uvicorn[standard]>=0.27.0
 # 0.0.22+ fixes CVE-2024-53981 and CVE-2026-24486 (DoS via large multipart).
-python-multipart>=0.0.22
+python-multipart>=0.0.26
 
 # Database
 sqlalchemy>=2.0.27,<2.1
