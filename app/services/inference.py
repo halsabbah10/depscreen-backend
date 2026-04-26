@@ -63,6 +63,55 @@ class SymptomClassifier(nn.Module):
 
 # ── Sentence Splitting ────────────────────────────────────────────────────────
 
+# Minimum character length a clause must have after compound splitting.
+# Fragments shorter than this lack enough context for reliable classification.
+_MIN_CLAUSE_LEN = 15
+
+_COMMA_RE = re.compile(r",\s+")
+_SEMICOLON_RE = re.compile(r";\s*")
+_ADVERSATIVE_RE = re.compile(
+    r"\s+(?:but|yet|however|though|although|whereas|still|while|meanwhile)\s+",
+    re.IGNORECASE,
+)
+_AND_RE = re.compile(r"\s+and\s+", re.IGNORECASE)
+# Only attempt "and" splits on sentences longer than this to avoid fragmenting
+# short phrases like "sad and tired" into useless single-word segments.
+_AND_MIN_LEN = 40
+
+
+def split_compound_sentence(sentence: str) -> list[str]:
+    """Split a compound sentence into clauses for finer-grained classification.
+
+    A single compound input ("overwhelmed and exhausted, can't focus") forces
+    the model to pick ONE label — the dominant symptom swamps the rest.
+    Splitting it lets each clause be classified independently, dramatically
+    improving recall for co-occurring symptoms.
+
+    Only splits when every resulting segment is >= _MIN_CLAUSE_LEN characters;
+    shorter fragments lack context and hurt model accuracy. Simple sentences
+    pass through unchanged — this is strictly additive (zero regression risk).
+
+    Split priority (first successful split wins):
+      1. Semicolons — strongest clause boundary in informal writing.
+      2. Commas — most common mid-sentence clause boundary.
+      3. Adversative conjunctions (but / yet / however / though / …).
+      4. "and" — only for sentences longer than _AND_MIN_LEN.
+    """
+
+    def _try(pattern: re.Pattern) -> list[str] | None:
+        parts = [p.strip() for p in pattern.split(sentence) if p.strip()]
+        if len(parts) > 1 and all(len(p) >= _MIN_CLAUSE_LEN for p in parts):
+            return parts
+        return None
+
+    return (
+        _try(_SEMICOLON_RE)
+        or _try(_COMMA_RE)
+        or _try(_ADVERSATIVE_RE)
+        or (len(sentence) >= _AND_MIN_LEN and _try(_AND_RE))
+        or [sentence]
+    )
+
 
 def split_into_sentences(text: str) -> list[str]:
     """Rule-based sentence splitter for English and Arabic informal text."""
@@ -408,6 +457,13 @@ class ModelService:
                 severity_explanation="No analyzable text found.",
                 dsm5_criteria_met=[],
             )
+
+        # Second pass: split compound sentences into clauses so each symptom
+        # gets its own focused input rather than competing inside one sentence.
+        expanded: list[str] = []
+        for sent in sentences:
+            expanded.extend(split_compound_sentence(sent))
+        sentences = expanded
 
         detections: list[SymptomDetection] = []
 

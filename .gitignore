@@ -110,3 +110,4 @@ ml/data/suicide_watch/
 
 # X/Twitter twikit cookie cache (contains session tokens)
 .x_cookies.json
+*.tw_session
