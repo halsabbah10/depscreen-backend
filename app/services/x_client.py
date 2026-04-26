@@ -106,7 +106,7 @@ class XClient:
 
         raise ValueError(
             "X/Twitter: could not authenticate. login() failed and no valid X_COOKIES provided. "
-            "Set X_COOKIES env var with base64-encoded JSON: {\"auth_token\": \"...\", \"ct0\": \"...\"}"
+            'Set X_COOKIES env var with base64-encoded JSON: {"auth_token": "...", "ct0": "..."}'
         )
 
     async def _try_login(self) -> bool:
