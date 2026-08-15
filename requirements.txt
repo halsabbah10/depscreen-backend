@@ -71,7 +71,7 @@ twikit @ git+https://codeberg.org/phin/twikit.git
 curl_cffi>=0.7.0
 
 # PDF generation (screening result reports, patient export, clinical summary)
-reportlab>=4.0.0
+reportlab>=4.4.10
 
 # Supabase Storage (avatar uploads) + image normalisation
 supabase>=2.0.0
